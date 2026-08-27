@@ -19,6 +19,7 @@ Robinhood Chain ($HOOD) belum terverifikasi di provider manapun — jangan ditam
 ## 4. Arsitektur
 CLI/TUI input → Data Layer (DexScreener agregat; GeckoTerminal trade per-wallet; Helius wallet balance; nanti Birdeye/Bitquery) → Heuristic Layer deterministik (rug_check, clustering) → AI Analyst (terima hasil heuristik + data sebagai konteks; tidak boleh menambah fakta; output per tier) → Terminal UI (Textual).
 Prinsip: AI tidak pernah bicara langsung ke API mentah — selalu lewat heuristic layer.
+Web (2026-08-27): frontend/ (React+Vite+TS, MPA: index=landing, terminal=web terminal) + webapp/ (FastAPI serve dist + /api/scan|explain|whale|health). Engine sama dgn TUI; /api/explain re-fetch + re-assess SERVER-SIDE (client tak bisa menempa evidence); endpoint AI rate-limited per-IP; tanpa dist → halaman jujur "run npm run build". Semua user-facing string English (web + TUI + evidence + output AI); dokumen internal tetap Indonesia.
 
 ## 5. Strategi Sumber Data
 MVP: DexScreener (gratis, tanpa key, TANPA data per-wallet). Paralel: GeckoTerminal (trade individual, gratis, dasar clustering). Nanti: Birdeye (produksi, MCP server resmi), Bitquery (deep query, pricing opaque).
@@ -38,6 +39,7 @@ Token TIDAK atur custody/eksekusi, TIDAK dijual dengan narasi profit. Murni atur
 ## 9. Status Modul Kode
 providers/dexscreener.py (jalan; sol/bnb/base/avax; hype ditahan), providers/geckoterminal.py (jalan; trade per-wallet; field & network id TERVERIFIKASI live 2026-08-27), providers/helius.py (kerangka; saldo wallet butuh HELIUS_API_KEY — urusan founder; response belum diverifikasi runtime), heuristics/rug_check.py (jalan; 6 sinyal berbobot, clustering opsional), heuristics/clustering.py (jalan; burst + uniformity; <8 wallet tidak diskor), ai_analyst.py (jalan; multi-provider; grounding log; output JSON terstruktur), access/token_gate.py (kerangka v0 free-only; hook soulbound/time-bound), app.py + ui/ (MVP jalan; /load, /verify, /cluster, /explain [claude|glm|kimi], /whale, /help), webserve.py (jalan; textual-serve localhost:8000), tests/ (26 test hijau: rug_check, clustering, geckoterminal, ai JSON/grounding/tier, token_gate, helper chart, snapshot UI).
 Daftar modul versi dokumen lama (data_sources.py, trade_feed.py, whale_tracker.py, token_gate.py flat di root) TIDAK berlaku — sudah direstrukturisasi ke paket providers/ + heuristics/ + access/.
+Tambahan web: webapp/server.py (FastAPI; scan/explain/whale/health; TTL cache 30s; rate limit AI per-IP via ALPHA_AI_RATELIMIT_HOURLY/DAILY), frontend/ (Vite 8 + React 19 + TS 7, MPA 2 entry, tanpa UI framework; watchlist localStorage; command bar sama dgn TUI).
 
 ## 10. Terverifikasi vs Masih Asumsi
 Terverifikasi: GeckoTerminal ada endpoint trade per-wallet gratis; DexScreener tidak expose per-wallet; Birdeye punya MCP server; paper wash-trading (arXiv 2603.13830) ada. TERVERIFIKASI TAMBAHAN 2026-08-27 (dicek live): field response GeckoTerminal (tx_from_address, kind, block_timestamp, volume_in_usd, from/to_token_address); network id GeckoTerminal solana/bsc/base/avax.
