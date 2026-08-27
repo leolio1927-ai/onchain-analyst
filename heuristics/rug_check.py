@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import time
 
-LEVEL_LABELS = {"low": "RENDAH", "medium": "WASPADA", "high": "BAHAYA", "nodata": "DATA KURANG"}
+LEVEL_LABELS = {"low": "LOW", "medium": "CAUTION", "high": "HIGH RISK", "nodata": "INSUFFICIENT DATA"}
 
 WEIGHTS = {"liquidity": 0.30, "fdv_liq": 0.25, "vol_liq": 0.15, "buy_ratio": 0.15, "age": 0.15,
            "clustering": 0.20}
@@ -27,14 +27,14 @@ def _liquidity(liq):
     if liq is None:
         return None, ""
     if liq < 2_000:
-        return 1.0, f"${liq:,.0f} < $2rb — slippage ekstrem"
+        return 1.0, f"${liq:,.0f} < $2k — extreme slippage"
     if liq < 10_000:
-        return 0.8, f"${liq:,.0f} < $10rb — sangat tipis"
+        return 0.8, f"${liq:,.0f} < $10k — very thin"
     if liq < 50_000:
-        return 0.5, f"${liq:,.0f} < $50rb — tipis"
+        return 0.5, f"${liq:,.0f} < $50k — thin"
     if liq < 150_000:
-        return 0.2, f"${liq:,.0f} < $150rb — belum nyaman"
-    return 0.0, f"${liq:,.0f} — memadai"
+        return 0.2, f"${liq:,.0f} < $150k — not comfortable yet"
+    return 0.0, f"${liq:,.0f} — adequate"
 
 
 def _fdv_liq(fdv, liq):
@@ -42,14 +42,14 @@ def _fdv_liq(fdv, liq):
         return None, ""
     r = fdv / liq
     if r > 500:
-        return 1.0, f"FDV/likuiditas {r:,.0f}x > 500x — exit liquidity nyaris nol"
+        return 1.0, f"FDV/liquidity {r:,.0f}x > 500x — exit liquidity near zero"
     if r > 100:
-        return 0.85, f"FDV/likuiditas {r:,.0f}x > 100x — sangat timpang"
+        return 0.85, f"FDV/liquidity {r:,.0f}x > 100x — severely skewed"
     if r > 50:
-        return 0.65, f"FDV/likuiditas {r:,.0f}x > 50x — timpang"
+        return 0.65, f"FDV/liquidity {r:,.0f}x > 50x — skewed"
     if r > 20:
-        return 0.35, f"FDV/likuiditas {r:,.0f}x — di atas 20x"
-    return 0.05, f"FDV/likuiditas {r:,.1f}x — wajar"
+        return 0.35, f"FDV/liquidity {r:,.0f}x — above 20x"
+    return 0.05, f"FDV/liquidity {r:,.1f}x — reasonable"
 
 
 def _vol_liq(vol, liq):
@@ -57,14 +57,14 @@ def _vol_liq(vol, liq):
         return None, ""
     r = vol / liq
     if r > 15:
-        return 0.75, f"vol24 {r:,.0f}x likuiditas — pola wash-like"
+        return 0.75, f"24h vol {r:,.0f}x liquidity — wash-trade-like pattern"
     if r > 8:
-        return 0.45, f"vol24 {r:,.1f}x likuiditas — agak tinggi"
+        return 0.45, f"24h vol {r:,.1f}x liquidity — somewhat high"
     if r < 0.02:
-        return 0.6, f"vol24 {r:.3f}x likuiditas — nyaris mati"
+        return 0.6, f"24h vol {r:.3f}x liquidity — nearly dead"
     if r < 0.2:
-        return 0.3, f"vol24 {r:.2f}x likuiditas — sepi"
-    return 0.0, f"vol24 {r:.2f}x likuiditas — sehat"
+        return 0.3, f"24h vol {r:.2f}x liquidity — quiet"
+    return 0.0, f"24h vol {r:.2f}x liquidity — healthy"
 
 
 def _buy_ratio(txns):
@@ -74,13 +74,13 @@ def _buy_ratio(txns):
         return None, ""
     tot = b + s
     if tot < 10:
-        return None, f"txn24 cuma {tot} — sampel kecil"
+        return None, f"only {tot} 24h txns — small sample"
     r = b / tot
     if r > 0.9:
-        return 0.7, f"buys {b}/sells {s} ({r:.0%}) — one-sided, perlu curiga"
+        return 0.7, f"buys {b}/sells {s} ({r:.0%}) — one-sided, stay suspicious"
     if r > 0.75:
-        return 0.3, f"buys {b}/sells {s} ({r:.0%}) — condong beli"
-    return 0.0, f"buys {b}/sells {s} ({r:.0%}) — seimbang"
+        return 0.3, f"buys {b}/sells {s} ({r:.0%}) — buy-leaning"
+    return 0.0, f"buys {b}/sells {s} ({r:.0%}) — balanced"
 
 
 def _age(created_ms):
@@ -88,14 +88,14 @@ def _age(created_ms):
         return None, ""
     hrs = max(0.0, (_now_ms() - created_ms) / 3_600_000)
     if hrs < 1:
-        return 0.9, f"pair umur {hrs * 60:.0f} mnt — fase launch paling rawan"
+        return 0.9, f"pair age {hrs * 60:.0f} min — most fragile launch window"
     if hrs < 6:
-        return 0.65, f"pair umur {hrs:.1f} jam"
+        return 0.65, f"pair age {hrs:.1f} h"
     if hrs < 24:
-        return 0.4, f"pair umur {hrs:.1f} jam"
+        return 0.4, f"pair age {hrs:.1f} h"
     if hrs < 24 * 7:
-        return 0.15, f"pair umur {hrs / 24:.1f} hari"
-    return 0.0, f"pair umur {hrs / 24 / 7:.1f} minggu"
+        return 0.15, f"pair age {hrs / 24:.1f} days"
+    return 0.0, f"pair age {hrs / 24 / 7:.1f} weeks"
 
 
 def assess(pair: dict, clustering_result: dict | None = None) -> dict:
@@ -108,26 +108,26 @@ def assess(pair: dict, clustering_result: dict | None = None) -> dict:
     liq = (pair.get("liquidity") or {}).get("usd")
     fdv = pair.get("fdv") or pair.get("marketCap")
     signals = [
-        _sig("liquidity", "Likuiditas", WEIGHTS["liquidity"], *_liquidity(liq)),
-        _sig("fdv_liq", "FDV vs Likuiditas", WEIGHTS["fdv_liq"], *_fdv_liq(fdv, liq)),
-        _sig("vol_liq", "Volume vs Likuiditas", WEIGHTS["vol_liq"],
+        _sig("liquidity", "Liquidity", WEIGHTS["liquidity"], *_liquidity(liq)),
+        _sig("fdv_liq", "FDV vs Liquidity", WEIGHTS["fdv_liq"], *_fdv_liq(fdv, liq)),
+        _sig("vol_liq", "Volume vs Liquidity", WEIGHTS["vol_liq"],
              *_vol_liq((pair.get("volume") or {}).get("h24"), liq)),
-        _sig("buy_ratio", "Beli vs Jual 24j", WEIGHTS["buy_ratio"], *_buy_ratio(pair.get("txns"))),
-        _sig("age", "Umur pair", WEIGHTS["age"], *_age(pair.get("pairCreatedAt"))),
+        _sig("buy_ratio", "24h Buys vs Sells", WEIGHTS["buy_ratio"], *_buy_ratio(pair.get("txns"))),
+        _sig("age", "Pair age", WEIGHTS["age"], *_age(pair.get("pairCreatedAt"))),
     ]
     if clustering_result is not None:
-        signals.append(_sig("clustering", "Koordinasi wallet", WEIGHTS["clustering"],
+        signals.append(_sig("clustering", "Wallet coordination", WEIGHTS["clustering"],
                             clustering_result.get("severity"),
                             clustering_result.get("evidence", "")))
     computed = [s for s in signals if s["severity"] is not None]
     notes = []
     if len(computed) < MIN_SIGNALS:
-        notes.append(f"hanya {len(computed)}/{len(signals)} sinyal terhitung — data belum cukup untuk vonis")
+        notes.append(f"only {len(computed)}/{len(signals)} signals computed — data not sufficient for a verdict")
         return {"level": "nodata", "level_label": LEVEL_LABELS["nodata"], "score": None,
                 "signals": signals, "notes": notes}
     totw = sum(s["weight"] for s in computed)
     score = 100.0 * sum(s["severity"] * s["weight"] for s in computed) / totw
     level = "high" if score >= 65 else "medium" if score >= 40 else "low"
-    notes.append("gabungan heuristik — bukan audit; fair-launch/airdrop/KOL call bisa mirror pola mirip")
+    notes.append("combined heuristics — not an audit; fair-launch/airdrop/KOL calls can mirror these patterns")
     return {"level": level, "level_label": LEVEL_LABELS[level], "score": round(score, 1),
             "signals": signals, "notes": notes}

@@ -45,25 +45,25 @@ def test_tanpa_key_gagal_jujur_semua_provider(monkeypatch):
 
 
 def test_parse_output_json_valid():
-    out = parse_output('```json\n{"ringkasan": "r", "sinyal_kunci": '
-                       '[{"label": "l", "bukti": "b"}], "keterbatasan": "k"}\n```')
+    out = parse_output('```json\n{"summary": "r", "key_signals": '
+                       '[{"label": "l", "evidence": "b"}], "limitations": "k"}\n```')
     assert out["parse_ok"] is True
-    assert out["ringkasan"] == "r"
-    assert out["sinyal_kunci"] == [{"label": "l", "bukti": "b"}]
-    assert out["keterbatasan"] == "k"
+    assert out["summary"] == "r"
+    assert out["key_signals"] == [{"label": "l", "evidence": "b"}]
+    assert out["limitations"] == "k"
 
 
 def test_parse_output_fallback_mentah():
-    out = parse_output("bukan json sama sekali")
+    out = parse_output("not json at all")
     assert out["parse_ok"] is False
-    assert out["ringkasan"] == "bukan json sama sekali"
-    assert out["sinyal_kunci"] == []
+    assert out["summary"] == "not json at all"
+    assert out["key_signals"] == []
 
 
 def test_grounding_log_terstruktur(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(ai_analyst, "_call", lambda *a, **k: (
-        '{"ringkasan": "r", "sinyal_kunci": [], "keterbatasan": "k"}', "mock-model",
+        '{"summary": "r", "key_signals": [], "limitations": "k"}', "mock-model",
         {"input": 1, "output": 1}))
     out = explain(_pair(), _assess(), "free", "claude")
     assert out["parse_ok"] is True
@@ -71,7 +71,7 @@ def test_grounding_log_terstruktur(monkeypatch, tmp_path):
     rec = json.loads(f.read_text().splitlines()[-1])
     assert rec["provider"] == "claude" and rec["tier"] == "free"
     assert rec["parse_ok"] is True
-    assert rec["output_structured"]["ringkasan"] == "r"
+    assert rec["output_structured"]["summary"] == "r"
     assert "evidence" in rec
 
 
@@ -90,5 +90,5 @@ def test_tier_hanya_panjang_bukan_kebenaran(monkeypatch, tmp_path):
     explain(_pair(), _assess(), "deep", "claude")
     assert (mt_free, seen["mt"]) == (400, 1000)
     assert seen["system"] == sys_free
-    # blok <evidence> identik — satu-satunya beda kalimat instrusi kedalaman di akhir
-    assert user_free.split("Analisis token ini")[0] == seen["user"].split("Analisis token ini")[0]
+    # <evidence> block identical — only the depth instruction sentence differs at the end
+    assert user_free.split("Analyze this token")[0] == seen["user"].split("Analyze this token")[0]

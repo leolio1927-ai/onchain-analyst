@@ -57,7 +57,7 @@ def test_tanpa_clustering_tetap_5_sinyal():
 
 def test_clustering_tak_diskor_tampil_jujur():
     r = rug_check.assess(_pair(), {"wallets": 3, "buys": 3, "severity": None,
-                                   "evidence": "3 wallet terlihat (min 8) — sampel kurang, tidak diskor"})
+                                   "evidence": "3 wallets seen (min 8) — insufficient sample, not scored"})
     cl = next(s for s in r["signals"] if s["key"] == "clustering")
     assert cl["severity"] is None
-    assert "sampel kurang" in cl["evidence"]
+    assert "insufficient sample" in cl["evidence"]

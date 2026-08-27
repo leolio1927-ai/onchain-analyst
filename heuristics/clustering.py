@@ -64,7 +64,7 @@ def analyze(trades: list[dict]) -> dict:
 
     if len(wallets) < MIN_WALLETS or n_buys == 0:
         return {"wallets": len(wallets), "buys": n_buys, "severity": None,
-                "evidence": f"{len(wallets)} wallet terlihat (min {MIN_WALLETS}) — sampel kurang, tidak diskor"}
+                "evidence": f"{len(wallets)} wallets seen (min {MIN_WALLETS}) — insufficient sample, not scored"}
 
     times = [e for e in (_epoch(t.get("ts")) for t in buys) if e is not None]
     amounts = [t["usd"] for t in buys if isinstance(t.get("usd"), (int, float))]
@@ -93,10 +93,10 @@ def analyze(trades: list[dict]) -> dict:
     cands = [s for s in (sev_burst, sev_uni) if s is not None]
     severity = max(cands) if cands else None
 
-    parts = [f"{len(wallets)} wallet · {n_buys} beli"]
+    parts = [f"{len(wallets)} wallets · {n_buys} buys"]
     if burst_ratio is not None:
-        parts.append(f"burst 60 dtk maks {burst_max} ({burst_ratio:.1f}x rata-rata)")
+        parts.append(f"60s burst max {burst_max} ({burst_ratio:.1f}x average)")
     if cv is not None:
-        parts.append(f"CV nominal beli {cv:.2f}")
+        parts.append(f"buy amount CV {cv:.2f}")
     return {"wallets": len(wallets), "buys": n_buys, "severity": severity,
             "evidence": " · ".join(parts)}

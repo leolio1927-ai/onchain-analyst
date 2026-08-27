@@ -14,7 +14,7 @@ def _t(wallet, dt, usd, kind="buy"):
 def test_sampel_kecil_tidak_diskor():
     r = clustering.analyze([_t(f"W{i}", i * 10, 100) for i in range(5)])
     assert r["severity"] is None
-    assert "tidak diskor" in r["evidence"]
+    assert "not scored" in r["evidence"]
 
 
 def test_burst_terkoordinasi():
@@ -30,7 +30,7 @@ def test_nominal_seragam():
     trades = [_t(f"W{i}", i * 700, 250.0) for i in range(10)]  # waktu sebar, nominal identik
     r = clustering.analyze(trades)
     assert r["severity"] is not None and r["severity"] >= 0.45
-    assert "CV nominal" in r["evidence"]
+    assert "buy amount CV" in r["evidence"]
 
 
 def test_organik_sehat():

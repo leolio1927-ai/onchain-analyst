@@ -17,7 +17,7 @@ from ui.theme import ALPHA_DARK
 class TerminalAlpha(App):
     TITLE = "Terminal Alpha — AI Memecoin Scanner"
     CSS_PATH = "ui/styles.tcss"
-    BINDINGS = (("q", "quit", "Keluar"), ("ctrl+q", "quit", "Keluar"))
+    BINDINGS = (("q", "quit", "Quit"), ("ctrl+q", "quit", "Quit"))
 
     def on_mount(self) -> None:
         self.register_theme(ALPHA_DARK)

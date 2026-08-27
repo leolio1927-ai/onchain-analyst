@@ -28,9 +28,9 @@ from ui.widgets.risk_badge import RiskBadge
 from ui.widgets.stat_card import StatCard
 
 COLUMNS = [
-    ("Pair", "l", 16), ("DEX", "l", 10), ("Harga", "r", 14),
-    ("5m", "r", 9), ("1j", "r", 9), ("24j", "r", 10),
-    ("Likuiditas", "r", 11), ("Vol 24j", "r", 9), ("FDV", "r", 10),
+    ("Pair", "l", 16), ("DEX", "l", 10), ("Price", "r", 14),
+    ("5m", "r", 9), ("1h", "r", 9), ("24h", "r", 10),
+    ("Liquidity", "r", 11), ("Vol 24h", "r", 9), ("FDV", "r", 10),
 ]
 _COL_W = {lab: w for lab, _, w in COLUMNS}
 
@@ -95,19 +95,19 @@ class Dashboard(Screen):
         self._chain_key: str | None = None
         yield Header()
         with Horizontal(id="topbar"):
-            yield StatCard(label="Harga", id="c-price")
-            yield StatCard(label="Likuiditas", id="c-liq")
-            yield StatCard(label="Vol 24j", id="c-vol")
+            yield StatCard(label="Price", id="c-price")
+            yield StatCard(label="Liquidity", id="c-liq")
+            yield StatCard(label="Vol 24h", id="c-vol")
             yield StatCard(label="FDV", id="c-fdv")
             yield RiskBadge(id="risk")
         with Horizontal(id="body"):
             with Vertical(id="left"):
-                yield Static(" Tidak ada pair — /load <chain> <address>", id="pair-title")
+                yield Static(" No pair — /load <chain> <address>", id="pair-title")
                 yield DataTable(id="table", cursor_type="row")
             with Vertical(id="right"):
                 yield PlotextPlot(id="chart")
                 yield RichLog(id="ai", markup=True, highlight=True, wrap=True)
-        yield Input(placeholder="Perintah…  /load sol <address>  |  /verify  |  /help", id="cmd")
+        yield Input(placeholder="Commands…  /load sol <address>  |  /verify  |  /help", id="cmd")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -116,30 +116,30 @@ class Dashboard(Screen):
         for lab, _align, w in COLUMNS:
             t.add_column(lab, key=lab, width=w)
         ai = self.query_one("#ai", RichLog)
-        ai.write(f"[bold {AMBER}]Terminal Alpha[/] siap. [dim]Evidence-first: analisis hanya dari data provider.[/]")
-        ai.write("[dim]Coba: /load sol DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263 lalu /verify[/]")
-        ai.write("[dim]Disclaimer: alat analisis & edukasi — BUKAN saran finansial. "
-                 "Skor = heuristik otomatis, bukan audit resmi. DYOR.[/]")
+        ai.write(f"[bold {AMBER}]Terminal Alpha[/] ready. [dim]Evidence-first: analysis comes only from provider data.[/]")
+        ai.write("[dim]Try: /load sol DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263 then /verify[/]")
+        ai.write("[dim]Disclaimer: research & education tool — NOT financial advice. "
+                 "Scores are automated heuristics, not an audit. DYOR.[/]")
         self._chart_empty()
 
     # ---------- chart ----------
 
     def _chart_empty(self) -> None:
         plt = self.query_one("#chart", PlotextPlot).plt
-        plt.title("harga 24j — belum ada data")
+        plt.title("24h price — no data yet")
         self.query_one("#chart", PlotextPlot).refresh()
 
     def _chart_est(self, pair: dict) -> None:
-        """Estimasi jalur harga dari priceChange — DIBERI LABEL est., bukan OHLC."""
+        """Estimated price path from priceChange — LABELED est., not OHLC."""
         pc = pair.get("priceChange") or {}
         price = float(pair.get("priceUsd") or 0)
         pts = _est_points(price, pc)
         base_price = pts[0] or 1.0
-        rel = [v / base_price * 100 for v in pts]  # indeks 100 = 24j lalu
+        rel = [v / base_price * 100 for v in pts]  # index 100 = 24h ago
         plt = self.query_one("#chart", PlotextPlot).plt
         plt.clear_data()
-        plt.title("pergerakan 24j — est., indeks 100 = 24j lalu")
-        plt.xticks([1, 2, 3, 4, 5], ["24j", "6j", "1j", "5m", "now"])
+        plt.title("24h move — est., index 100 = 24h ago")
+        plt.xticks([1, 2, 3, 4, 5], ["24h", "6h", "1h", "5m", "now"])
         plt.plot(rel)
         self.query_one("#chart", PlotextPlot).refresh()
 
@@ -153,7 +153,7 @@ class Dashboard(Screen):
         cmd, *args = text.split()
         ai = self.query_one("#ai", RichLog)
         if cmd == "/help":
-            ai.write("[bold]Perintah:[/] /load <chain> <address> · /verify · /cluster · "
+            ai.write("[bold]Commands:[/] /load <chain> <address> · /verify · /cluster · "
                      "/explain [claude|glm|kimi] · /whale <address> · /help · Ctrl+P palette")
         elif cmd == "/verify":
             self._verify()
@@ -162,21 +162,21 @@ class Dashboard(Screen):
         elif cmd == "/explain":
             prov = args[0].lower() if args else "claude"
             if prov not in ai_analyst.PROVIDERS:
-                ai.write(f"[#e74c3c]Provider tak dikenal: {escape(prov)} — pilih {'|'.join(ai_analyst.PROVIDERS)}[/]")
+                ai.write(f"[#e74c3c]Unknown provider: {escape(prov)} — pick {'|'.join(ai_analyst.PROVIDERS)}[/]")
             else:
                 self._explain(prov)
         elif cmd == "/load":
             if len(args) != 2 or args[0].lower() not in dexscreener.CHAIN_IDS:
-                ai.write(f"[#e74c3c]Pemakaian: /load <{'|'.join(dexscreener.CHAIN_IDS)}> <address>[/]")
+                ai.write(f"[#e74c3c]Usage: /load <{'|'.join(dexscreener.CHAIN_IDS)}> <address>[/]")
             else:
                 self._load(args[0].lower(), args[1])
         elif cmd == "/whale":
             if len(args) != 1:
-                ai.write("[#e74c3c]Pemakaian: /whale <address>[/]")
+                ai.write("[#e74c3c]Usage: /whale <address>[/]")
             else:
                 self._whale(args[0])
         else:
-            ai.write(f"[dim]Perintah tak dikenal: {escape(text)}[/]")
+            ai.write(f"[dim]Unknown command: {escape(text)}[/]")
 
     def _verify(self) -> None:
         ai = self.query_one("#ai", RichLog)
@@ -186,23 +186,23 @@ class Dashboard(Screen):
         p, a = self._last_pair, self._assessment
         base = (p.get("baseToken") or {}).get("symbol") or "?"
         if a["score"] is None:
-            ai.write(f"[bold {AMBER}]VERIFY — {escape(base)}[/] · DATA KURANG")
+            ai.write(f"[bold {AMBER}]VERIFY — {escape(base)}[/] · INSUFFICIENT DATA")
         else:
-            ai.write(f"[bold {AMBER}]VERIFY — {escape(base)}[/] · skor {a['score']:.0f}/100 → {a['level_label']}")
+            ai.write(f"[bold {AMBER}]VERIFY — {escape(base)}[/] · score {a['score']:.0f}/100 → {a['level_label']}")
         for s in a["signals"]:
             if s["severity"] is None:
                 note = f" ({escape(s['evidence'])})" if s["evidence"] else ""
-                ai.write(f"  [dim]· {escape(s['label'])}: data tidak tersedia{note}[/]")
+                ai.write(f"  [dim]· {escape(s['label'])}: data not available{note}[/]")
                 continue
             col = _sev_color(s["severity"])
             ai.write(f"  [{col}]■[/] {escape(s['label'])} — {escape(s['evidence'])}"
-                     f" [dim](bobot {s['weight']:.0%})[/]")
+                     f" [dim](weight {s['weight']:.0%})[/]")
         for n in a["notes"]:
             ai.write(f"  [dim]§ {escape(n)}[/]")
         ts = datetime.now(UTC).strftime("%H:%M:%S")
-        ai.write(f"[dim][sumber: dexscreener {escape(p.get('dexId') or '')} @ {ts} UTC"
-                 f" · heuristik v0 deterministik — bukan saran finansial][/]")
-        self.notify(f"Verify {base}: {a['level_label']}", title="Risiko",
+        ai.write(f"[dim][source: dexscreener {escape(p.get('dexId') or '')} @ {ts} UTC"
+                 f" · deterministic heuristics v0 — not financial advice][/]")
+        self.notify(f"Verify {base}: {a['level_label']}", title="Risk",
                     severity="warning" if a["level"] in ("high", "medium") else "information")
 
     @work(exclusive=True, group="explain")
@@ -213,54 +213,54 @@ class Dashboard(Screen):
             return
         symbol = (self._last_pair.get("baseToken") or {}).get("symbol") or "?"
         tier = token_gate.resolve_tier()
-        ai.write(f"[dim]{prov} menganalisis… konteks = hasil heuristik + data provider (tanpa tambahan eksternal)[/]")
+        ai.write(f"[dim]{prov} analyzing… context = heuristic results + provider data (no external additions)[/]")
         try:
             out = await asyncio.to_thread(ai_analyst.explain, self._last_pair, self._assessment, tier, prov)
         except ai_analyst.NoKeyError:
-            ai.write(f"[#e67e22]{ai_analyst.PROVIDERS[prov].env_key} belum diset — "
-                     f"lihat .env.example, isi .env, jalankan ulang app.[/]")
+            ai.write(f"[#e67e22]{ai_analyst.PROVIDERS[prov].env_key} not set — "
+                     f"see .env.example, fill .env, restart the app.[/]")
             return
-        except Exception as e:  # noqa: BLE001 — tampilkan, jangan crash
+        except Exception as e:  # noqa: BLE001 — show it, never crash
             ai.write(f"[#e74c3c]AI error: {escape(str(e))}[/]")
             return
         ai.write(f"[bold {AMBER}]AI ANALYST · {prov} · {escape(symbol)} · tier {tier}[/]")
         if out.get("parse_ok"):
-            ai.write(escape(out.get("ringkasan", "")))
-            for s in out.get("sinyal_kunci", []):
-                ai.write(f"  [dim]·[/] {escape(s.get('label', ''))}: {escape(s.get('bukti', ''))}")
-            if out.get("keterbatasan"):
-                ai.write(f"  [dim]§ keterbatasan: {escape(out['keterbatasan'])}[/]")
+            ai.write(escape(out.get("summary", "")))
+            for s in out.get("key_signals", []):
+                ai.write(f"  [dim]·[/] {escape(s.get('label', ''))}: {escape(s.get('evidence', ''))}")
+            if out.get("limitations"):
+                ai.write(f"  [dim]§ limitations: {escape(out['limitations'])}[/]")
         else:
-            ai.write(escape(out.get("ringkasan", "")))
-            ai.write("[dim][output bukan JSON valid — ditampilkan mentah][/]")
-        ai.write("[dim][grounding: evidence + output tercatat → logs/grounding/*.jsonl][/]")
-        self.notify("AI analisis selesai", title="AI", severity="information")
+            ai.write(escape(out.get("summary", "")))
+            ai.write("[dim][output was not valid JSON — shown raw][/]")
+        ai.write("[dim][grounding: evidence + output logged → logs/grounding/*.jsonl][/]")
+        self.notify("AI analysis done", title="AI", severity="information")
 
     @work(exclusive=True, group="load")
     async def _load(self, chain_key: str, address: str) -> None:
         ai = self.query_one("#ai", RichLog)
-        ai.write(f"[dim]Memuat {dexscreener.CHAIN_IDS[chain_key]}:{escape(address[:12])}…[/]")
+        ai.write(f"[dim]Loading {dexscreener.CHAIN_IDS[chain_key]}:{escape(address[:12])}…[/]")
         try:
             pair = await asyncio.to_thread(dexscreener.fetch_pair, chain_key, address)
         except urllib.error.HTTPError as e:
-            msg = "rate limit — coba lagi 30–60 detik" if e.code == 429 else f"HTTP {e.code}"
+            msg = "rate limited — retry in 30–60s" if e.code == 429 else f"HTTP {e.code}"
             self.notify(f"DexScreener: {msg}", title="Provider", severity="warning")
             ai.write(f"[#e74c3c]Provider error: {msg}[/]")
             return
-        except Exception as e:  # noqa: BLE001 — tampilkan, jangan crash
-            self.notify(str(e), title="Jaringan", severity="error")
-            ai.write(f"[#e74c3c]Gagal mengambil data: {escape(str(e))}[/]")
+        except Exception as e:  # noqa: BLE001 — show it, never crash
+            self.notify(str(e), title="Network", severity="error")
+            ai.write(f"[#e74c3c]Failed to fetch data: {escape(str(e))}[/]")
             return
         if pair is None:
-            ai.write("[#e67e22]Tidak ada pair untuk address itu di chain ini — cek address/chain.[/]")
+            ai.write("[#e67e22]No pair for that address on this chain — check address/chain.[/]")
             return
         self._chain_key = chain_key
         cl = await self._fetch_clustering(chain_key, pair)
         self._apply_pair(pair, cl)
 
     async def _fetch_clustering(self, chain_key: str, pair: dict) -> dict:
-        """Trade feed GeckoTerminal → clustering. Gagal apa pun → severity None
-        dengan alasan — 5 sinyal tetap jalan (degrade jujur, §2.6)."""
+        """GeckoTerminal trade feed → clustering. Any failure → severity None
+        with a reason — the other 5 signals still run (honest degrade, §2.6)."""
         pool = pair.get("pairAddress")
         token = (pair.get("baseToken") or {}).get("address")
         try:
@@ -276,22 +276,22 @@ class Dashboard(Screen):
             return clustering.analyze(trades)
         except urllib.error.HTTPError as e:
             return {"wallets": 0, "buys": 0, "severity": None,
-                    "evidence": f"GeckoTerminal HTTP {e.code} — data clustering tidak tersedia"}
-        except Exception as e:  # noqa: BLE001 — clustering gagal ≠ token tak bisa dinilai
+                    "evidence": f"GeckoTerminal HTTP {e.code} — clustering data unavailable"}
+        except Exception as e:  # noqa: BLE001 — clustering failing ≠ token can't be assessed
             return {"wallets": 0, "buys": 0, "severity": None,
-                    "evidence": f"GeckoTerminal gagal ({str(e)[:60]}) — data clustering tidak tersedia"}
+                    "evidence": f"GeckoTerminal failed ({str(e)[:60]}) — clustering data unavailable"}
 
     @work(exclusive=True, group="cluster")
     async def _cluster(self) -> None:
         ai = self.query_one("#ai", RichLog)
         if not self._last_pair or not self._chain_key:
-            ai.write("[#e67e22]Belum ada token — /load <chain> <address> dulu.[/]")
+            ai.write("[#e67e22]No token yet — /load <chain> <address> first.[/]")
             return
-        ai.write("[dim]refresh koordinasi wallet (GeckoTerminal)…[/]")
+        ai.write("[dim]refreshing wallet coordination (GeckoTerminal)…[/]")
         cl = await self._fetch_clustering(self._chain_key, self._last_pair)
         self._apply_pair(self._last_pair, cl, announce=False)
         sig = next((s for s in self._assessment["signals"] if s["key"] == "clustering"), None)
-        ev = (sig or {}).get("evidence", "tidak tersedia")
+        ev = (sig or {}).get("evidence", "unavailable")
         if sig and sig["severity"] is not None:
             ai.write(f"[dim]clustering: {escape(ev)}[/]")
         else:
@@ -300,13 +300,13 @@ class Dashboard(Screen):
     @work(exclusive=True, group="whale")
     async def _whale(self, address: str) -> None:
         ai = self.query_one("#ai", RichLog)
-        ai.write(f"[dim]cek saldo {escape(address[:12])}… (helius)[/]")
+        ai.write(f"[dim]checking balance {escape(address[:12])}… (helius)[/]")
         try:
             b = await asyncio.to_thread(helius.fetch_balances, address)
         except helius.NoKeyError:
-            ai.write("[#e67e22]HELIUS_API_KEY belum diset — urusan founder. Fitur ini butuh key provider.[/]")
+            ai.write("[#e67e22]HELIUS_API_KEY not set — founder's call. This feature needs a provider key.[/]")
             return
-        except Exception as e:  # noqa: BLE001 — tampilkan, jangan crash
+        except Exception as e:  # noqa: BLE001 — show it, never crash
             ai.write(f"[#e74c3c]Helius error: {escape(str(e))}[/]")
             return
         ai.write(f"[bold {AMBER}]WHALE · {escape(address[:8])}…[/]")
@@ -314,8 +314,8 @@ class Dashboard(Screen):
         for t in b.get("tokens", [])[:5]:
             mint = escape((t.get("mint") or "?")[:12])
             ai.write(f"  [dim]{mint}… · {t['amount']:,.2f}[/]")
-        ai.write("[dim][sumber: helius · response belum diverifikasi runtime · read-only public address][/]")
-        self.notify("Saldo dimuat", title="Whale", severity="information")
+        ai.write("[dim][source: helius · response not runtime-verified · read-only public address][/]")
+        self.notify("Balance loaded", title="Whale", severity="information")
 
     # ---------- terapkan data ----------
 
@@ -346,10 +346,10 @@ class Dashboard(Screen):
         vals = {
             "Pair": f"{symbol}/{quote.get('symbol') or '?'}",
             "DEX": p.get("dexId") or "—",
-            "Harga": _usd(p.get("priceUsd")),
-            "5m": _pct(pc.get("m5")), "1j": _pct(pc.get("h1")), "24j": _pct(pc.get("h24")),
-            "Likuiditas": _usd(liq),
-            "Vol 24j": _usd((p.get("volume") or {}).get("h24")),
+            "Price": _usd(p.get("priceUsd")),
+            "5m": _pct(pc.get("m5")), "1h": _pct(pc.get("h1")), "24h": _pct(pc.get("h24")),
+            "Liquidity": _usd(liq),
+            "Vol 24h": _usd((p.get("volume") or {}).get("h24")),
             "FDV": _usd(p.get("fdv") or p.get("marketCap")),
         }
         row = tuple(_cell(lab, al, vals[lab]) for lab, al, _ in COLUMNS)
@@ -357,9 +357,9 @@ class Dashboard(Screen):
         t = self.query_one("#table", DataTable)
         key = p.get("pairAddress") or base.get("address") or symbol
         if key in self._keys:
-            t.update_cell(key, "Harga", row[2]); t.update_cell(key, "5m", row[3])
-            t.update_cell(key, "1j", row[4]);    t.update_cell(key, "24j", row[5])
-            t.update_cell(key, "Likuiditas", row[6]); t.update_cell(key, "Vol 24j", row[7])
+            t.update_cell(key, "Price", row[2]); t.update_cell(key, "5m", row[3])
+            t.update_cell(key, "1h", row[4]);    t.update_cell(key, "24h", row[5])
+            t.update_cell(key, "Liquidity", row[6]); t.update_cell(key, "Vol 24h", row[7])
             t.update_cell(key, "FDV", row[8])
         else:
             t.add_row(*row, key=key)
@@ -375,10 +375,10 @@ class Dashboard(Screen):
         if announce:
             ts = datetime.now(UTC).strftime("%H:%M:%S")
             self.query_one("#ai", RichLog).write(
-                f"[bold {AMBER}]{escape(symbol)}[/] dimuat · risiko "
+                f"[bold {AMBER}]{escape(symbol)}[/] loaded · risk "
                 f"{a['level_label']}"
                 + (f" {a['score']:.0f}/100" if a["score"] is not None else "")
-                + f"\n[dim]  [sumber: dexscreener + geckoterminal @ {ts} UTC] — jalankan /verify buat rincian sinyal[/]"
+                + f"\n[dim]  [source: dexscreener + geckoterminal @ {ts} UTC] — run /verify for signal details[/]"
             )
             self.notify(f"{symbol} · {a['level_label']}", title="Load",
                         severity="warning" if a["level"] in ("high", "medium") else "information")

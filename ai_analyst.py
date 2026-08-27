@@ -15,21 +15,21 @@ from pathlib import Path
 
 MODEL_DEFAULT = "claude-sonnet-4-5"
 
-SYSTEM_PROMPT = """Kamu AI analyst di Terminal Alpha — alat riset memecoin read-only.
-Sumber kebenaranmu HANYA blok <evidence> dari user.
+SYSTEM_PROMPT = """You are the AI analyst inside Terminal Alpha — a read-only memecoin research tool.
+Your ONLY source of truth is the <evidence> block from the user.
 
-ATURAN MUTLAK:
-1. Jangan menambahkan fakta di luar <evidence>. Yang dicari tapi tidak ada di data → katakan "data tidak tersedia".
-2. DILARANG: prediksi arah/target harga, saran beli/jual, janji keuntungan, kata "pasti"/"dijamin"/"akurasi tinggi".
-3. Setiap klaim WAJIB merujuk sinyal atau angka spesifik dari <evidence> (sebutkan labelnya).
-4. Framing resmi: "mengurangi noise, menambah konteks" — heuristik otomatis, bukan audit.
-5. Jika level = DATA KURANG, tekankan keterbatasan data. Jangan mengarang kesimpulan.
+ABSOLUTE RULES:
+1. Never add facts outside <evidence>. Anything queried but missing from the data → say "data not available".
+2. FORBIDDEN: price direction/target predictions, buy/sell advice, profit promises, the words "guaranteed"/"certain"/"high accuracy".
+3. Every claim MUST reference a specific signal or number from <evidence> (mention its label).
+4. Official framing: "reduce noise, add context" — automated heuristics, not an audit.
+5. If level = INSUFFICIENT DATA, emphasize the data limitations. Do not invent conclusions.
 
-FORMAT OUTPUT — JSON valid SATU objek (bahasa Indonesia, TANPA teks/markdown di luar JSON):
-{"ringkasan": "1 kalimat kondisi (sebut level + skor)",
- "sinyal_kunci": [{"label": "label sinyal dari evidence", "bukti": "angka/fakta singkat"}],
- "keterbatasan": "1 kalimat keterbatasan data/kelemahan analisis"}
-Isi sinyal_kunci 2-3 item paling menentukan. Maksimal ~120 kata keseluruhan."""
+OUTPUT FORMAT — ONE valid JSON object (in English, NO text/markdown outside the JSON):
+{"summary": "one-sentence condition (mention level + score)",
+ "key_signals": [{"label": "signal label from evidence", "evidence": "short number/fact"}],
+ "limitations": "one sentence on data limitations / analysis weaknesses"}
+Provide 2-3 key_signals, the most decisive ones. Max ~120 words total."""
 
 
 @dataclass(frozen=True)
@@ -120,7 +120,7 @@ def _call(provider: Provider, system: str, user: str, max_tokens: int):
 
 
 def parse_output(text: str) -> dict:
-    """JSON ketat kalau model patuh; kalau tidak → fallback jujur (parse_ok False)."""
+    """Strict JSON when the model complies; honest fallback otherwise (parse_ok False)."""
     t = text.strip()
     start, end = t.find("{"), t.rfind("}")
     if start >= 0 and end > start:
@@ -129,12 +129,12 @@ def parse_output(text: str) -> dict:
         except json.JSONDecodeError:
             obj = None
         if isinstance(obj, dict):
-            return {"ringkasan": str(obj.get("ringkasan", "")).strip(),
-                    "sinyal_kunci": [{"label": str(s.get("label", "")), "bukti": str(s.get("bukti", ""))}
-                                     for s in obj.get("sinyal_kunci", []) if isinstance(s, dict)],
-                    "keterbatasan": str(obj.get("keterbatasan", "")).strip(),
+            return {"summary": str(obj.get("summary", "")).strip(),
+                    "key_signals": [{"label": str(s.get("label", "")), "evidence": str(s.get("evidence", ""))}
+                                    for s in obj.get("key_signals", []) if isinstance(s, dict)],
+                    "limitations": str(obj.get("limitations", "")).strip(),
                     "parse_ok": True}
-    return {"ringkasan": t, "sinyal_kunci": [], "keterbatasan": "", "parse_ok": False}
+    return {"summary": t, "key_signals": [], "limitations": "", "parse_ok": False}
 
 
 def _ground_log(provider: str, ev: dict, output: str, out_structured: dict, model: str,
@@ -156,13 +156,13 @@ def _ground_log(provider: str, ev: dict, output: str, out_structured: dict, mode
 
 def explain(pair: dict, assessment: dict, tier: str = "free",
             provider: str = "claude") -> dict:
-    """→ output terstruktur {"ringkasan","sinyal_kunci","keterbatasan","parse_ok"}."""
+    """→ structured output {"summary","key_signals","limitations","parse_ok"}."""
     p = PROVIDERS[provider]
     ev = _evidence(pair, assessment)
     text, model, usage = _call(
         p, SYSTEM_PROMPT,
         f"<evidence>\n{json.dumps(ev, ensure_ascii=False, indent=1)}\n</evidence>\n\n"
-        f"Analisis token ini. Tier: {tier}.",
+        f"Analyze this token. Tier: {tier}.",
         max_tokens=400 if tier == "free" else 1000,
     )
     out = parse_output(text)
