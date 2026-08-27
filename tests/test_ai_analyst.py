@@ -1,8 +1,11 @@
-"""AI layer: evidence terkontrol, tanpa key → gagal jujur di SEMUA provider."""
+"""AI layer: evidence terkontrol, tanpa key → gagal jujur di SEMUA provider,
+output terstruktur JSON + grounding log mencatat parse_ok."""
+import json
+
 import pytest
 
 import ai_analyst
-from ai_analyst import NoKeyError, _evidence, explain
+from ai_analyst import NoKeyError, _evidence, explain, parse_output
 from heuristics import rug_check
 
 
@@ -39,3 +42,53 @@ def test_tanpa_key_gagal_jujur_semua_provider(monkeypatch):
     for name in ai_analyst.PROVIDERS:
         with pytest.raises(NoKeyError):
             explain(_pair(), _assess(), provider=name)
+
+
+def test_parse_output_json_valid():
+    out = parse_output('```json\n{"ringkasan": "r", "sinyal_kunci": '
+                       '[{"label": "l", "bukti": "b"}], "keterbatasan": "k"}\n```')
+    assert out["parse_ok"] is True
+    assert out["ringkasan"] == "r"
+    assert out["sinyal_kunci"] == [{"label": "l", "bukti": "b"}]
+    assert out["keterbatasan"] == "k"
+
+
+def test_parse_output_fallback_mentah():
+    out = parse_output("bukan json sama sekali")
+    assert out["parse_ok"] is False
+    assert out["ringkasan"] == "bukan json sama sekali"
+    assert out["sinyal_kunci"] == []
+
+
+def test_grounding_log_terstruktur(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(ai_analyst, "_call", lambda *a, **k: (
+        '{"ringkasan": "r", "sinyal_kunci": [], "keterbatasan": "k"}', "mock-model",
+        {"input": 1, "output": 1}))
+    out = explain(_pair(), _assess(), "free", "claude")
+    assert out["parse_ok"] is True
+    f = next((tmp_path / "logs" / "grounding").glob("*.jsonl"))
+    rec = json.loads(f.read_text().splitlines()[-1])
+    assert rec["provider"] == "claude" and rec["tier"] == "free"
+    assert rec["parse_ok"] is True
+    assert rec["output_structured"]["ringkasan"] == "r"
+    assert "evidence" in rec
+
+
+def test_tier_hanya_panjang_bukan_kebenaran(monkeypatch, tmp_path):
+    """Invariant §2.3: beda tier hanya max_tokens — prompt & evidence identik."""
+    monkeypatch.chdir(tmp_path)
+    seen = {}
+
+    def fake(provider, system, user, max_tokens):
+        seen.update(system=system, user=user, mt=max_tokens)
+        return "{}", "mock-model", {}
+
+    monkeypatch.setattr(ai_analyst, "_call", fake)
+    explain(_pair(), _assess(), "free", "claude")
+    mt_free, sys_free, user_free = seen["mt"], seen["system"], seen["user"]
+    explain(_pair(), _assess(), "deep", "claude")
+    assert (mt_free, seen["mt"]) == (400, 1000)
+    assert seen["system"] == sys_free
+    # blok <evidence> identik — satu-satunya beda kalimat instrusi kedalaman di akhir
+    assert user_free.split("Analisis token ini")[0] == seen["user"].split("Analisis token ini")[0]

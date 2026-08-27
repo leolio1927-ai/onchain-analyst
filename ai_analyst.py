@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 MODEL_DEFAULT = "claude-sonnet-4-5"
@@ -25,11 +25,11 @@ ATURAN MUTLAK:
 4. Framing resmi: "mengurangi noise, menambah konteks" — heuristik otomatis, bukan audit.
 5. Jika level = DATA KURANG, tekankan keterbatasan data. Jangan mengarang kesimpulan.
 
-FORMAT OUTPUT (bahasa Indonesia, tanpa basa-basi):
-- 1 kalimat ringkasan kondisi (sebut level + skor).
-- 2-3 poin sinyal paling menentukan (label: bukti singkat).
-- 1 poin keterbatasan data/kelemahan analisis.
-Maksimal ~120 kata."""
+FORMAT OUTPUT — JSON valid SATU objek (bahasa Indonesia, TANPA teks/markdown di luar JSON):
+{"ringkasan": "1 kalimat kondisi (sebut level + skor)",
+ "sinyal_kunci": [{"label": "label sinyal dari evidence", "bukti": "angka/fakta singkat"}],
+ "keterbatasan": "1 kalimat keterbatasan data/kelemahan analisis"}
+Isi sinyal_kunci 2-3 item paling menentukan. Maksimal ~120 kata keseluruhan."""
 
 
 @dataclass(frozen=True)
@@ -119,15 +119,35 @@ def _call(provider: Provider, system: str, user: str, max_tokens: int):
     return text, rsp.model, usage
 
 
-def _ground_log(provider: str, ev: dict, output: str, model: str, tier: str,
-                usage: dict) -> Path:
+def parse_output(text: str) -> dict:
+    """JSON ketat kalau model patuh; kalau tidak → fallback jujur (parse_ok False)."""
+    t = text.strip()
+    start, end = t.find("{"), t.rfind("}")
+    if start >= 0 and end > start:
+        try:
+            obj = json.loads(t[start:end + 1])
+        except json.JSONDecodeError:
+            obj = None
+        if isinstance(obj, dict):
+            return {"ringkasan": str(obj.get("ringkasan", "")).strip(),
+                    "sinyal_kunci": [{"label": str(s.get("label", "")), "bukti": str(s.get("bukti", ""))}
+                                     for s in obj.get("sinyal_kunci", []) if isinstance(s, dict)],
+                    "keterbatasan": str(obj.get("keterbatasan", "")).strip(),
+                    "parse_ok": True}
+    return {"ringkasan": t, "sinyal_kunci": [], "keterbatasan": "", "parse_ok": False}
+
+
+def _ground_log(provider: str, ev: dict, output: str, out_structured: dict, model: str,
+                tier: str, usage: dict) -> Path:
     d = Path("logs/grounding")
     d.mkdir(parents=True, exist_ok=True)
-    path = d / f"{datetime.now(timezone.utc):%Y-%m-%d}.jsonl"
+    path = d / f"{datetime.now(UTC):%Y-%m-%d}.jsonl"
     rec = {
-        "ts": datetime.now(timezone.utc).isoformat(),
+        "ts": datetime.now(UTC).isoformat(),
         "provider": provider, "model": model, "tier": tier,
-        "evidence": ev, "output": output, "usage": usage,
+        "evidence": ev, "output": output,
+        "output_structured": out_structured, "parse_ok": out_structured["parse_ok"],
+        "usage": usage,
     }
     with path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(rec, ensure_ascii=False) + "\n")
@@ -135,7 +155,8 @@ def _ground_log(provider: str, ev: dict, output: str, model: str, tier: str,
 
 
 def explain(pair: dict, assessment: dict, tier: str = "free",
-            provider: str = "claude") -> str:
+            provider: str = "claude") -> dict:
+    """→ output terstruktur {"ringkasan","sinyal_kunci","keterbatasan","parse_ok"}."""
     p = PROVIDERS[provider]
     ev = _evidence(pair, assessment)
     text, model, usage = _call(
@@ -144,5 +165,6 @@ def explain(pair: dict, assessment: dict, tier: str = "free",
         f"Analisis token ini. Tier: {tier}.",
         max_tokens=400 if tier == "free" else 1000,
     )
-    _ground_log(p.key, ev, text, model, tier, usage)
-    return text
+    out = parse_output(text)
+    _ground_log(p.key, ev, text, out, model, tier, usage)
+    return out
