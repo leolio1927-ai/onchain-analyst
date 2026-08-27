@@ -28,3 +28,7 @@ logs/
 
 # --- tooling lokal, bukan bagian produk ---
 .zcode/
+
+# --- frontend (node_modules & hasil build tidak masuk git) ---
+frontend/node_modules/
+frontend/dist/
