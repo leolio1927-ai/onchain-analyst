@@ -1,0 +1,17 @@
+Screen { layout: vertical; }
+
+#topbar { height: auto; }
+#topbar StatCard { min-width: 18; }
+#risk { height: auto; margin-left: 1; padding: 1 2; width: auto;
+        border: round $border; background: $surface; content-align: center middle; }
+
+#body { height: 1fr; margin-top: 1; }
+#left { width: 1fr; margin-right: 1; }
+#pair-title { background: $surface; padding: 0 1; text-style: bold; color: $primary; }
+#table { height: 1fr; }
+
+#right { width: 46; }
+#chart { height: 40%; border: round $border; background: $panel; }
+#ai { height: 1fr; border: round $border; background: $panel; padding: 0 1; }
+
+#cmd { margin-top: 1; border: round $border; background: $surface; }
