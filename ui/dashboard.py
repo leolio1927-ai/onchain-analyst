@@ -1,14 +1,13 @@
 """Dashboard Terminal Alpha.
 
 Prinsip: UI tidak pernah mengarang data. Kolom kosong = "n/a",
-error = pesan yang bisa dipahami, sumber selalu ditulis di panel AI.
+error = pesan yang bisa dipahami, sumber + sinyal selalu ditulis.
+UI tidak berisi logika heuristik — itu tugas heuristics/rug_check.
 """
 from __future__ import annotations
 
 import asyncio
-import json
 import urllib.error
-import urllib.request
 from datetime import datetime, timezone
 
 from rich.markup import escape
@@ -19,15 +18,13 @@ from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Header, Input, RichLog, Static
 from textual_plotext import PlotextPlot
 
+from heuristics import rug_check
+from providers import dexscreener
 from ui import icons
-from ui.theme import AMBER
+from ui.theme import AMBER, GREEN, MUTED, ORANGE, RED
 from ui.widgets.risk_badge import RiskBadge
 from ui.widgets.stat_card import StatCard
 
-# chainId milik DexScreener — "hype" ditahan sampai terverifikasi (catatan kerja).
-CHAINS = {"sol": "solana", "bnb": "bsc", "base": "base", "avax": "avax"}
-
-# (label, align, width) — width FIX supaya angka rata kanan deterministik.
 COLUMNS = [
     ("Pair", "l", 16), ("DEX", "l", 10), ("Harga", "r", 14),
     ("5m", "r", 9), ("1j", "r", 9), ("24j", "r", 10),
@@ -48,7 +45,7 @@ def _usd(v) -> str:
         return "n/a"
     if v == 0:
         return "n/a"
-    if 0 < v < 1:  # harga mikro (BONK dkk) — jangan tampil "$0"
+    if 0 < v < 1:
         s = f"${v:.10f}".rstrip("0")
         return s if len(s) <= 14 else f"${v:.4e}"
     for div, suf in ((1e9, "B"), (1e6, "M"), (1e3, "K")):
@@ -64,20 +61,23 @@ def _pct(v) -> str:
         return "n/a"
 
 
-def _fetch_pair(chain_id: str, address: str) -> dict | None:
-    """Sinkron — DIJALANKAN DI THREAD, tidak pernah menyentuh UI."""
-    url = f"https://api.dexscreener.com/latest/dex/tokens/{address}"
-    req = urllib.request.Request(url, headers={"User-Agent": "terminal-alpha/0.1"})
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        data = json.load(resp)
-    pairs = [p for p in (data.get("pairs") or []) if p.get("chainId") == chain_id]
-    pairs.sort(key=lambda p: (p.get("liquidity") or {}).get("usd") or 0, reverse=True)
-    return pairs[0] if pairs else None
+def _sev_color(sev):
+    if sev is None:
+        return MUTED
+    if sev >= 0.65:
+        return RED
+    if sev >= 0.4:
+        return ORANGE
+    if sev > 0:
+        return AMBER
+    return GREEN
 
 
 class Dashboard(Screen):
     def compose(self) -> ComposeResult:
         self._keys: set = set()
+        self._last_pair: dict | None = None
+        self._assessment: dict | None = None
         yield Header()
         with Horizontal(id="topbar"):
             yield StatCard(label="Harga", id="c-price")
@@ -92,7 +92,7 @@ class Dashboard(Screen):
             with Vertical(id="right"):
                 yield PlotextPlot(id="chart")
                 yield RichLog(id="ai", markup=True, highlight=True, wrap=True)
-        yield Input(placeholder="Perintah…  /load sol <address>   |   /help", id="cmd")
+        yield Input(placeholder="Perintah…  /load sol <address>  |  /verify  |  /help", id="cmd")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -102,8 +102,9 @@ class Dashboard(Screen):
             t.add_column(lab, key=lab, width=w)
         ai = self.query_one("#ai", RichLog)
         ai.write(f"[bold {AMBER}]Terminal Alpha[/] siap. [dim]Evidence-first: analisis hanya dari data provider.[/]")
-        ai.write("[dim]Coba: /load sol DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263[/]")
-        self._chart_empty()
+        ai.write("[dim]Coba: /load sol DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263 lalu /verify[/]")
+        ai.write("[dim]Disclaimer: alat analisis & edukasi — BUKAN saran finansial. "
+                 "Skor = heuristik otomatis, bukan audit resmi. DYOR.[/]")
 
     # ---------- chart ----------
 
@@ -113,13 +114,13 @@ class Dashboard(Screen):
         self.query_one("#chart", PlotextPlot).refresh()
 
     def _chart_est(self, pair: dict) -> None:
-        """Estimasi jalur harga dari priceChange — DIBERI LABEL est., bukan data OHLC."""
+        """Estimasi jalur harga dari priceChange — DIBERI LABEL est., bukan OHLC."""
         pc = pair.get("priceChange") or {}
         price = float(pair.get("priceUsd") or 0)
         pts = [price / (1 + float(pc.get(k) or 0) / 100) for k in ("h24", "h6", "h1", "m5")]
         pts.append(price)
         base_price = pts[0] or 1.0
-        rel = [v / base_price * 100 for v in pts]  # indeks 100 = harga 24j lalu
+        rel = [v / base_price * 100 for v in pts]  # indeks 100 = 24j lalu
         plt = self.query_one("#chart", PlotextPlot).plt
         plt.clear_data()
         plt.title("pergerakan 24j — est., indeks 100 = 24j lalu")
@@ -136,22 +137,51 @@ class Dashboard(Screen):
             return
         ai = self.query_one("#ai", RichLog)
         if text == "/help":
-            ai.write("[bold]Perintah:[/] /load <chain> <address> · /help · Ctrl+P palette global")
+            ai.write("[bold]Perintah:[/] /load <chain> <address> · /verify · /help · Ctrl+P palette")
+        elif text == "/verify":
+            self._verify()
         elif text.startswith("/load"):
             parts = text.split()
-            if len(parts) != 3 or parts[1].lower() not in CHAINS:
-                ai.write(f"[#e74c3c]Pemakaian: /load <{'|'.join(CHAINS)}> <address>[/]")
+            if len(parts) != 3 or parts[1].lower() not in dexscreener.CHAIN_IDS:
+                ai.write(f"[#e74c3c]Pemakaian: /load <{'|'.join(dexscreener.CHAIN_IDS)}> <address>[/]")
             else:
                 self._load(parts[1].lower(), parts[2])
         else:
             ai.write(f"[dim]Perintah tak dikenal: {escape(text)}[/]")
 
+    def _verify(self) -> None:
+        ai = self.query_one("#ai", RichLog)
+        if not self._last_pair or not self._assessment:
+            ai.write("[#e67e22]Belum ada token — /load <chain> <address> dulu.[/]")
+            return
+        p, a = self._last_pair, self._assessment
+        base = (p.get("baseToken") or {}).get("symbol") or "?"
+        if a["score"] is None:
+            ai.write(f"[bold {AMBER}]VERIFY — {escape(base)}[/] · DATA KURANG")
+        else:
+            ai.write(f"[bold {AMBER}]VERIFY — {escape(base)}[/] · skor {a['score']:.0f}/100 → {a['level_label']}")
+        for s in a["signals"]:
+            if s["severity"] is None:
+                note = f" ({escape(s['evidence'])})" if s["evidence"] else ""
+                ai.write(f"  [dim]· {escape(s['label'])}: data tidak tersedia{note}[/]")
+                continue
+            col = _sev_color(s["severity"])
+            ai.write(f"  [{col}]■[/] {escape(s['label'])} — {escape(s['evidence'])}"
+                     f" [dim](bobot {s['weight']:.0%})[/]")
+        for n in a["notes"]:
+            ai.write(f"  [dim]§ {escape(n)}[/]")
+        ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
+        ai.write(f"[dim][sumber: dexscreener {escape(p.get('dexId') or '')} @ {ts} UTC"
+                 f" · heuristik v0 deterministik — bukan saran finansial][/]")
+        self.notify(f"Verify {base}: {a['level_label']}", title="Risiko",
+                    severity="warning" if a["level"] in ("high", "medium") else "information")
+
     @work(exclusive=True, group="load")
     async def _load(self, chain_key: str, address: str) -> None:
         ai = self.query_one("#ai", RichLog)
-        ai.write(f"[dim]Memuat {CHAINS[chain_key]}:{address[:12]}…[/]")
+        ai.write(f"[dim]Memuat {dexscreener.CHAIN_IDS[chain_key]}:{address[:12]}…[/]")
         try:
-            pair = await asyncio.to_thread(_fetch_pair, CHAINS[chain_key], address)
+            pair = await asyncio.to_thread(dexscreener.fetch_pair, chain_key, address)
         except urllib.error.HTTPError as e:
             msg = "rate limit — coba lagi 30–60 detik" if e.code == 429 else f"HTTP {e.code}"
             self.notify(f"DexScreener: {msg}", title="Provider", severity="warning")
@@ -162,7 +192,7 @@ class Dashboard(Screen):
             ai.write(f"[#e74c3c]Gagal mengambil data: {escape(str(e))}[/]")
             return
         if pair is None:
-            ai.write(f"[#e67e22]Tidak ada pair untuk address itu di {CHAINS[chain_key]} — cek address/chain.[/]")
+            ai.write(f"[#e67e22]Tidak ada pair untuk address itu di chain ini — cek address/chain.[/]")
             return
         self._apply_pair(pair)
 
@@ -175,11 +205,15 @@ class Dashboard(Screen):
         liq = (p.get("liquidity") or {}).get("usd")
         pc = p.get("priceChange") or {}
 
+        a = rug_check.assess(p)
+        self._last_pair, self._assessment = p, a
+        badge = self.query_one("#risk", RiskBadge)
+        badge.level, badge.score = a["level"], a["score"]
+
         self.query_one("#c-price", StatCard).set(_usd(p.get("priceUsd")), float(pc.get("m5") or 0))
         self.query_one("#c-liq", StatCard).set(_usd(liq), 0.0)
         self.query_one("#c-vol", StatCard).set(_usd((p.get("volume") or {}).get("h24")), 0.0)
         self.query_one("#c-fdv", StatCard).set(_usd(p.get("fdv") or p.get("marketCap")), float(pc.get("h24") or 0))
-        self.query_one("#risk", RiskBadge).level = "nodata"  # heuristik belum disambung — jujur dulu
 
         name = (base.get("name") or "—").strip()
         ident = escape(symbol) if name.lower() == symbol.lower() else f"{escape(symbol)} · {escape(name)}"
@@ -196,11 +230,11 @@ class Dashboard(Screen):
             "Vol 24j": _usd((p.get("volume") or {}).get("h24")),
             "FDV": _usd(p.get("fdv") or p.get("marketCap")),
         }
-        row = tuple(_cell(lab, a, vals[lab]) for lab, a, _ in COLUMNS)
+        row = tuple(_cell(lab, al, vals[lab]) for lab, al, _ in COLUMNS)
 
         t = self.query_one("#table", DataTable)
         key = p.get("pairAddress") or base.get("address") or symbol
-        if key in self._keys:  # update cell, bukan rebuild tabel — anti flicker
+        if key in self._keys:
             t.update_cell(key, "Harga", row[2]); t.update_cell(key, "5m", row[3])
             t.update_cell(key, "1j", row[4]);    t.update_cell(key, "24j", row[5])
             t.update_cell(key, "Likuiditas", row[6]); t.update_cell(key, "Vol 24j", row[7])
@@ -213,8 +247,10 @@ class Dashboard(Screen):
         self._chart_est(p)
         ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
         self.query_one("#ai", RichLog).write(
-            f"[bold {AMBER}]{escape(symbol)}[/] dimuat · liq {_usd(liq)}"
-            f" · vol24 {_usd((p.get('volume') or {}).get('h24'))}"
-            f"\n[dim]  [sumber: dexscreener {escape(p.get('dexId') or '')} @ {ts} UTC][/]"
+            f"[bold {AMBER}]{escape(symbol)}[/] dimuat · risiko "
+            f"{a['level_label']}"
+            + (f" {a['score']:.0f}/100" if a["score"] is not None else "")
+            + f"\n[dim]  [sumber: dexscreener @ {ts} UTC] — jalankan /verify buat rincian sinyal[/]"
         )
-        self.notify(f"{symbol} dimuat", title="Load", severity="information")
+        self.notify(f"{symbol} · {a['level_label']}", title="Load",
+                    severity="warning" if a["level"] in ("high", "medium") else "information")

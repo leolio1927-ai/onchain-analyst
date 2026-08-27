@@ -22,3 +22,4 @@ build/
 # --- OS noise ---
 .DS_Store
 Thumbs.db
+snapshot_report.html

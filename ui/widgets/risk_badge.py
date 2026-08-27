@@ -1,22 +1,22 @@
-"""Badge risiko — warna HANYA untuk semantik, sesuai prinsip desain."""
+"""Badge risiko — warna HANYA untuk semantik (prinsip desain).
+Label berasal dari heuristics.rug_check — satu sumber kebenaran."""
 from rich.text import Text
 from textual.reactive import reactive
 from textual.widget import Widget
 
+from heuristics.rug_check import LEVEL_LABELS
 from ui.theme import BG, GREEN, MUTED, ORANGE, RED
 
-LEVELS = {
-    "low":    ("RENDAH", GREEN),
-    "medium": ("WASPADA", ORANGE),
-    "high":   ("BAHAYA", RED),
-    "nodata": ("DATA KURANG", MUTED),
-}
+_COLORS = {"low": GREEN, "medium": ORANGE, "high": RED, "nodata": MUTED}
 
 
 class RiskBadge(Widget):
     DEFAULT_CSS = "RiskBadge { width: auto; height: 1; padding: 0 1; }"
     level: reactive[str] = reactive("nodata")
+    score = reactive(None)
 
     def render(self) -> Text:
-        label, color = LEVELS.get(self.level, LEVELS["nodata"])
-        return Text(f" {label} ", style=f"bold {BG} on {color}")
+        label = LEVEL_LABELS.get(self.level, LEVEL_LABELS["nodata"])
+        color = _COLORS.get(self.level, MUTED)
+        num = f" {self.score:.0f}" if isinstance(self.score, (int, float)) else ""
+        return Text(f" {label}{num} ", style=f"bold {BG} on {color}")
