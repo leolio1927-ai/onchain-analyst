@@ -59,6 +59,7 @@ def _dist_dir() -> Path:
 class ScanBody(BaseModel):
     chain: str
     address: str
+    refresh: bool = False  # /cluster semantics: bypass TTL cache, force fresh fetch
 
 
 class ExplainBody(BaseModel):
@@ -123,11 +124,11 @@ async def _scan_chain(chain_key: str, address: str) -> dict | None:
             "ts": datetime.now(UTC).isoformat()}
 
 
-async def _get_scan(chain_key: str, address: str) -> dict:
+async def _get_scan(chain_key: str, address: str, refresh: bool = False) -> dict:
     key = (chain_key, address)
     hit = _scan_cache.get(key)
     now = time.monotonic()
-    if hit and now - hit[0] < CACHE_TTL_S:
+    if hit and not refresh and now - hit[0] < CACHE_TTL_S:
         return hit[1]
     result = await _scan_chain(chain_key, address)
     if result is None:
@@ -162,7 +163,7 @@ async def health() -> dict:
 @app.post("/api/scan")
 async def api_scan(body: ScanBody) -> dict:
     _validate(body.chain, body.address)
-    return await _get_scan(body.chain, body.address)
+    return await _get_scan(body.chain, body.address, body.refresh)
 
 
 @app.post("/api/explain")
