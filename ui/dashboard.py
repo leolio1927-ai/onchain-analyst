@@ -89,7 +89,7 @@ def _sev_color(sev):
 class Dashboard(Screen):
     def compose(self) -> ComposeResult:
         self._keys: set = set()
-        self._liq_usd: dict = {}
+        self._liq_usd: dict[str, float] = {}  # sel tampilan Likuiditas → nilai numerik (sort key)
         self._last_pair: dict | None = None
         self._assessment: dict | None = None
         self._chain_key: str | None = None
@@ -364,11 +364,12 @@ class Dashboard(Screen):
         else:
             t.add_row(*row, key=key)
             self._keys.add(key)
+        # Textual 8 tidak punya DataTable.order() — sort numerik via key fn atas sel tampilan
         try:
-            self._liq_usd[key] = float(liq or 0)
+            self._liq_usd[row[6]] = float(liq or 0)
         except (TypeError, ValueError):
-            self._liq_usd[key] = 0.0
-        t.order(*sorted(self._liq_usd, key=self._liq_usd.get, reverse=True))
+            self._liq_usd.setdefault(row[6], 0.0)
+        t.sort("Likuiditas", key=lambda s: self._liq_usd.get(s, 0.0), reverse=True)
 
         self._chart_est(p)
         if announce:
