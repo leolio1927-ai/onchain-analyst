@@ -10,7 +10,8 @@ import time
 
 LEVEL_LABELS = {"low": "RENDAH", "medium": "WASPADA", "high": "BAHAYA", "nodata": "DATA KURANG"}
 
-WEIGHTS = {"liquidity": 0.30, "fdv_liq": 0.25, "vol_liq": 0.15, "buy_ratio": 0.15, "age": 0.15}
+WEIGHTS = {"liquidity": 0.30, "fdv_liq": 0.25, "vol_liq": 0.15, "buy_ratio": 0.15, "age": 0.15,
+           "clustering": 0.20}
 MIN_SIGNALS = 3  # di bawah ini → nodata, bukan nebak
 
 
@@ -97,8 +98,13 @@ def _age(created_ms):
     return 0.0, f"pair umur {hrs / 24 / 7:.1f} minggu"
 
 
-def assess(pair: dict) -> dict:
-    """Skor 0-100 (makin tinggi makin berisiko) + evidence per sinyal."""
+def assess(pair: dict, clustering_result: dict | None = None) -> dict:
+    """Skor 0-100 (makin tinggi makin berisiko) + evidence per sinyal.
+
+    clustering_result: hasil heuristics.clustering.analyze (atau dict degrade
+    dari UI). None = clustering tidak dicoba → 5 sinyal seperti biasa.
+    severity None di dalamnya = dicoba tapi tidak diskor → tampil jujur.
+    """
     liq = (pair.get("liquidity") or {}).get("usd")
     fdv = pair.get("fdv") or pair.get("marketCap")
     signals = [
@@ -109,6 +115,10 @@ def assess(pair: dict) -> dict:
         _sig("buy_ratio", "Beli vs Jual 24j", WEIGHTS["buy_ratio"], *_buy_ratio(pair.get("txns"))),
         _sig("age", "Umur pair", WEIGHTS["age"], *_age(pair.get("pairCreatedAt"))),
     ]
+    if clustering_result is not None:
+        signals.append(_sig("clustering", "Koordinasi wallet", WEIGHTS["clustering"],
+                            clustering_result.get("severity"),
+                            clustering_result.get("evidence", "")))
     computed = [s for s in signals if s["severity"] is not None]
     notes = []
     if len(computed) < MIN_SIGNALS:

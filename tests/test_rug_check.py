@@ -41,3 +41,23 @@ def test_data_kurang_jujur():
     r = rug_check.assess({"baseToken": {"symbol": "X"}})
     assert r["level"] == "nodata"
     assert r["score"] is None
+
+
+def test_dengan_clustering_jadi_6_sinyal():
+    r = rug_check.assess(_pair(), {"wallets": 25, "buys": 25, "severity": 0.8,
+                                   "evidence": "burst 60 dtk maks 21 (40x rata-rata)"})
+    assert len(r["signals"]) == 6
+    cl = next(s for s in r["signals"] if s["key"] == "clustering")
+    assert cl["severity"] == 0.8 and cl["weight"] == rug_check.WEIGHTS["clustering"]
+
+
+def test_tanpa_clustering_tetap_5_sinyal():
+    assert len(rug_check.assess(_pair())["signals"]) == 5
+
+
+def test_clustering_tak_diskor_tampil_jujur():
+    r = rug_check.assess(_pair(), {"wallets": 3, "buys": 3, "severity": None,
+                                   "evidence": "3 wallet terlihat (min 8) — sampel kurang, tidak diskor"})
+    cl = next(s for s in r["signals"] if s["key"] == "clustering")
+    assert cl["severity"] is None
+    assert "sampel kurang" in cl["evidence"]
