@@ -4,16 +4,19 @@ version = "0.1.0"
 requires-python = ">=3.14"
 dependencies = [
     "anthropic>=1.1.0",
+    "fastapi>=0.141.1",
     "openai>=3.5.0",
     "plotext>=5.3.2",
     "python-dotenv>=1.2.3",
     "rich>=15.0.0",
     "textual>=8.2.8",
     "textual-plotext>=1.0.1",
+    "uvicorn>=0.52.4",
 ]
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.1",
     "pytest-textual-snapshot>=1.1.0",
     "ruff>=0.16.4",
     "textual-dev>=1.8.0",
