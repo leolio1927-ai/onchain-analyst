@@ -18,6 +18,7 @@ from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Header, Input, RichLog, Static
 from textual_plotext import PlotextPlot
 
+import ai_analyst
 from heuristics import rug_check
 from providers import dexscreener
 from ui import icons
@@ -137,9 +138,16 @@ class Dashboard(Screen):
             return
         ai = self.query_one("#ai", RichLog)
         if text == "/help":
-            ai.write("[bold]Perintah:[/] /load <chain> <address> · /verify · /help · Ctrl+P palette")
+            ai.write("[bold]Perintah:[/] /load <chain> <address> · /verify · /explain [claude|glm|kimi] · /help · Ctrl+P palette")
         elif text == "/verify":
             self._verify()
+        elif text.startswith("/explain"):
+            parts = text.split()
+            prov = parts[1].lower() if len(parts) > 1 else "claude"
+            if prov not in ai_analyst.PROVIDERS:
+                ai.write(f"[#e74c3c]Provider tak dikenal: {escape(prov)} — pilih {'|'.join(ai_analyst.PROVIDERS)}[/]")
+            else:
+                self._explain(prov)
         elif text.startswith("/load"):
             parts = text.split()
             if len(parts) != 3 or parts[1].lower() not in dexscreener.CHAIN_IDS:
@@ -175,6 +183,26 @@ class Dashboard(Screen):
                  f" · heuristik v0 deterministik — bukan saran finansial][/]")
         self.notify(f"Verify {base}: {a['level_label']}", title="Risiko",
                     severity="warning" if a["level"] in ("high", "medium") else "information")
+
+    @work(exclusive=True, group="explain")
+    async def _explain(self, prov: str = "claude") -> None:
+        ai = self.query_one("#ai", RichLog)
+        if not self._last_pair or not self._assessment:
+            ai.write("[#e67e22]Belum ada token — /load <chain> <address> dulu.[/]")
+            return
+        ai.write(f"[dim]{prov} menganalisis… konteks = hasil heuristik + data provider (tanpa tambahan eksternal)[/]")
+        try:
+            out = await asyncio.to_thread(ai_analyst.explain, self._last_pair, self._assessment, "free", prov)
+        except ai_analyst.NoKeyError:
+            ai.write("[#e67e22]ANTHROPIC_API_KEY belum diset — lihat .env.example, isi .env, jalankan ulang app.[/]")
+            return
+        except Exception as e:  # noqa: BLE001 — tampilkan, jangan crash
+            ai.write(f"[#e74c3c]AI error: {escape(str(e))}[/]")
+            return
+        ai.write(f"[bold {AMBER}]AI ANALYST · {prov} · tier free[/]")
+        ai.write(escape(out))
+        ai.write("[dim][grounding: evidence + output tercatat → logs/grounding/*.jsonl][/]")
+        self.notify("AI analisis selesai", title="AI", severity="information")
 
     @work(exclusive=True, group="load")
     async def _load(self, chain_key: str, address: str) -> None:

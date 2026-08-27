@@ -1,6 +1,12 @@
 """Terminal Alpha — entry point. Jalankan: uv run python app.py [--ascii]"""
 import argparse
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 from textual.app import App
 
 from ui.dashboard import Dashboard
