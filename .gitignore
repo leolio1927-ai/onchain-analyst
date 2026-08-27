@@ -13,6 +13,7 @@ __pycache__/
 # --- SEKRET: API key & token hidup di file ini ---
 .env
 .env.*
+!.env.example
 *.pem
 
 # --- Build artifacts ---
@@ -24,3 +25,6 @@ build/
 Thumbs.db
 snapshot_report.html
 logs/
+
+# --- tooling lokal, bukan bagian produk ---
+.zcode/
