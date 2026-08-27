@@ -1,173 +1,413 @@
-import { useEffect } from 'react'
-import './styles/base.css'
-import './styles/landing.css'
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import { useEffect, useRef, useState } from 'react'
+import './styles/landing2.css'
+import { ChainNetwork, DataStream, NET_CHAINS, NeuralCore, RadarScanner } from './components/visuals'
 
-const MOCK_LINES = [
-  { p: '$', cls: 'cmd', text: '/load sol DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263' },
-  { p: '>', cls: 'ok', text: 'BONK loaded · risk LOW 34/100' },
-  { p: '■', cls: 'sig', text: 'Liquidity — $150,940 — adequate (weight 30%)' },
-  { p: '■', cls: 'sig', text: 'Wallet coordination — 77 wallets · 60s burst max 17 (8.0x avg)' },
-  { p: '$', cls: 'cmd', text: '/explain claude' },
-  { p: 'AI', cls: 'ai', text: 'Liquidity is adequate, but FDV/liquidity at 1,850x means exit…' },
-]
-
-function TerminalMock() {
-  return (
-    <div className="mock" aria-hidden="true">
-      <div className="mock-bar">
-        <span className="dot r" /><span className="dot y" /><span className="dot g" />
-        <span className="mock-title">terminal-alpha — read-only</span>
-      </div>
-      <div className="mock-body">
-        {MOCK_LINES.map((l, i) => (
-          <div className={`mock-line ${l.cls}`} style={{ animationDelay: `${0.35 + i * 0.45}s` }} key={i}>
-            <span className="p">{l.p}</span> {l.text}
-          </div>
-        ))}
-        <div className="mock-line cursor-line">
-          <span className="p">$</span> <span className="cursor" />
-        </div>
-      </div>
-    </div>
-  )
-}
+/* ═══════════ helpers ═══════════ */
 
 function useReveal() {
   useEffect(() => {
     const io = new IntersectionObserver(
-      (entries) => entries.forEach((e) => e.isIntersecting && e.target.classList.add('visible')),
+      (es) => es.forEach((e) => e.isIntersecting && e.target.classList.add('vis')),
       { threshold: 0.12 },
     )
-    document.querySelectorAll('.reveal').forEach((el) => io.observe(el))
+    document.querySelectorAll('.rv').forEach((el) => io.observe(el))
     return () => io.disconnect()
   }, [])
 }
 
-const PRINCIPLES = [
-  { k: '01', t: 'Read-only by design', d: 'No swaps, no wallet connections, no keys. The terminal analyzes — execution stays on your platform of choice.' },
-  { k: '02', t: 'Evidence-first AI', d: 'The model only sees a whitelisted evidence block. What isn’t in the data doesn’t exist: “data not available” is a valid answer.' },
-  { k: '03', t: 'Deterministic heuristics', d: 'Five weighted signals you can audit threshold by threshold. Same input, same verdict — every single time.' },
-  { k: '04', t: 'Wallet coordination', d: 'Per-wallet trade feed feeds burst-timing and amount-uniformity detection. Below 8 wallets we refuse to score.' },
-  { k: '05', t: 'Grounding log', d: 'Every AI answer is logged next to the exact evidence it saw — replayable, comparable across models, regression-testable.' },
-  { k: '06', t: 'Insufficient data is an answer', d: 'Missing signals never get guessed. The verdict says INSUFFICIENT DATA and moves on. Honesty over false confidence.' },
+function useScrollNav() {
+  const [scrolled, setScrolled] = useState(false)
+  useEffect(() => {
+    const on = () => setScrolled(window.scrollY > 24)
+    on()
+    window.addEventListener('scroll', on, { passive: true })
+    return () => window.removeEventListener('scroll', on)
+  }, [])
+  return scrolled
+}
+
+/* hero radar reacts subtly to the mouse */
+function useTilt() {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const onMove = (e: MouseEvent) => {
+      const r = el.getBoundingClientRect()
+      const dx = (e.clientX - r.left) / r.width - 0.5
+      const dy = (e.clientY - r.top) / r.height - 0.5
+      el.style.transform = `perspective(1100px) rotateY(${dx * 7}deg) rotateX(${-dy * 5}deg)`
+    }
+    const reset = () => { el.style.transform = 'perspective(1100px)' }
+    const parent = el.parentElement
+    parent?.addEventListener('mousemove', onMove)
+    parent?.addEventListener('mouseleave', reset)
+    return () => {
+      parent?.removeEventListener('mousemove', onMove)
+      parent?.removeEventListener('mouseleave', reset)
+    }
+  }, [])
+  return ref
+}
+
+/* ═══════════ sections ═══════════ */
+
+const NAV = [
+  ['Features', '#features'], ['How It Works', '#how'], ['Multi-Chain', '#chains'],
+  ['AI Analyst', '#ai'], ['Token Utility', '#token'], ['Roadmap', '#roadmap'], ['Docs', '#docs'],
 ]
 
-const FLOW = [
-  { t: 'Providers', d: 'DexScreener aggregates + GeckoTerminal per-wallet trades' },
-  { t: 'Heuristics', d: 'Deterministic weighted scoring — no AI involved yet' },
-  { t: 'AI analyst', d: 'Reasons only over the evidence block it was handed' },
-  { t: 'Your screen', d: 'TUI or web terminal — same engine, same verdicts' },
+function Nav() {
+  const scrolled = useScrollNav()
+  return (
+    <nav className={`lv-nav ${scrolled ? 'scrolled' : ''}`}>
+      <div className="lv-nav-in">
+        <a href="#" className="lv-logo"><span className="m">◤</span>TERMINAL&nbsp;<span style={{ color: 'var(--p2)' }}>ALPHA</span></a>
+        <div className="lv-nav-links">
+          {NAV.map(([l, h]) => <a key={h} href={h}>{l}</a>)}
+          <a className="lv-cta" href="/terminal">Launch Terminal →</a>
+        </div>
+      </div>
+    </nav>
+  )
+}
+
+function Hero() {
+  const tilt = useTilt()
+  return (
+    <section className="lv-hero" id="top">
+      <div className="lv-hero-bg" />
+      <div className="rv vis">
+        <div className="lv-kicker">AI MEMECOIN INTELLIGENCE TERMINAL</div>
+        <h1 className="lv-h1">See What Others Miss.<br /><span className="a">Understand What Matters.</span></h1>
+        <p className="lv-sub">
+          Terminal Alpha is an AI-powered memecoin intelligence terminal that helps traders
+          analyze risk, detect hidden patterns, and understand smarter on-chain behavior
+          across multiple blockchains.
+        </p>
+        <div className="lv-badges">
+          <span className="lv-badge hot">✦ AI-Powered Analysis</span>
+          <span className="lv-badge">⬡ Multi-Chain</span>
+          <span className="lv-badge">⛨ Rug Check</span>
+          <span className="lv-badge">❋ Wallet Intelligence</span>
+          <span className="lv-badge">⊘ No Trading Execution</span>
+        </div>
+        <div className="lv-hero-cta">
+          <a className="lv-cta" href="/terminal">Launch Terminal →</a>
+          <a className="lv-cta ghost" href="#features">Explore Features</a>
+        </div>
+      </div>
+      <div className="lv-radar" aria-hidden="true">
+        <div className="tilt" ref={tilt}>
+          <RadarScanner />
+          <div className="lv-rpanel p1"><b>RISK ENGINE</b><span className="v">68/100</span> MEDIUM RISK</div>
+          <div className="lv-rpanel p2"><b>CLUSTERS</b><span className="v">3 detected</span> 42.3% supply</div>
+          <div className="lv-rpanel p3"><b>WHALES</b><span className="v">$318K</span> net flow 24h</div>
+        </div>
+        <div className="lv-scanpill"><span className="blink" /> SCANNING THE MEMECOIN UNIVERSE</div>
+      </div>
+    </section>
+  )
+}
+
+const TRUST = ['Multi-Chain Intelligence', 'AI Reasoning', 'Risk Detection', 'Wallet Intelligence', 'Evidence-Based Analysis']
+
+function Trust() {
+  return (
+    <section className="lv-trust">
+      <div className="lv-trust-in">
+        {TRUST.map((t) => <span key={t}>{t}</span>)}
+      </div>
+    </section>
+  )
+}
+
+const STAGES = [
+  {
+    n: 'STAGE 01', t: 'DATA LAYER', icon: '⬡', desc: 'Market, trade and on-chain data aggregated into a unified intelligence layer.',
+    chips: ['DexScreener', 'GeckoTerminal', 'Helius', 'Birdeye', 'Bitquery'],
+  },
+  {
+    n: 'STAGE 02', t: 'HEURISTIC ENGINE', icon: '⛭', desc: 'Deterministic algorithms detect suspicious patterns before AI reasoning begins.',
+    chips: ['Rug Check', 'Wallet Clustering', 'Liquidity', 'Holders', 'Volume', 'Patterns'],
+  },
+  {
+    n: 'STAGE 03', t: 'AI ANALYST', icon: '✦', desc: 'AI interprets verified evidence instead of inventing facts.',
+    chips: ['Evidence-Based', 'Risk Explanation', 'Pattern Summary', 'Deep Analysis'],
+  },
+  {
+    n: 'STAGE 04', t: 'TERMINAL', icon: '▤', desc: 'All intelligence delivered through one powerful terminal experience.',
+    chips: ['Dashboard', 'Alerts', 'AI Chat', 'Watchlist', 'Reports'],
+  },
 ]
+
+function How() {
+  return (
+    <section className="lv-sec alt" id="how">
+      <div className="lv-sec-head lv-center rv">
+        <div className="lv-k2">HOW IT WORKS</div>
+        <h2 className="lv-h2">AI-Powered On-Chain <span className="a">Intelligence</span></h2>
+        <p className="lv-lead">Real data. Deterministic analysis. AI reasoning.</p>
+      </div>
+      <div className="lv-pipe">
+        {STAGES.map((s, i) => (
+          <div className={`lv-stage rv d${i}`} key={s.t}>
+            <DataStream className="stream" />
+            <div className="n">{s.n}</div>
+            <div className="lv-holo"><span className="ring" /><span className="ring r2" /><span className="core">{s.icon}</span></div>
+            <h3>{s.t}</h3>
+            <p className="desc">{s.desc}</p>
+            <div className="lv-chips">{s.chips.map((c) => <span className="lv-chip" key={c}>{c}</span>)}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function Chains() {
+  const [hover, setHover] = useState<string | null>(null)
+  const info = NET_CHAINS.find((c) => c.id === hover)
+  return (
+    <section className="lv-sec" id="chains">
+      <div className="lv-sec-head lv-center rv">
+        <div className="lv-k2">MULTI-CHAIN</div>
+        <h2 className="lv-h2">One Terminal. <span className="a">All Chains.</span></h2>
+        <p className="lv-lead">Scan, analyze and compare memecoins across multiple ecosystems from one unified intelligence layer.</p>
+      </div>
+      <div className="lv-net-wrap rv">
+        <ChainNetwork hovered={hover} onHover={setHover} />
+        {info && (
+          <div className="lv-net-tip" style={{ borderColor: info.color + '66' }}>
+            <div className="t" style={{ color: info.color }}>{info.label}</div>
+            <div className="s">{info.stats}</div>
+            <span className="b" style={info.live
+              ? { color: '#34d399', border: '1px solid rgba(52,211,153,.4)' }
+              : { color: '#8a91b4', border: '1px dashed rgba(139,145,180,.4)' }}>
+              {info.live ? '● LIVE' : '◇ VERIFICATION PENDING'}
+            </span>
+          </div>
+        )}
+        <div className="lv-net-hint">HOVER A CHAIN NODE</div>
+      </div>
+    </section>
+  )
+}
+
+const FEATS = [
+  { i: '⛨', t: 'Rug Check Engine', d: 'Detect suspicious liquidity, ownership, mint authority and other risk signals.' },
+  { i: '❋', t: 'Wallet Clustering', d: 'Detect coordinated wallets, trading patterns and hidden relationships.' },
+  { i: '✦', t: 'AI Analyst', d: 'Ask questions and receive evidence-based analysis — never invented facts.' },
+  { i: '◍', t: 'Whale Tracker', d: 'Monitor whale movements, large transactions and smart-money activity.' },
+  { i: '◆', t: 'Alerts & Watchlist', d: 'Track important tokens and receive intelligent alerts when signals change.' },
+  { i: '▤', t: 'Portfolio Intelligence', d: 'Monitor holdings, exposure and risk insights — read-only, no custody.' },
+]
+
+function Features() {
+  return (
+    <section className="lv-sec alt" id="features">
+      <div className="lv-sec-head lv-center rv">
+        <div className="lv-k2">FEATURES</div>
+        <h2 className="lv-h2">Everything You Need to <span className="a">Stay Ahead</span></h2>
+      </div>
+      <div className="lv-feats">
+        {FEATS.map((f, i) => (
+          <div className={`lv-feat rv d${i % 3}`} key={f.t}>
+            <div className="holo-s">{f.i}</div>
+            <h3>{f.t}</h3>
+            <p>{f.d}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+const PHIL = [
+  { i: '⊘', t: 'No Trading Execution', d: 'Zero transaction paths exist in the product — by design.' },
+  { i: '⚿', t: 'No Custody', d: 'We never hold funds or ask for private keys. Ever.' },
+  { i: '✦', t: 'Evidence-Based AI', d: 'The model cites its evidence or admits “data not available”.' },
+  { i: '◈', t: 'Privacy First', d: 'Public data in, insight out. No tracking, no accounts required.' },
+]
+
+function Philosophy() {
+  return (
+    <section className="lv-sec" id="philosophy">
+      <div className="lv-sec-head lv-center rv">
+        <div className="lv-k2">PRODUCT PHILOSOPHY</div>
+        <h2 className="lv-h2">Built for Analysis. <span className="a">Not for Gambling.</span></h2>
+        <p className="lv-lead">Terminal Alpha is an intelligence and research terminal — not a trading bot.</p>
+      </div>
+      <div className="lv-phil">
+        {PHIL.map((p, i) => (
+          <div className={`lv-pr rv d${i}`} key={p.t}>
+            <div className="ico">{p.i}</div>
+            <b>{p.t}</b>
+            <span>{p.d}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function AiSection() {
+  return (
+    <section className="lv-sec alt" id="ai">
+      <div className="lv-ai">
+        <div className="lv-core rv" aria-hidden="true"><NeuralCore /></div>
+        <div className="rv d1">
+          <div className="lv-k2">AI ANALYST</div>
+          <h2 className="lv-h2" style={{ marginBottom: 18 }}>Ask Why. <span className="a">Get Evidence.</span></h2>
+          <div className="lv-chat">
+            <div className="hd"><span className="d" /><b>TERMINAL ALPHA AI — MOCK CONVERSATION</b></div>
+            <div className="lv-msg user">
+              <div className="who">YOU</div>
+              <div className="lv-bub">“Why is this token considered medium risk?”</div>
+            </div>
+            <div className="lv-msg ai">
+              <div className="who">AI ANALYST</div>
+              <div className="lv-bub">
+                <span className="lv-verdict">◈ MEDIUM RISK · 68/100</span>
+                <div className="sect">KEY SIGNALS</div>
+                <ul>
+                  <li>Early wallet clustering detected</li>
+                  <li>Liquidity appears healthy</li>
+                  <li>Holder concentration requires monitoring</li>
+                  <li>Coordinated activity detected</li>
+                </ul>
+              </div>
+            </div>
+            <div className="btns">
+              <button className="lv-cta ghost" style={{ height: 38, fontSize: 12 }}>Explain Score</button>
+              <button className="lv-cta ghost" style={{ height: 38, fontSize: 12 }}>Deeper Analysis</button>
+            </div>
+            <div className="note">// VISUAL MOCKUP — EVIDENCE-FIRST AI, NO REAL CONNECTION YET</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+const TIERS = [
+  { i: '◇', t: 'Free Analysis', d: 'Full data correctness, standard depth — the truth is never paywalled.' },
+  { i: '◆', t: 'Deep Analysis', d: 'Longer AI reasoning, cluster traces, whale intent — depth, not different facts.' },
+  { i: '✧', t: 'Premium Intelligence', d: 'Advanced research tooling for desks. USDC path always available.' },
+]
+
+function Token() {
+  return (
+    <section className="lv-sec" id="token">
+      <div className="lv-sec-head lv-center rv">
+        <div className="lv-k2">TOKEN UTILITY</div>
+        <h2 className="lv-h2">Access Intelligence. <span className="a">Not Speculation.</span></h2>
+        <p className="lv-lead">The access layer is designed around feature depth — never trading, custody, or profit promises.</p>
+      </div>
+      <div className="lv-key-wrap">
+        <div className="lv-key rv" aria-hidden="true">
+          <span className="orb" />
+          <div className="card3d"><span className="gl">⚿</span><span className="tt">SOULBOUND · TIME-BOUND</span></div>
+        </div>
+        <div className="lv-tiers rv d1">
+          {TIERS.map((t) => (
+            <div className="lv-tier" key={t.t}>
+              <span className="ic">{t.i}</span>
+              <div><b>{t.t}</b><span>{t.d}</span></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+const ROAD = [
+  { ph: 'PHASE 01', t: 'Foundation', done: true, items: ['Multi-chain scanner', 'Rug Check', 'AI Analyst', 'Terminal UI'] },
+  { ph: 'PHASE 02', t: 'Intelligence', done: true, items: ['Wallet clustering', 'Whale tracking', 'Alerts', 'Grounding logs'] },
+  { ph: 'PHASE 03', t: 'Advanced Intelligence', done: false, items: ['Funding-source analysis', 'Sniper detection', 'Advanced graph analysis', 'Deep research'] },
+  { ph: 'PHASE 04', t: 'Scale', done: false, items: ['Production data providers', 'Expanded chain coverage', 'Advanced intelligence infrastructure'] },
+]
+
+function Roadmap() {
+  return (
+    <section className="lv-sec alt" id="roadmap">
+      <div className="lv-sec-head lv-center rv">
+        <div className="lv-k2">ROADMAP</div>
+        <h2 className="lv-h2">From Scanner to <span className="a">Intelligence Infrastructure</span></h2>
+      </div>
+      <div className="lv-road">
+        {ROAD.map((r, i) => (
+          <div className={`lv-phase ${r.done ? 'done' : ''} rv d${i}`} key={r.ph}>
+            <span className="pt" />
+            <div className="ph">{r.ph}</div>
+            <b>{r.t}</b>
+            <ul>{r.items.map((it) => <li className={r.done ? 'done-i' : ''} key={it}>{it}</li>)}</ul>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function Final() {
+  return (
+    <section className="lv-final" id="docs">
+      <span className="ring3d" aria-hidden="true" /><span className="ring3d r" aria-hidden="true" />
+      <div className="rv">
+        <h2>Ready to See the Alpha <span style={{ color: 'var(--p2)' }}>Others Miss?</span></h2>
+        <p>Enter the next generation of AI-powered on-chain intelligence.</p>
+        <a className="lv-cta" href="/terminal" style={{ height: 54, padding: '0 38px', fontSize: 15.5 }}>Launch Terminal →</a>
+        <p style={{ marginTop: 28, fontSize: 12.5, fontFamily: 'var(--fm)', color: 'var(--dim)' }}>
+          DOCS · #how &nbsp;·&nbsp; API PREVIEW · #features &nbsp;·&nbsp; STATUS · ALL SYSTEMS OPERATIONAL
+        </p>
+      </div>
+    </section>
+  )
+}
+
+function Foot() {
+  return (
+    <footer className="lv-foot">
+      <div className="lv-foot-in">
+        <a href="#" className="lv-logo"><span className="m">◤</span>TERMINAL&nbsp;<span style={{ color: 'var(--p2)' }}>ALPHA</span></a>
+        <p className="disc">
+          Research & education tool. AI output is not financial advice. Risk scores are automated
+          heuristics, not audits. Memecoin trading is extremely high risk — DYOR, never risk funds
+          you cannot afford to lose.
+        </p>
+        <div className="nav2"><a href="#top">Back to top ↑</a><a href="/terminal">Open Terminal</a></div>
+      </div>
+    </footer>
+  )
+}
+
+/* ═══════════ page ═══════════ */
 
 export default function Landing() {
   useReveal()
   return (
-    <>
-      <nav className="nav">
-        <div className="container nav-inner">
-          <a href="/" className="logo"><span className="mark">◤</span> TERMINAL<span className="tld">ALPHA</span></a>
-          <div className="nav-links">
-            <a href="#principles">Principles</a>
-            <a href="#architecture">Architecture</a>
-            <a href="#disclaimer">Disclaimer</a>
-            <a href="/terminal" className="btn btn-primary btn-sm">Open Terminal</a>
-          </div>
-        </div>
-      </nav>
-
-      <header className="hero">
-        <div className="hero-bg" aria-hidden="true" />
-        <div className="container hero-inner">
-          <div className="hero-copy">
-            <p className="overline">AI memecoin scanner terminal</p>
-            <h1>Cut the noise.<br /><span className="grad">Know the why.</span></h1>
-            <p className="sub">
-              Terminal Alpha turns raw on-chain data into <em>explained</em> risk.
-              Deterministic heuristics, evidence-first AI, zero custody —
-              no buy/sell signals, just context you can verify.
-            </p>
-            <div className="hero-cta">
-              <a href="/terminal" className="btn btn-primary">Open Terminal →</a>
-              <a href="#architecture" className="btn btn-ghost">How it works</a>
-            </div>
-            <div className="hero-stats">
-              <div><b>6</b><span>risk signals</span></div>
-              <div><b>4</b><span>chains live</span></div>
-              <div><b>3</b><span>AI providers</span></div>
-              <div><b>0</b><span>transactions executed</span></div>
-            </div>
-          </div>
-          <TerminalMock />
-        </div>
-      </header>
-
-      <section className="chains reveal">
-        <div className="container chains-inner">
-          <span className="chains-label">live on</span>
-          {['Solana', 'BNB Chain', 'Base', 'Avalanche'].map((c) => (
-            <span className="chain" key={c}>{c}</span>
-          ))}
-          <span className="chain soon">Hyperliquid · soon</span>
-        </div>
-      </section>
-
-      <section id="principles" className="section">
-        <div className="container">
-          <p className="overline reveal">Non-negotiables</p>
-          <h2 className="reveal">Principles that don't bend.</h2>
-          <div className="cards">
-            {PRINCIPLES.map((p) => (
-              <article className="card reveal" key={p.k}>
-                <span className="card-num">{p.k}</span>
-                <h3>{p.t}</h3>
-                <p>{p.d}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="architecture" className="section alt">
-        <div className="container">
-          <p className="overline reveal">Pipeline</p>
-          <h2 className="reveal">Every answer traces back to data.</h2>
-          <p className="lead reveal">
-            The AI never talks to raw APIs. It reasons strictly over the heuristic output it was
-            handed — so any conclusion can be audited down to the exact numbers behind it.
-          </p>
-          <div className="flow">
-            {FLOW.map((f, i) => (
-              <div className="flow-step reveal" key={f.t} style={{ transitionDelay: `${i * 0.1}s` }}>
-                <span className="flow-n">{i + 1}</span>
-                <h3>{f.t}</h3>
-                <p>{f.d}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="disclaimer" className="section">
-        <div className="container">
-          <div className="disclaimer reveal">
-            <h2>Read this before you trade.</h2>
-            <p>
-              Terminal Alpha is a research and education tool. AI output is <b>not financial
-              advice</b>. Every risk score is an automated heuristic, not an audit. Memecoin
-              trading is extremely high risk — never risk funds you cannot afford to lose. Always
-              do your own research.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <footer className="footer">
-        <div className="container footer-inner">
-          <span className="logo"><span className="mark">◤</span> TERMINAL<span className="tld">ALPHA</span></span>
-          <span className="foot-note">© 2026 — research & education tool. Not financial advice. DYOR.</span>
-          <a href="/terminal" className="foot-link">Open Terminal →</a>
-        </div>
-      </footer>
-    </>
+    <div className="lv">
+      <Nav />
+      <Hero />
+      <Trust />
+      <How />
+      <Chains />
+      <Features />
+      <Philosophy />
+      <AiSection />
+      <Token />
+      <Roadmap />
+      <Final />
+      <Foot />
+    </div>
   )
 }
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <Landing />
+  </StrictMode>,
+)
