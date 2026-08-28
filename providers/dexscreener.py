@@ -46,7 +46,8 @@ VENUE_MAP = {
 }
 
 def launch_venue(pairs: list[dict]) -> str | None:
-    """Birthplace = earliest pairCreatedAt across ALL pairs, not the migrated-to venue."""
+    """Birthplace = earliest pairCreatedAt among the requested chain's pairs —
+    the venue the token launched on within that chain, not where it later migrated."""
     earliest = min((p for p in pairs if p.get("pairCreatedAt")),
                    key=lambda p: p["pairCreatedAt"], default=None)
     if earliest is None:

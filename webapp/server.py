@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import logging
 import os
 import re
 import time
@@ -73,7 +74,24 @@ class WhaleBody(BaseModel):
     address: str
 
 
+def _apply_cors(app: FastAPI) -> None:
+    """CORS is opt-in for split FE/BE hosting: CORS_ALLOW_ORIGINS is a comma
+    list of origins (e.g. "https://alpha.example.com,https://alpha.pages.dev").
+    Empty/unset = no middleware — the same-origin reverse-proxy deploy needs none."""
+    origins = [o.strip() for o in os.environ.get("CORS_ALLOW_ORIGINS", "").split(",") if o.strip()]
+    if not origins:
+        return
+    from fastapi.middleware.cors import CORSMiddleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_methods=["GET", "POST"],
+        allow_headers=["Content-Type", "X-API-Key"],
+    )
+
+
 app = FastAPI(title="Terminal Alpha", docs_url=None, redoc_url=None)
+_apply_cors(app)
 
 
 def _validate(chain: str, address: str) -> None:
@@ -110,9 +128,14 @@ async def _scan_chain(chain_key: str, address: str) -> dict | None:
     token = (pair.get("baseToken") or {}).get("address")
     try:
         trades: list[dict] = []
+        primary_ok = False
         if pool:
             trades = await asyncio.to_thread(geckoterminal.fetch_trades, chain_key, pool)
-        if not trades and token:
+            primary_ok = True
+        # GT budget guard (~10 calls/min free tier): only spend the extra
+        # pools→trades round-trip when the pair carries no pool address at all.
+        # A successful primary fetch with zero trades is honest "no trades".
+        if not primary_ok and token:
             pools = await asyncio.to_thread(geckoterminal.fetch_pools, chain_key, token)
             best = geckoterminal.best_pool(pools)
             addr = (best.get("attributes") or {}).get("address") if best else None
@@ -157,9 +180,27 @@ async def _get_scan(chain_key: str, address: str, refresh: bool = False) -> dict
     return result
 
 
-def _ai_rate_ok(ip: str) -> bool:
+# hard cap on tracked IPs — one dict key per client IP must not grow forever
+_AI_HITS_MAX_IPS = 1000
+
+
+def _throttle_evict_ips(now: float) -> None:
+    """Drop IPs whose window has fully expired, then the oldest ones beyond
+    the cap — _ai_hits must never grow without bound."""
+    dead = [ip for ip, q in _ai_hits.items() if not q or now - q[-1] > 86_400]
+    for ip in dead:
+        del _ai_hits[ip]
+    while len(_ai_hits) >= _AI_HITS_MAX_IPS:
+        oldest = min(_ai_hits, key=lambda ip: _ai_hits[ip][-1] if _ai_hits[ip] else 0.0)
+        del _ai_hits[oldest]
+
+
+def _throttle_hit(ip: str) -> bool:
+    """Single write path for the per-IP AI rate limiter: prune the sliding
+    window, enforce the IP cap, then record the hit. False = over limit."""
     hourly, daily = _ai_rate_limits()
     now = time.time()
+    _throttle_evict_ips(now)
     q = _ai_hits[ip]
     while q and now - q[0] > 86_400:
         q.popleft()
@@ -195,7 +236,7 @@ async def api_explain(body: ExplainBody, request: Request) -> dict:
     # validate input first — invalid requests must not consume a rate-limit slot
     _validate(body.chain, body.address)
     ip = request.client.host if request.client else "unknown"
-    if not _ai_rate_ok(ip):
+    if not _throttle_hit(ip):
         hourly, daily = _ai_rate_limits()
         raise HTTPException(429, f"AI rate limit reached ({hourly}/hour, {daily}/day on the free tier) — try again later")
     scan = await _get_scan(body.chain, body.address)
@@ -257,6 +298,33 @@ _STATS: dict = {"scans": 0}
 _T0 = time.monotonic()
 _WS_CLIENTS: set = set()
 
+# /ws/snap access control: WS_AUTH_TOKEN empty = dev-open (one-time warning);
+# set = every client must connect with ?token=<value>. MAX_WS_CLIENTS bounds
+# per-process fan-out so one box cannot open unbounded sockets.
+logger = logging.getLogger("terminal-alpha.ws")
+_ws_open_warning_shown = False
+
+
+def _ws_max_clients() -> int:
+    try:
+        return int(os.environ.get("MAX_WS_CLIENTS", "64"))
+    except ValueError:
+        return 64
+
+
+def _ws_auth_ok(ws: WebSocket) -> bool:
+    """True → accept; (False, code) → reject with that close code."""
+    global _ws_open_warning_shown
+    expected = os.environ.get("WS_AUTH_TOKEN", "")
+    if not expected:
+        if not _ws_open_warning_shown:
+            logger.warning("WS_AUTH_TOKEN not set — /ws/snap is open (dev mode)")
+            _ws_open_warning_shown = True
+        return True
+    token = ws.query_params.get("token", "")
+    return bool(token) and token == expected
+
+
 def _snap() -> dict:
     ticks = []
     for (chain_key, address), (_at, res) in _scan_cache.items():
@@ -279,7 +347,18 @@ def _snap() -> dict:
 @app.websocket("/ws/snap")
 async def ws_snap(ws: WebSocket) -> None:
     """Full-snapshot ticker: identical honest state for every client, no
-    random walk. Frontend liveStream.startPolling swaps to this in B4b."""
+    random walk. Frontend liveStream.startPolling swaps to this in B4b.
+    Auth via ?token= against WS_AUTH_TOKEN (empty env = dev-open)."""
+    # accept-then-close so the custom code actually reaches the client
+    # (closing before accept collapses to a generic HTTP 403 handshake)
+    if not _ws_auth_ok(ws):
+        await ws.accept()
+        await ws.close(code=4401)  # unauthorized
+        return
+    if len(_WS_CLIENTS) >= _ws_max_clients():
+        await ws.accept()
+        await ws.close(code=4429)  # too many clients
+        return
     await ws.accept()
     _WS_CLIENTS.add(ws)
     try:

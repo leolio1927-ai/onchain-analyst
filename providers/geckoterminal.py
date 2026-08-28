@@ -12,11 +12,40 @@ TERVERIFIKASI live 2026-08-27 (network id: solana, bsc, base, avax — semua 200
 from __future__ import annotations
 
 import json
+import time
 import urllib.request
 
 BASE = "https://api.geckoterminal.com/api/v2"
 
 NETWORKS = {"sol": "solana", "bnb": "bsc", "base": "base", "avax": "avax"}
+
+# Free tier is ~10 calls/min — a small TTL trade cache keeps a warm scan at
+# zero GT calls without serving meaningfully stale per-wallet data.
+TRADE_CACHE_TTL_S = 90.0
+TRADE_CACHE_MAX = 64
+
+# (chain_key, pool_address) → (monotonic_ts, trades)
+_trade_cache: dict[tuple[str, str], tuple[float, list[dict]]] = {}
+
+
+def _trade_cache_get(key: tuple[str, str]) -> list[dict] | None:
+    hit = _trade_cache.get(key)
+    if hit and time.monotonic() - hit[0] < TRADE_CACHE_TTL_S:
+        return hit[1]
+    return None
+
+
+def _trade_cache_put(key: tuple[str, str], trades: list[dict]) -> None:
+    """Store trades: drop expired entries first, then the oldest ones beyond
+    the size cap — the cache must never grow without bound (server._cache_put
+    pattern)."""
+    now = time.monotonic()
+    expired = [k for k, (t, _) in _trade_cache.items() if now - t >= TRADE_CACHE_TTL_S]
+    for k in expired:
+        del _trade_cache[k]
+    while len(_trade_cache) >= TRADE_CACHE_MAX:
+        del _trade_cache[min(_trade_cache, key=lambda k: _trade_cache[k][0])]
+    _trade_cache[key] = (now, trades)
 
 def _net(chain_key: str) -> str:
     """Resolve GT network slug; raise a readable error for chains GT does
@@ -56,7 +85,12 @@ def best_pool(pools: list[dict]) -> dict | None:
 def fetch_trades(chain_key: str, pool_address: str) -> list[dict]:
     """Trade terbaru pool → normalisasi buat clustering:
     {"wallet", "kind", "ts" (ISO str), "usd" (float), "base_token"}.
-    Trade dengan field wajib bolong di-skip — jangan nebak."""
+    Trade dengan field wajib bolong di-skip — jangan nebak.
+    Served from the TTL trade cache when warm (callers must not mutate)."""
+    key = (chain_key, pool_address)
+    cached = _trade_cache_get(key)
+    if cached is not None:
+        return cached
     data = _get(f"/networks/{_net(chain_key)}/pools/{pool_address}/trades")
     out: list[dict] = []
     for item in data.get("data") or []:
@@ -71,4 +105,5 @@ def fetch_trades(chain_key: str, pool_address: str) -> list[dict]:
         base_token = a.get("to_token_address") if kind == "buy" else a.get("from_token_address")
         out.append({"wallet": wallet, "kind": kind, "ts": ts, "usd": usd,
                     "base_token": base_token})
+    _trade_cache_put(key, out)
     return out
