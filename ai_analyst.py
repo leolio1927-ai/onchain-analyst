@@ -13,6 +13,8 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
+from providers import llm
+
 MODEL_DEFAULT = "claude-sonnet-4-5"
 
 SYSTEM_PROMPT = """You are the AI analyst inside Terminal Alpha — a read-only memecoin research tool.
@@ -91,10 +93,9 @@ def _call(provider: Provider, system: str, user: str, max_tokens: int):
         raise NoKeyError(f"{provider.env_key} belum diset (lihat .env.example)")
 
     if provider.kind == "anthropic":
-        from anthropic import Anthropic
-        client = Anthropic(timeout=60.0)  # bounded wait — SDK default would hold a worker thread for minutes
+        client = llm.make_llm_client(provider.key, api_key)
         msg = client.messages.create(
-            model=os.environ.get(provider.env_model, provider.default_model),
+            model=os.environ.get(provider.env_model, "") or llm.resolve_llm_model(provider.key),
             max_tokens=max_tokens, system=system,
             messages=[{"role": "user", "content": user}],
         )
@@ -102,12 +103,11 @@ def _call(provider: Provider, system: str, user: str, max_tokens: int):
         usage = {"input": msg.usage.input_tokens, "output": msg.usage.output_tokens}
         return text, msg.model, usage
 
-    # openai-compatible: glm / kimi
-    from openai import OpenAI
-    base = os.environ.get(provider.env_base or "", provider.default_base)
-    client = OpenAI(api_key=api_key, base_url=base, timeout=60.0)
+    # openai-compatible: glm / kimi (and any future entry in llm.LLM_CONFIGS)
+    client = llm.make_llm_client(provider.key, api_key,
+                                 base_url=os.environ.get(provider.env_base or "") or None)
     rsp = client.chat.completions.create(
-        model=os.environ.get(provider.env_model, provider.default_model),
+        model=os.environ.get(provider.env_model, "") or llm.resolve_llm_model(provider.key),
         max_tokens=max_tokens,
         messages=[{"role": "system", "content": system},
                   {"role": "user", "content": user}],
