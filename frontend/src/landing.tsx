@@ -431,9 +431,11 @@ function Hero() {
         <div className="tilt" ref={tilt}>
           <RadarScanner />
         </div>
-        <div className="lv-rpanel p1"><b>RISK ENGINE</b><span className="v">68/100</span> MEDIUM RISK</div>
-        <div className="lv-rpanel p2"><b>CLUSTERS</b><span className="v">3 detected</span> 42.3% supply</div>
-        <div className="lv-rpanel p3"><b>WHALES</b><span className="v">$318K</span> net flow 24h</div>
+        <div className="lv-hud">
+          <div className="cell"><b>RISK ENGINE</b><span className="v">68/100</span><small>MEDIUM RISK</small></div>
+          <div className="cell"><b>CLUSTERS</b><span className="v">3</span><small>42.3% SUPPLY</small></div>
+          <div className="cell"><b>WHALES 24H</b><span className="v">$318K</span><small>NET FLOW</small></div>
+        </div>
         <div className="lv-scanpill"><span className="blink" /> SCANNING THE MEMECOIN UNIVERSE</div>
       </div>
     </section>
