@@ -1,7 +1,7 @@
 /* Typed client for the Terminal Alpha backend (webapp/server.py).
    The server re-fetches + re-assesses evidence itself — the client never sends data. */
 
-export const CHAINS = ['sol', 'bnb', 'base', 'avax'] as const
+export const CHAINS = ['sol', 'bnb', 'base', 'avax', 'hood'] as const
 export type Chain = (typeof CHAINS)[number]
 
 export const CHAIN_LABEL: Record<Chain, string> = {
@@ -9,6 +9,7 @@ export const CHAIN_LABEL: Record<Chain, string> = {
   bnb: 'BNB Chain',
   base: 'Base',
   avax: 'Avalanche',
+  hood: 'Robinhood Chain',
 }
 
 export interface Signal {
@@ -31,6 +32,7 @@ export interface Pair {
   pairAddress: string | null
   chainId: string | null
   dexId: string | null
+  url: string | null
   baseToken: { address: string; symbol: string; name: string }
   quoteToken: { symbol: string }
   priceUsd: string | null
@@ -55,6 +57,7 @@ export interface ScanResult {
   assessment: Assessment
   clustering: Clustering
   sources: string[]
+  launch_venue: string | null
   ts: string
 }
 

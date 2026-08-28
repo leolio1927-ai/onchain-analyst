@@ -7,13 +7,17 @@ const FREEZE = (import.meta as any).env?.VITE_USE_MOCK_SCANNER === 'true'
 const TTL = 60_000
 let cache: { at: number; rows: ScannerRow[] | null } = { at: 0, rows: null }
 
+/* Frozen/fallback rows are fake by contract (mock/data.ts: "EVERY number here
+   is FAKE") — they keep the mock flag so the UI can label them visibly. */
+const MOCK_ROWS: ScannerRow[] = SCANNER_ROWS.map((r) => ({ ...r, mock: true }))
+
 export const dataService = {
   async getScannerRows(): Promise<ScannerRow[]> {
-    if (FREEZE) return SCANNER_ROWS
+    if (FREEZE) return MOCK_ROWS
     if (cache.rows && Date.now() - cache.at < TTL) return cache.rows
     const live = await fetchTrending()
     if (live && live.length) { const rows = live.map(toScannerRow); cache = { at: Date.now(), rows }; return rows }
-    return (cache.rows ?? SCANNER_ROWS) as ScannerRow[]
+    return cache.rows ?? MOCK_ROWS
   },
   async search(q: string): Promise<ScannerRow[]> {
     const rows = await dataService.getScannerRows()

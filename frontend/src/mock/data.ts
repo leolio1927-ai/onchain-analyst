@@ -1,6 +1,7 @@
 /* Mock dataset for the institutional dashboard.
    EVERY number here is FAKE but shaped like real output. Swap dataService → apiService
    later without touching any component (same interfaces). */
+import { CHAINS as API_CHAINS, CHAIN_LABEL } from '../api'
 
 export interface ChainInfo {
   id: string
@@ -9,13 +10,15 @@ export interface ChainInfo {
   live: boolean
 }
 
-export const CHAINS: ChainInfo[] = [
-  { id: 'sol', label: 'Solana', color: '#22d3ee', live: true },
-  { id: 'bnb', label: 'BNB Chain', color: '#fbbf24', live: true },
-  { id: 'base', label: 'Base', color: '#3b82f6', live: true },
-  { id: 'hype', label: 'HyperEVM', color: '#a78bfa', live: false },
-  { id: 'avax', label: 'Avalanche', color: '#fb7185', live: true },
-]
+/* Single source of truth is the backend chain allowlist via api.ts — the mock
+   layer only decorates it with colors and never invents its own chain list. */
+const CHAIN_COLOR: Record<string, string> = {
+  sol: '#22d3ee', bnb: '#fbbf24', base: '#3b82f6', avax: '#fb7185',
+}
+
+export const CHAINS: ChainInfo[] = API_CHAINS.map((id) => ({
+  id, label: CHAIN_LABEL[id], color: CHAIN_COLOR[id] ?? '#8a91b4', live: true,
+}))
 
 export interface Candle { t: number; o: number; h: number; l: number; c: number; v: number }
 

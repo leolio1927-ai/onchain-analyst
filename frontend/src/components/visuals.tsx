@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useCallback } from 'react'
+import { NET_CHAINS } from '../lib/netChains'
 
 /* ═══ Landing v6 visual engine — glowing dark-green neon, zero deps.
    Level 6: dual-pass render (glow layer + crisp layer — text/lines never soften),
@@ -365,16 +366,8 @@ export function RadarScanner() {
 }
 
 /* ─────────── multi-chain globe — glowing dark neon orb ─────────── */
-
-export interface NetChain { id: string; label: string; color: string; live: boolean; stats: string }
-
-export const NET_CHAINS: NetChain[] = [
-  { id: 'sol', label: 'SOLANA', color: '#8dffcf', live: true, stats: '1,900+ pairs indexed · live scanning' },
-  { id: 'bnb', label: 'BNB CHAIN', color: '#ffd98a', live: true, stats: 'PancakeSwap pools · live scanning' },
-  { id: 'base', label: 'BASE', color: '#93c5fd', live: true, stats: 'Aerodrome pools · live scanning' },
-  { id: 'hype', label: 'HYPEREVM', color: '#cbb8ff', live: false, stats: 'chainId pending verification — honest by policy' },
-  { id: 'avax', label: 'AVALANCHE', color: '#ffabab', live: true, stats: 'TraderJoe pools · live scanning' },
-]
+/* chain metadata moved to lib/netChains.ts (fast-refresh: keep this file
+   component-only); NODE_LL/ARCS below reference its ids. */
 
 const NODE_LL: Record<string, [number, number]> = {
   sol: [0.38, 0.7], bnb: [-0.2, 2.6], base: [0.55, 4.4], hype: [-0.55, 5.5], avax: [0.02, 3.4],

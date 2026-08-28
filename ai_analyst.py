@@ -92,7 +92,7 @@ def _call(provider: Provider, system: str, user: str, max_tokens: int):
 
     if provider.kind == "anthropic":
         from anthropic import Anthropic
-        client = Anthropic()
+        client = Anthropic(timeout=60.0)  # bounded wait — SDK default would hold a worker thread for minutes
         msg = client.messages.create(
             model=os.environ.get(provider.env_model, provider.default_model),
             max_tokens=max_tokens, system=system,
@@ -105,7 +105,7 @@ def _call(provider: Provider, system: str, user: str, max_tokens: int):
     # openai-compatible: glm / kimi
     from openai import OpenAI
     base = os.environ.get(provider.env_base or "", provider.default_base)
-    client = OpenAI(api_key=api_key, base_url=base)
+    client = OpenAI(api_key=api_key, base_url=base, timeout=60.0)
     rsp = client.chat.completions.create(
         model=os.environ.get(provider.env_model, provider.default_model),
         max_tokens=max_tokens,

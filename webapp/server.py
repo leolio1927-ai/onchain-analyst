@@ -31,6 +31,7 @@ from heuristics import clustering, rug_check
 from providers import dexscreener, geckoterminal, helius
 
 CACHE_TTL_S = 30.0
+SCAN_CACHE_MAX = 512  # hard cap — every /api/scan key would otherwise live forever (memory DoS)
 
 _ADDRESS_RES = {
     "sol": re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$"),
@@ -94,7 +95,14 @@ def _pair_view(pair: dict) -> dict:
 async def _scan_chain(chain_key: str, address: str) -> dict | None:
     """DexScreener pair + GeckoTerminal clustering → assessment. GT failure →
     honest degrade (severity None + reason), the other signals still run."""
-    pair = await asyncio.to_thread(dexscreener.fetch_pair, chain_key, address)
+    try:
+        pairs = await asyncio.to_thread(dexscreener.fetch_pairs, chain_key, address)
+    except urllib.error.HTTPError as e:
+        # Upstream rate limit / hard error must surface as an honest 503, not a raw 500.
+        raise HTTPException(503, f"DexScreener HTTP {e.code} — provider unavailable, try again shortly") from e
+    except (urllib.error.URLError, TimeoutError, OSError) as e:
+        raise HTTPException(503, f"DexScreener unreachable ({str(e)[:60]}) — try again shortly") from e
+    pair = dexscreener.best_pair(pairs)
     if pair is None:
         return None
 
@@ -121,7 +129,19 @@ async def _scan_chain(chain_key: str, address: str) -> dict | None:
     assessment = rug_check.assess(pair, cl)
     return {"pair": _pair_view(pair), "assessment": assessment, "clustering": cl,
             "sources": ["dexscreener", "geckoterminal"],
+            "launch_venue": dexscreener.launch_venue(pairs),
             "ts": datetime.now(UTC).isoformat()}
+
+
+def _cache_put(key: tuple[str, str], at: float, result: dict) -> None:
+    """Store a scan result: drop expired entries first, then the oldest ones
+    beyond the size cap — the cache must never grow without bound."""
+    expired = [k for k, (t, _) in _scan_cache.items() if at - t >= CACHE_TTL_S]
+    for k in expired:
+        del _scan_cache[k]
+    while len(_scan_cache) >= SCAN_CACHE_MAX:
+        del _scan_cache[min(_scan_cache, key=lambda k: _scan_cache[k][0])]
+    _scan_cache[key] = (at, result)
 
 
 async def _get_scan(chain_key: str, address: str, refresh: bool = False) -> dict:
@@ -133,7 +153,7 @@ async def _get_scan(chain_key: str, address: str, refresh: bool = False) -> dict
     result = await _scan_chain(chain_key, address)
     if result is None:
         raise HTTPException(404, f"no pair found for {address} on {chain_key} — check address/chain")
-    _scan_cache[key] = (now, result)
+    _cache_put(key, now, result)
     return result
 
 
@@ -163,18 +183,21 @@ async def health() -> dict:
 @app.post("/api/scan")
 async def api_scan(body: ScanBody) -> dict:
     _validate(body.chain, body.address)
-    return await _get_scan(body.chain, body.address, body.refresh)
+    out = await _get_scan(body.chain, body.address, body.refresh)
+    _STATS["scans"] += 1  # real usage counter — cache hits count as served scans
+    return out
 
 
 @app.post("/api/explain")
 async def api_explain(body: ExplainBody, request: Request) -> dict:
     if body.provider not in ai_analyst.PROVIDERS:
         raise HTTPException(400, f"unknown provider '{body.provider}' — pick {'|'.join(ai_analyst.PROVIDERS)}")
+    # validate input first — invalid requests must not consume a rate-limit slot
+    _validate(body.chain, body.address)
     ip = request.client.host if request.client else "unknown"
     if not _ai_rate_ok(ip):
         hourly, daily = _ai_rate_limits()
         raise HTTPException(429, f"AI rate limit reached ({hourly}/hour, {daily}/day on the free tier) — try again later")
-    _validate(body.chain, body.address)
     scan = await _get_scan(body.chain, body.address)
     try:
         out = await asyncio.to_thread(ai_analyst.explain, scan["pair"], scan["assessment"],
@@ -226,6 +249,47 @@ async def assets(subpath: str):
         raise HTTPException(404, "asset not found — is the frontend built?")
     return FileResponse(f)
 
+
+# ── B4a: live snapshot feed (real data only — the frontend fake-walk dies here) ──
+from fastapi import WebSocket, WebSocketDisconnect  # noqa: E402
+
+_STATS: dict = {"scans": 0}
+_T0 = time.monotonic()
+_WS_CLIENTS: set = set()
+
+def _snap() -> dict:
+    ticks = []
+    for (chain_key, address), (_at, res) in _scan_cache.items():
+        p = res.get("pair") or {}
+        a = res.get("assessment") or {}
+        ticks.append({
+            "sym": (p.get("baseToken") or {}).get("symbol") or "?",
+            "chain": chain_key.upper(),
+            "address": address,
+            "px": float(p["priceUsd"]) if p.get("priceUsd") else None,
+            "chg": (p.get("priceChange") or {}).get("h24"),
+            "risk": a.get("score"),
+            "level": a.get("level"),
+            "ts": res.get("ts"),
+        })
+    return {"now": datetime.now(UTC).isoformat(), "scans": _STATS["scans"],
+            "uptime_s": int(time.monotonic() - _T0), "clients": len(_WS_CLIENTS),
+            "ticks": ticks}
+
+@app.websocket("/ws/snap")
+async def ws_snap(ws: WebSocket) -> None:
+    """Full-snapshot ticker: identical honest state for every client, no
+    random walk. Frontend liveStream.startPolling swaps to this in B4b."""
+    await ws.accept()
+    _WS_CLIENTS.add(ws)
+    try:
+        while True:
+            await ws.send_json(_snap())
+            await asyncio.sleep(15)
+    except (WebSocketDisconnect, RuntimeError):
+        pass
+    finally:
+        _WS_CLIENTS.discard(ws)
 
 def main() -> None:
     parser = argparse.ArgumentParser(prog="webapp", description="Terminal Alpha web server")

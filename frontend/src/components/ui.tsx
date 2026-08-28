@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import type { ReactNode } from 'react'
 
 /* Small premium UI kit used across every page. */
@@ -105,13 +105,4 @@ export function Toggle({ on, onChange, label }: { on: boolean; onChange: (v: boo
       {label && <span className="lbl">{label}</span>}
     </button>
   )
-}
-
-export function useNow(intervalMs = 30_000) {
-  const [now, setNow] = useState(() => new Date())
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), intervalMs)
-    return () => clearInterval(id)
-  }, [intervalMs])
-  return now
 }

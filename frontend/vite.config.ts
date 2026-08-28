@@ -9,6 +9,8 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': 'http://127.0.0.1:8000',
+      // live-stream WebSocket (/ws/snap) must reach the backend in dev too
+      '/ws': { target: 'ws://127.0.0.1:8000', ws: true },
     },
   },
   build: {

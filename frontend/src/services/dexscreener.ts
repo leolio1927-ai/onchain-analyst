@@ -3,7 +3,7 @@
    mock data alive. Backend :8000 stays the judge for /api/scan (heuristics +
    clustering must not run in a browser). */
 const BASE = 'https://api.dexscreener.com'
-const UI_CHAIN: Record<string, string> = { solana: 'sol', bsc: 'bnb', base: 'base',
+const UI_CHAIN: Record<string, string> = { solana: 'sol', bsc: 'bnb', base: 'base', hyperevm: 'hype',
   'avalanche': 'avax' }
 
 export interface LiveRow {
@@ -11,7 +11,35 @@ export interface LiveRow {
   price: number; chg: number; liq: number; vol: number; created: number
 }
 
-async function jget(url: string, ms = 10000): Promise<any> {
+/* Minimal upstream shapes — DexScreener returns loose JSON; every field is
+   optional and guarded before use (no `as any` casts on upstream data). */
+interface DsToken { address?: string; symbol?: string }
+interface DsPair {
+  chainId?: string; dexId?: string; url?: string;
+  baseToken?: DsToken | null; quoteToken?: DsToken | null;
+  priceUsd?: string; priceNative?: string;
+  priceChange?: { h24?: number } | null;
+  liquidity?: { usd?: number | null } | null;
+  volume?: { h24?: number } | null;
+  pairCreatedAt?: number;
+  info?: { imageUrl?: string } | null;
+}
+interface DsBoost { chainId?: string; tokenAddress?: string }
+
+function isObj(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null
+}
+function isDsPair(v: unknown): v is DsPair { return isObj(v) }
+function isDsBoost(v: unknown): v is DsBoost { return isObj(v) }
+function isBoostArray(v: unknown): v is DsBoost[] {
+  return Array.isArray(v) && v.every(isDsBoost)
+}
+function pairsOf(d: unknown): DsPair[] {
+  if (!isObj(d) || !Array.isArray(d.pairs)) return []
+  return d.pairs.filter(isDsPair)
+}
+
+async function jget(url: string, ms = 10000): Promise<unknown> {
   try {
     const ac = new AbortController()
     const t = setTimeout(() => ac.abort(), ms)
@@ -23,14 +51,14 @@ async function jget(url: string, ms = 10000): Promise<any> {
 }
 
 let a4 = ''
-function toRow(p: any): LiveRow | null {
-  const price = parseFloat(p?.priceUsd)
-  if (!p?.baseToken?.symbol || !(price > 0)) return null
+function toRow(p: DsPair): LiveRow | null {
+  const price = parseFloat(p.priceUsd ?? '')
+  if (!p.baseToken?.symbol || !(price > 0)) return null
   const ct = p.pairCreatedAt || 0
   return {
     symbol: String(p.baseToken.symbol).slice(0, 14),
-    chain: UI_CHAIN[p.chainId] ?? p.chainId ?? 'sol',
-    pair: `${(a4 = p.baseToken.address ?? '') .slice(0, 4)}…${a4.slice(-4)} / ${p.quoteToken?.symbol ?? '?'}`,
+    chain: (p.chainId && UI_CHAIN[p.chainId]) || p.chainId || 'sol',
+    pair: `${(a4 = p.baseToken.address ?? '').slice(0, 4)}…${a4.slice(-4)} / ${p.quoteToken?.symbol ?? '?'}`,
     url: p.url ?? '', iconUrl: p.info?.imageUrl ?? '',
     price, chg: p.priceChange?.h24 ?? 0,
     liq: p.liquidity?.usd ?? 0, vol: p.volume?.h24 ?? 0, created: ct,
@@ -48,33 +76,74 @@ export function dedupe(rows: LiveRow[], perToken = 12): LiveRow[] {
   return [...best.values()].sort((a, b) => b.liq - a.liq).slice(0, perToken)
 }
 
-/* Trending: boosts/top token addresses -> one batched tokens/{csv} query. */
+/* Trending: per-chain balanced. Boost addresses grouped by chainId; a chain
+   with no boost coverage falls back to native-asset search (SOL/BNB/ETH/AVAX)
+   so EVERY target chain always contributes its top-3 deepest pairs. */
 export async function fetchTrending(): Promise<LiveRow[] | null> {
   const boosts = await jget(`${BASE}/token-boosts/top/v1`)
-  if (!Array.isArray(boosts)) return null
-  const want = Object.keys(UI_CHAIN)
-  const addrs = [...new Set(boosts.filter((b: any) => want.includes(b.chainId))
-    .map((b: any) => b.tokenAddress).filter(Boolean))].slice(0, 30)
-  if (!addrs.length) return null
-  const data = await jget(`${BASE}/latest/dex/tokens/${addrs.join(',')}`)
-  const pairs = Array.isArray(data?.pairs) ? data.pairs : []
-  const rows = dedupe(pairs.map(toRow).filter(Boolean) as LiveRow[])
+  const byChain: Record<string, string[]> = {}
+  if (isBoostArray(boosts)) for (const b of boosts) {
+    const c = b.chainId, a = b.tokenAddress
+    if (c && a && UI_CHAIN[c]) (byChain[c] ??= []).push(a)
+  }
+  const nat: Record<string, string> = { solana: 'SOL', bsc: 'BNB', base: 'ETH', avalanche: 'AVAX', hyperevm: 'HYPE' }
+  const lists = await Promise.all(Object.keys(UI_CHAIN).map(async (c) => {
+    const addrs = (byChain[c] ?? []).slice(0, 8)
+    const d = addrs.length
+      ? await jget(`${BASE}/latest/dex/tokens/${addrs.join(',')}`)
+      : await jget(`${BASE}/latest/dex/search?q=${encodeURIComponent(nat[c] ?? c)}`)
+    const ps = pairsOf(d).filter((p) => p.chainId === c)
+    return ps.map(toRow).filter((r): r is LiveRow => r !== null).sort((a, b) => b.liq - a.liq).slice(0, 3)
+  }))
+  const rows = dedupe(lists.flat(), 12)
   return rows.length ? rows : null
 }
+/* ── Chain cards v2: native wrapper contracts, probed live 2026-08-28 ───
+   /tokens/{wrapper} beats symbol search: search returns wrapped cross-chain
+   fakes (BNB "on solana", liq $721M). HYPE's deepest pair is USDC/WHYPE —
+   wrapper as QUOTE, so price = base.priceUsd / priceNative (inverted);
+   AVAX /tokens returned null once → search fallback, avalanche-only. */
+const NATIVE: Array<{ cid: string; addr: string; sym: string; fb: string[] }> = [
+  { cid: 'solana',    addr: 'So11111111111111111111111111111111111111112', sym: 'SOL',  fb: [] },
+  { cid: 'bsc',       addr: '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c', sym: 'BNB',  fb: [] },
+  { cid: 'base',      addr: '0x4200000000000000000000000000000000000006', sym: 'ETH',  fb: [] },
+  { cid: 'avalanche', addr: '0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7', sym: 'AVAX', fb: ['WAVAX', 'AVAX'] },
+  { cid: 'hyperevm',  addr: '0x5555555555555555555555555555555555555555', sym: 'HYPE', fb: [] },
+]
 
-/* Chain chips: pick the deepest per-chain pair of each native symbol. */
-const CHAIN_QUERIES: Array<[string, string]> = [['sol', 'SOL'], ['bnb', 'BNB'],
-  ['base', 'ETH'], ['avax', 'AVAX']]
+function nativeFromPair(p: DsPair, cid: string, addr: string, sym: string): LiveRow | null {
+  const b = p.baseToken, q = p.quoteToken
+  if (!b?.address || !q?.address || p.chainId !== cid) return null
+  const al = addr.toLowerCase()
+  const baseIs = b.address.toLowerCase() === al
+  if (!baseIs && q.address.toLowerCase() !== al) return null
+  const pu = parseFloat(p.priceUsd ?? ''), pn = parseFloat(p.priceNative ?? '')
+  if (!isFinite(pu) || !isFinite(pn) || pn === 0) return null
+  const price = baseIs ? pu : pu / pn // wrapper-as-quote: invert the base rate
+  // pair priceChange tracks the base token; negate when wrapper is quote
+  const chg = (baseIs ? 1 : -1) * (p.priceChange?.h24 ?? 0)
+  const r = toRow(p); if (!r) return null
+  return { ...r, symbol: sym, pair: `${baseIs ? b.symbol : q.symbol}/${baseIs ? q.symbol : b.symbol}`, price, chg }
+}
 
 export async function fetchChainTickers(): Promise<LiveRow[] | null> {
-  const out: LiveRow[] = []
-  for (const [chain, sym] of CHAIN_QUERIES) {
-    const data = await jget(`${BASE}/latest/dex/search?q=${sym}`)
-    const rows = ((data?.pairs) ?? []).map(toRow)
-      .filter((r: any) => r && r.chain === chain) as LiveRow[]
-    if (rows.length) out.push(dedupe(rows, 1)[0])
-  }
-  return out.length ? out : null
+  const lists = await Promise.all(NATIVE.map(async ({ cid, addr, sym, fb }) => {
+    try {
+      const d = await jget(`${BASE}/latest/dex/tokens/${addr}`)
+      const ps = pairsOf(d).filter((x) => x.chainId === cid)
+      const cand = ps.map((x) => nativeFromPair(x, cid, addr, sym)).filter((r): r is LiveRow => r !== null)
+      if (cand.length) return cand.sort((a, b) => b.liq - a.liq)[0]
+      for (const q of fb) { // honest fallback: same wrapper contract via search
+        const sr = await jget(`${BASE}/latest/dex/search?q=${q}`)
+        const sp = pairsOf(sr).filter((x) => x.chainId === cid)
+          .map((x) => nativeFromPair(x, cid, addr, sym)).filter((r): r is LiveRow => r !== null)
+        if (sp.length) return sp.sort((a, b) => b.liq - a.liq)[0]
+      }
+      return null
+    } catch { return null }
+  }))
+  const rows = lists.filter((r): r is LiveRow => r !== null)
+  return rows.length ? rows : null
 }
 
 /* ── Contract shared with the Scanner UI ────────────────────────────────
@@ -84,7 +153,8 @@ export async function fetchChainTickers(): Promise<LiveRow[] | null> {
 export interface ScannerRow {
   symbol: string; chain: string; pair: string; price: number; chg: number;
   liq: number; vol: number; risk: number | null; age: string; spark: number | null;
-  url?: string
+  url?: string;
+  mock?: boolean  // set on frozen/fallback rows — fake data must never pass for live
 }
 
 const H = 3600_000

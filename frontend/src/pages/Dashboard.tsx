@@ -9,7 +9,7 @@ import { AiPanel } from '../components/AiPanel'
 const HERO_STATS = [
   { ico: '⬡', v: '5', l: 'Blockchains', c: 'c-cyan' },
   { ico: '❋', v: '50K+', l: 'Tokens scanned', c: 'c-amber' },
-  { ico: '▲', v: '1.2M+', l: 'Analyses performed', c: 'c-purple' },
+  { ico: '▲', v: '1.2M+', l: 'Analyses performed', c: 'c-cyan' },
   { ico: '◔', v: '99.7%', l: 'Uptime', c: 'c-green' },
   { ico: '👤', v: '250K+', l: 'Users (target)', c: 'c-pink' },
   { ico: '∞', v: '', l: 'Possibilities', c: 'c-cyan' },
@@ -62,7 +62,12 @@ export default function Dashboard() {
     setLoading(true)
     dataService.getToken(address).then((t) => { setToken(t); setLoading(false) })
   }
-  useEffect(() => { load('') }, [])
+  useEffect(() => {
+    // async load only — no synchronous setState inside the effect body
+    let on = true
+    dataService.getToken('').then((t) => { if (on) { setToken(t); setLoading(false) } })
+    return () => { on = false }
+  }, [])
 
   const analyze = () => {
     if (!query.trim()) return
@@ -149,7 +154,7 @@ export default function Dashboard() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <span className="sym">{token.symbol}</span>
                           <span className="ta-badge b-muted">/ {token.chain.toUpperCase()}</span>
-                          <Badge color="purple">{token.tag}</Badge>
+                          <Badge color="amber">{token.tag}</Badge>
                         </div>
                         <div className="pair">{token.address} · {token.dex}</div>
                       </div>

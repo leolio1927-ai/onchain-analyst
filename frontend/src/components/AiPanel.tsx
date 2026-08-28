@@ -81,9 +81,13 @@ export function AiPanel({ token, full }: { token: TokenData; full?: boolean }) {
   const [upgradeNudge, setUpgradeNudge] = useState(false)
   const scroller = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
+  // reset the conversation when the token changes (adjust-state-during-render,
+  // per React docs — avoids a setState-in-effect cascade)
+  const [prevToken, setPrevToken] = useState(token)
+  if (prevToken !== token) {
+    setPrevToken(token)
     setMsgs([{ who: 'ai', body: deepAnswer(token) }])
-  }, [token])
+  }
 
   useEffect(() => {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: 'smooth' })
@@ -145,7 +149,7 @@ export function AiPanel({ token, full }: { token: TokenData; full?: boolean }) {
         ))}
         {typing && <div className="typing"><i /><i /><i /></div>}
         {upgradeNudge && (
-          <div className="ai-disclaimer" style={{ color: 'var(--purple-2)' }}>
+          <div className="ai-disclaimer" style={{ color: 'var(--violet)' }}>
             ⚡ Deeper runs are a plan limit, not a data limit — upgrade in Token Gate (data correctness never changes).
           </div>
         )}

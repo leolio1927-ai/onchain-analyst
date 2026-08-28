@@ -22,8 +22,11 @@ def fetch_balances(address: str) -> dict:
     key = os.environ.get("HELIUS_API_KEY")
     if not key:
         raise NoKeyError("HELIUS_API_KEY belum diset — urusan founder (lihat .env.example)")
-    url = f"{BASE}/v0/addresses/{address}/balances?api-key={key}"
-    req = urllib.request.Request(url, headers={"User-Agent": "terminal-alpha/0.1"})
+    # Key travels in a header, never the URL: urllib HTTPError messages embed
+    # the request URL, so a query-string key would leak into error logs.
+    url = f"{BASE}/v0/addresses/{address}/balances"
+    req = urllib.request.Request(url, headers={"User-Agent": "terminal-alpha/0.1",
+                                               "X-API-Key": key})
     with urllib.request.urlopen(req, timeout=10) as r:
         data = json.load(r)
 

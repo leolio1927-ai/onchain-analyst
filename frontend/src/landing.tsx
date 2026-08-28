@@ -2,8 +2,10 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { useEffect, useRef, useState } from 'react'
 import './styles/landing3.css'
-import { ChainGlobe, DataStream, NET_CHAINS, PageBackground, RadarScanner, SystemDiagram } from './components/visuals'
-import { stream, type FeedEvent, type TokenTick } from './lib/liveStream'
+import { ChainGlobe, DataStream, PageBackground, RadarScanner, SystemDiagram } from './components/visuals'
+import { NET_CHAINS } from './lib/netChains'
+import { stream, type FeedEvent } from './lib/liveStream'
+import { fetchChainTickers, type LiveRow } from './services/dexscreener'
 
 /* ═══════════ helpers ═══════════ */
 
@@ -121,7 +123,8 @@ const GLYPHS = '!<>-_\\/[]{}=+*^?#@$%&'
 function Decode({ text, delay = 0, className = '' }: { text: string; delay?: number; className?: string }) {
   const [out, setOut] = useState(text)
   useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setOut(text); return }
+    // initial state is already `text` — reduced-motion just skips the animation
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     let raf = 0
     const start = performance.now() + delay
     const per = 30
@@ -283,24 +286,30 @@ export function Icon({ name, size = 22, className = '' }: { name: string; size?:
 /* ═══════════ live engine consumers ═══════════ */
 
 function Ticker() {
-  const [ticks, setTicks] = useState<TokenTick[]>([])
+  const [rows, setRows] = useState<LiveRow[] | null>(null)
   useEffect(() => {
-    const off = stream.subscribe((_e, t) => setTicks(t))
-    return off
+    let dead = false
+    const pull = () => fetchChainTickers().then((r) => { if (!dead && r) setRows(r) })
+    pull()
+    const iv = setInterval(pull, 60000)
+    return () => { dead = true; clearInterval(iv) }
   }, [])
-  const row = [...ticks, ...ticks]
   return (
-    <div className="lv-tape" aria-hidden="true">
-      <div className="lv-tape-track">
-        {row.map((t, i) => (
-          <span className="lv-tape-item" key={i}>
-            <b>{t.sym}</b><span className="dim">{t.chain}</span>
-            <span className={t.chg >= 0 ? 'up' : 'down'}>{t.chg >= 0 ? '+' : ''}{t.chg.toFixed(1)}%</span>
-            <span className={t.risk >= 60 ? 'down' : 'up'}>RISK {t.risk}</span>
-            <i>◈</i>
-          </span>
-        ))}
-      </div>
+    <div className="lv-chains" role="list">
+      {(rows ?? []).map((r) => {
+        const ct = r.chain.toLowerCase()
+        const k = ct.startsWith('sol') ? 'sol' : ct.startsWith('bnb') || ct === 'bsc' ? 'bnb' : ct === 'base' ? 'base' : ct.startsWith('ava') ? 'avax' : 'hype'
+        return (
+          <a className="lv-chain-card" role="listitem" key={r.pair + r.chain} data-chain={k} href={r.url || '#'} target="_blank" rel="noreferrer">
+            <span className="cc-chain">{r.symbol.toUpperCase()}<i style={{ fontStyle: 'normal', marginLeft: 8, fontSize: 10.5, color: 'var(--dim)', letterSpacing: 0 }}>{r.pair}</i></span>
+            <span className="cc-price">${r.price >= 1 ? r.price.toLocaleString('en-US', { maximumFractionDigits: 2 }) : r.price.toPrecision(4)}</span>
+            <span className="cc-meta" style={{ display: 'flex' }}>
+              <span className={r.chg >= 0 ? 'up' : 'down'}>{r.chg >= 0 ? '+' : ''}{r.chg.toFixed(1)}%</span>
+              <span style={{ marginLeft: 'auto', color: 'var(--dim)' }}>VOL {r.vol >= 1e6 ? `$${(r.vol / 1e6).toFixed(1)}M` : r.vol >= 1e3 ? `$${(r.vol / 1e3).toFixed(0)}K` : '—'}</span>
+            </span>
+          </a>
+        )
+      })}
     </div>
   )
 }
@@ -445,7 +454,7 @@ function Hero() {
 const METRICS = [
   { to: 33.5, prefix: '$', suffix: 'B', label: 'MEMECOIN MARKET CAP · LIVE', c: 'c-green', d: 1 },
   { to: 3.8, prefix: '$', suffix: 'B', label: '24H GLOBAL VOLUME · LIVE', c: 'c-neon', d: 1 },
-  { to: 18.7, suffix: 'M', label: 'LAUNCHES SINCE 2024', c: 'c-purple', d: 1 },
+  { to: 18.7, suffix: 'M', label: 'LAUNCHES SINCE 2024', c: 'c-amber', d: 1 },
   { to: 98.6, suffix: '%', label: 'SHOW RUG-PULL BEHAVIOR', c: 'c-red', d: 1 },
   { to: 0.8, prefix: '', suffix: '%', label: 'GRADUATION RATE · 2026', c: 'c-amber', d: 1 },
   { to: 0, suffix: '', label: 'TRADES EXECUTED BY US', c: 'c-green', d: 0 },

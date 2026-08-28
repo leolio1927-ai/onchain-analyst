@@ -1,10 +1,11 @@
 /* LiveStream — real-time feed over the backend /ws/snap WebSocket (B4b).
    Every number comes from the server Snap proven live in B4a; nothing is simulated.
    Fresh tokens may carry null px/chg/risk — passed through as-is, never zero-filled. */
+import { CHAINS as API_CHAINS } from '../api'
 
 export interface TokenTick {
   sym: string
-  chain: 'SOL' | 'BNB' | 'BASE' | 'HYPE' | 'AVAX'
+  chain: 'SOL' | 'BNB' | 'BASE' | 'AVAX' | 'HOOD'
   address?: string
   px: number | null
   chg: number | null
@@ -22,7 +23,9 @@ export type FeedEvent =
 /* WHALE/LOCK stay in the union (landing.tsx view() is exhaustive over it),
    but the backend does not produce them yet — no event is ever fabricated. */
 
-const CHAINS: readonly string[] = ['SOL', 'BNB', 'BASE', 'HYPE', 'AVAX']
+/* Gate mirrors the backend chain allowlist — api.ts is the single source of
+   truth; the server emits uppercase chain keys in every tick. */
+const CHAINS: readonly string[] = API_CHAINS.map((c) => c.toUpperCase())
 type Listener = (e: FeedEvent, ticks: TokenTick[]) => void
 
 const listeners = new Set<Listener>()
@@ -46,6 +49,11 @@ function eventOf(t: TokenTick): FeedEvent | null {
   const key = t.address || t.sym
   if (seen.has(key) && seen.get(key) === t.ts) return null
   seen.set(key, t.ts)
+  // cap the session map — a long-lived feed must not grow without bound
+  if (seen.size > 200) {
+    const oldest = seen.keys().next().value
+    if (oldest !== undefined) seen.delete(oldest)
+  }
   if (t.risk == null) return null
   if (t.risk >= 70) return { kind: 'RUG', sym: t.sym, chain: t.chain, risk: t.risk }
   if (t.risk <= 40) return { kind: 'SAFE', sym: t.sym, chain: t.chain, risk: t.risk }

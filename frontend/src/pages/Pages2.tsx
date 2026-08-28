@@ -74,7 +74,7 @@ export function PortfolioPage() {
                   <td className="r mono">{p.amount.toLocaleString('en-US')}</td>
                   <td className="r mono">${p.value.toFixed(2)}</td>
                   <td className={`r mono ${p.chg >= 0 ? 'up' : 'down'}`}>+{p.chg}%</td>
-                  <td><Spark seed={p.spark} up={p.chg >= 0} /></td>
+                  <td>{p.spark == null ? <span className="dim mono">n/a</span> : <Spark seed={p.spark} up={p.chg >= 0} />}</td>
                   <td className="r"><span className={`ta-badge ${p.risk >= 70 ? 'b-red' : p.risk >= 50 ? 'b-amber' : 'b-green'}`}>{p.risk}</span></td>
                 </tr>
               ))}
@@ -168,7 +168,7 @@ export function GatePage() {
       <div className="grid-3">
         <Card title="CURRENT PLAN" glow="#00ffa3">
           <div style={{ fontFamily: 'var(--f-display)', fontSize: 28, fontWeight: 700 }}>Premium Deep</div>
-          <div className="mono" style={{ color: 'var(--purple-2)', fontSize: 12, margin: '4px 0 14px' }}>VALID UNTIL 2026-12-31</div>
+          <div className="mono" style={{ color: 'var(--violet)', fontSize: 12, margin: '4px 0 14px' }}>VALID UNTIL 2026-12-31</div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: 'var(--muted)', marginBottom: 4 }}>
             <span>Cycle usage</span><span className="mono">89%</span>
           </div>

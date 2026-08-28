@@ -184,7 +184,7 @@ input, select { font-family: inherit; }
 }
 .btn-analyze {
   height: 46px; padding: 0 26px; border: none; border-radius: 11px;
-  background: linear-gradient(135deg, var(--rose), var(--violet));
+  background: linear-gradient(135deg, var(--brand-2), var(--brand));
   color: #fff; font-weight: 700; font-size: 14px; letter-spacing: 0.04em;
   display: inline-flex; align-items: center; gap: 10px;
   box-shadow: var(--glow-purple);
@@ -234,7 +234,7 @@ input, select { font-family: inherit; }
 .tok { display: flex; align-items: center; gap: 14px; }
 .tok .avatar {
   width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center;
-  background: linear-gradient(135deg, var(--rose), var(--violet));
+  background: linear-gradient(135deg, var(--panel-2), var(--line));
   font-size: 22px;
 }
 .tok .sym { font-family: var(--f-display); font-weight: 700; font-size: 19px; letter-spacing: 0.02em; }

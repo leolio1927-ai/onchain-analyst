@@ -82,7 +82,8 @@ export function RadarChart({ values, labels }: { values: number[]; labels: strin
       ctx.beginPath()
       for (let i = 0; i <= n; i++) {
         const [x, y] = pt(i % n, ring)
-        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
+        if (i === 0) ctx.moveTo(x, y)
+        else ctx.lineTo(x, y)
       }
       ctx.stroke()
     }
@@ -94,7 +95,8 @@ export function RadarChart({ values, labels }: { values: number[]; labels: strin
     ctx.beginPath()
     values.forEach((v, i) => {
       const [x, y] = pt(i, Math.max(0.08, v))
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
+      if (i === 0) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
     })
     ctx.closePath()
     ctx.fillStyle = 'rgba(251,191,36,0.14)'
@@ -260,16 +262,19 @@ export function ClusterGraph({ clusters }: { clusters: Cluster[] }) {
   return <canvas ref={ref} style={{ width: '100%', height: '100%', display: 'block' }} />
 }
 
-export function Spark({ seed, up }: { seed: number; up: boolean }) {
+/* points: real series from the engine/feed when wired; without it this is a
+   seeded decorative walk — mock-only, never presented as live data */
+export function Spark({ seed, up, points }: { seed: number; up: boolean; points?: number[] }) {
   const ref = useCanvas((ctx, w, h) => {
     let s = seed >>> 0
     const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296 }
-    const pts = Array.from({ length: 24 }, () => rnd())
+    const pts = points && points.length >= 2 ? points : Array.from({ length: 24 }, () => rnd())
     const min = Math.min(...pts), max = Math.max(...pts)
     ctx.beginPath()
     pts.forEach((v, i) => {
       const x = (w * i) / 23, y = 2 + (h - 4) * (1 - (v - min) / (max - min || 1))
-      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y)
+      if (i === 0) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
     })
     ctx.strokeStyle = up ? '#34d399' : '#fb7185'
     ctx.lineWidth = 1.4

@@ -3,7 +3,9 @@ import { CHAINS, MEMEATCHI, SCANNER_ROWS, WHALES_TOP, buildClusters } from '../m
 import { ClusterGraph, ScoreDial, Spark } from '../components/charts'
 import { dataService } from '../services/dataService'
 import { Badge, Card, EmptyState, Meter, Tabs } from '../components/ui'
-import { CHAIN_LABEL } from '../api'
+import { ApiError, api, CHAINS as API_CHAINS, CHAIN_LABEL } from '../api'
+import type { Chain, ScanResult } from '../api'
+
 
 function fmtU(n: number): string {
   if (Math.abs(n) >= 1e9) return `$${(n / 1e9).toFixed(2)}B`
@@ -12,6 +14,19 @@ function fmtU(n: number): string {
   return `$${n.toFixed(2)}`
 }
 
+/* one scanned row = real engine verdict from POST /api/scan (B2) */
+function scannedRow(res: ScanResult, chain: string): any {
+  const p = res.pair
+  const short = (a: string | null) => (a && a.length > 12 ? a.slice(0, 5) + '…' + a.slice(-4) : a) || '?'
+  return {
+    id: `scan:${chain}:${p.pairAddress ?? p.baseToken?.address ?? res.ts}`,
+    symbol: p.baseToken?.symbol ?? 'UNKNOWN',
+    chain, pair: `${short(p.pairAddress)} / ${p.quoteToken?.symbol ?? '?'}`,
+    price: Number(p.priceUsd ?? 0), chg: p.priceChange?.h24 ?? 0,
+    liq: p.liquidity?.usd ?? 0, vol: p.volume?.h24 ?? 0,
+    risk: res.assessment.score, spark: null, scanned: true,
+  }
+}
 const chainColor = (id: string) => CHAINS.find((c) => c.id === id)?.color ?? '#8a91b4'
 
 /* shared page header */
@@ -29,7 +44,27 @@ export function ScannerPage() {
   const [q, setQ] = useState('')
   const [chain, setChain] = useState('all')
   const [risk, setRisk] = useState('all')
-  const [live, setLive] = useState<any[]>(SCANNER_ROWS)
+  const [live, setLive] = useState<any[]>([])
+  const [scanned, setScanned] = useState<any[]>([])
+  const [scanChain, setScanChain] = useState<Chain>('sol')
+  const [scanAddr, setScanAddr] = useState('')
+  const [scanning, setScanning] = useState(false)
+  const [scanErr, setScanErr] = useState<string | null>(null)
+  const [lastRes, setLastRes] = useState<ScanResult | null>(null)
+  async function runScan() {
+    const address = scanAddr.trim()
+    if (!address) { setScanErr('Paste a token address first.'); return }
+    setScanning(true); setScanErr(null)
+    try {
+      const res = await api.scan(scanChain, address)
+      const row = scannedRow(res, scanChain)
+      setScanned((prev) => [row, ...prev.filter((r) => r.id !== row.id)])
+      setLastRes(res)
+      setScanAddr(''); setQ('')
+    } catch (e) {
+      setScanErr(e instanceof ApiError ? e.message : 'Scan failed — try again.')
+    } finally { setScanning(false) }
+  }
   useEffect(() => {
     let on = true
     const pull = () => dataService.getScannerRows().then((r) => { if (on) setLive(r as any[]) })
@@ -38,11 +73,11 @@ export function ScannerPage() {
     return () => { on = false; clearInterval(t) }
   }, [])
   // null < 50 is true in JS — unscored rows must not fake a "safe" bucket
-  const rows = useMemo(() => live
+  const rows = useMemo(() => [...scanned, ...live]
     .filter((r) => chain === 'all' || r.chain === chain)
     .filter((r) => risk === 'all' || (r.risk !== null && r.risk !== undefined
       && ((risk === 'safe' && r.risk < 50) || (risk === 'risky' && r.risk >= 50))))
-    .filter((r) => r.symbol.toLowerCase().includes(q.toLowerCase())), [live, q, chain, risk])
+    .filter((r) => r.symbol.toLowerCase().includes(q.toLowerCase())), [live, scanned, q, chain, risk])
 
   return (
     <div className="ta-page">
@@ -54,6 +89,45 @@ export function ScannerPage() {
           </div>
         </div>
       } />
+      <div className="ta-searchrow">
+        <select value={scanChain} onChange={(e) => setScanChain(e.target.value as Chain)} className="mono"
+          style={{ height: 40, background: '#0d1322', color: 'var(--ink, #e7ecf5)', border: '1px dashed #233047', borderRadius: 8, padding: '0 10px' }}>
+          {API_CHAINS.map((c) => <option key={c} value={c}>{CHAIN_LABEL[c]}</option>)}
+        </select>
+        <div className="ta-search" style={{ height: 40 }}>
+          <span style={{ color: 'var(--dim)' }}>⛨</span>
+          <input placeholder="Paste token address — POST /api/scan" value={scanAddr}
+            onChange={(e) => setScanAddr(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && runScan()} spellCheck={false} style={{ minWidth: 280 }} />
+        </div>
+        <button className="btn-analyze" disabled={scanning} onClick={runScan}>{scanning ? 'SCANNING…' : 'SCAN TOKEN'}</button>
+      </div>
+      {scanErr && <Card><span className="mono" style={{ color: '#fb7185' }}>✗ {scanErr}</span></Card>}
+      {lastRes && (
+        <Card title="SCAN EVIDENCE — direct from /api/scan">
+          <div className="rug-list">
+            <div className="rug-row"><span className="k">Verdict</span><span className="v">{lastRes.assessment.level_label} · {lastRes.assessment.score ?? 'n/a'}/100</span></div>
+            <div className="rug-row"><span className="k">Sources</span><span className="v mono">{lastRes.sources.join(' + ')}</span></div>
+            {lastRes.launch_venue && (
+              <div className="rug-row"><span className="k">Launch venue</span><span className="v">{lastRes.launch_venue}</span></div>
+            )}
+            <div className="rug-row"><span className="k">Clustering</span><span className="v">{lastRes.clustering.wallets} wallets · {lastRes.clustering.buys} buys · sev {lastRes.clustering.severity ?? 'n/a'}</span></div>
+            <div className="rug-row"><span className="k">Cluster evidence</span><span className="v">{lastRes.clustering.evidence}</span></div>
+            <div className="rug-row"><span className="k">Scanned at</span><span className="v mono">{lastRes.ts}</span></div>
+          </div>
+          {lastRes.assessment.signals.length > 0 && (
+            <div style={{ display: 'grid', gap: 6, marginTop: 10 }}>
+              {lastRes.assessment.signals.map((g) => (
+                <div key={g.key} className="mono-line" style={{ fontSize: 12 }}>
+                  <b>[{g.severity == null ? 'n/a' : `sev ${g.severity}`}] {g.label}</b> · w{g.weight} — {g.evidence}
+                </div>
+              ))}
+            </div>
+          )}
+          {lastRes.assessment.notes.length > 0 && (
+            <p style={{ color: 'var(--muted)', fontSize: 12.5, marginTop: 10 }}>{lastRes.assessment.notes.join(' · ')}</p>
+          )}
+        </Card>
+      )}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
         <Tabs active={chain} onPick={setChain} tabs={[{ id: 'all', label: 'All chains' }, ...CHAINS.filter(c => c.live).map((c) => ({ id: c.id, label: c.label }))]} />
         <Tabs active={risk} onPick={setRisk} tabs={[{ id: 'all', label: 'All risk' }, { id: 'safe', label: '≤ 49' }, { id: 'risky', label: '≥ 50' }]} />
@@ -68,8 +142,8 @@ export function ScannerPage() {
               </tr></thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.chain+":"+r.symbol+":"+r.pair}>
-                    <td><b>{r.symbol}</b></td>
+                  <tr key={r.id ?? r.chain+":"+r.symbol+":"+r.pair}>
+                    <td><b>{r.symbol}</b>{r.scanned ? <span title="verified by /api/scan engine" style={{ color: '#34d399', marginLeft: 6, fontSize: 10 }}>⛨</span> : null}{r.mock ? <span title="placeholder data — not a live scan" style={{ color: '#fbbf24', marginLeft: 6, fontSize: 10, border: '1px dashed #fbbf24', borderRadius: 4, padding: '0 4px' }}>MOCK</span> : null}</td>
                     <td><span className="ta-tip"><span className="dot-inline" style={{ background: chainColor(r.chain), width: 8, height: 8, borderRadius: 99, display: 'inline-block' }} /> {CHAIN_LABEL[r.chain as keyof typeof CHAIN_LABEL] ?? r.chain}<span className="ta-tip-pop">{CHAIN_LABEL[r.chain as keyof typeof CHAIN_LABEL] ?? r.chain}</span></span></td>
                     <td className="mono dim">{r.pair}</td>
                     <td className="r mono">{r.price < 1e-8 ? '<1e-8' : '$' + r.price.toFixed(8)}</td>
