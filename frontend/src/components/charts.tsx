@@ -120,42 +120,142 @@ export function RadarChart({ values, labels }: { values: number[]; labels: strin
 }
 
 export function ClusterGraph({ clusters }: { clusters: Cluster[] }) {
-  const ref = useCanvas((ctx, w, h) => {
-    // edges between nodes of the same cluster
-    clusters.forEach((g) => {
-      ctx.strokeStyle = g.color + '33'
-      ctx.lineWidth = 0.7
-      g.nodes.forEach((a, i) => {
-        g.nodes.slice(i + 1).forEach((b) => {
-          const dx = (a.x - b.x) * w, dy = (a.y - b.y) * h
-          if (Math.hypot(dx, dy) < w * 0.16) {
-            ctx.beginPath()
-            ctx.moveTo(a.x * w, a.y * h)
-            ctx.lineTo(b.x * w, b.y * h)
-            ctx.stroke()
-          }
+  const ref = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    const cv = ref.current
+    if (!cv) return
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    let mx = 0, my = 0, tx = 0, ty = 0, raf = 0, pw = 0, phh = 0
+    const onMove = (e: PointerEvent) => {
+      const r = cv.getBoundingClientRect()
+      if (!r.width || !r.height) return
+      tx = ((e.clientX - r.left) / r.width - 0.5) * 2
+      ty = ((e.clientY - r.top) / r.height - 0.5) * 2
+    }
+    const paint = (t: number) => {
+      const ctx = cv.getContext('2d')
+      if (!ctx) return
+      const w = cv.clientWidth, h = cv.clientHeight
+      if (!w || !h) return
+      const dpr = window.devicePixelRatio || 1
+      if (w !== pw || h !== phh) {
+        cv.width = w * dpr; cv.height = h * dpr
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+        pw = w; phh = h
+      }
+      ctx.clearRect(0, 0, w, h)
+      mx += (tx - mx) * 0.07
+      my += (ty - my) * 0.07
+      const offs = clusters.map((_, gi) => ({
+        x: Math.sin(t * 0.13 + gi * 1.7) * w * 0.018 + mx * (7 + gi * 2.4),
+        y: Math.cos(t * 0.11 + gi * 2.3) * h * 0.018 + my * (6 + gi * 2),
+      }))
+      const px = (gi: number, nd: { x: number; y: number; r: number }) => ({
+        x: nd.x * w + offs[gi].x + nd.r * 1.9 * mx,
+        y: nd.y * h + offs[gi].y + nd.r * 1.9 * my,
+      })
+      // collect wires first (3 passes: core, current, packet)
+      const wires: { a: { x: number; y: number }; b: { x: number; y: number }; col: string; sp: number }[] = []
+      clusters.forEach((g, gi) => {
+        g.nodes.forEach((a, ii) => {
+          g.nodes.slice(ii + 1).forEach((b) => {
+            const d = Math.hypot((a.x - b.x) * w, (a.y - b.y) * h)
+            if (d > w * 0.16) return
+            wires.push({ a: px(gi, a), b: px(gi, b), col: g.color, sp: 18 + ((ii * 7 + gi * 13) % 16) })
+          })
         })
       })
-    })
-    // cross-cluster faint edges
-    ctx.strokeStyle = 'rgba(139,145,180,0.07)'
-    for (let gi = 0; gi < clusters.length - 1; gi++) {
-      const a = clusters[gi].nodes[0], b = clusters[gi + 1].nodes[0]
-      if (a && b) { ctx.beginPath(); ctx.moveTo(a.x * w, a.y * h); ctx.lineTo(b.x * w, b.y * h); ctx.stroke() }
-    }
-    // nodes with glow
-    clusters.forEach((g) => {
-      g.nodes.forEach((nd) => {
-        const x = nd.x * w, y = nd.y * h, r = nd.r
-        const grad = ctx.createRadialGradient(x, y, 0, x, y, r * 3)
-        grad.addColorStop(0, g.color + '66')
-        grad.addColorStop(1, 'transparent')
-        ctx.fillStyle = grad
-        ctx.beginPath(); ctx.arc(x, y, r * 3, 0, Math.PI * 2); ctx.fill()
-        ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2)
-        ctx.fillStyle = g.color; ctx.fill()
+      // pass 1: core cable (wide glow + inner line)
+      wires.forEach((w2) => {
+        ctx.strokeStyle = w2.col + '15'
+        ctx.lineWidth = 2.4
+        ctx.beginPath(); ctx.moveTo(w2.a.x, w2.a.y); ctx.lineTo(w2.b.x, w2.b.y); ctx.stroke()
+        ctx.strokeStyle = w2.col + '4d'
+        ctx.lineWidth = 0.8
+        ctx.beginPath(); ctx.moveTo(w2.a.x, w2.a.y); ctx.lineTo(w2.b.x, w2.b.y); ctx.stroke()
       })
-    })
+      // pass 2: flowing current (dash motion, per-edge direction & speed)
+      ctx.setLineDash([5, 16])
+      wires.forEach((w2, wi) => {
+        ctx.strokeStyle = w2.col + 'cc'
+        ctx.lineWidth = 1
+        ctx.lineDashOffset = -(t * w2.sp + wi * 37)
+        ctx.beginPath(); ctx.moveTo(w2.a.x, w2.a.y); ctx.lineTo(w2.b.x, w2.b.y); ctx.stroke()
+      })
+      ctx.setLineDash([])
+      // pass 3: packets riding the wire, sine fade + vertical wobble
+      wires.forEach((w2, wi) => {
+        if (wi % 3 !== 0) return
+        const dx = w2.b.x - w2.a.x, dy = w2.b.y - w2.a.y
+        const len = Math.hypot(dx, dy) || 1
+        const nx = -dy / len, ny = dx / len
+        const f = ((t * 0.22 + (wi % 10) / 10 + (wi * 0.13)) % 1)
+        const wob = Math.sin(f * Math.PI * 3) * 1.6
+        const x = w2.a.x + dx * f + nx * wob, y = w2.a.y + dy * f + ny * wob
+        const al = Math.sin(f * Math.PI)
+        const pg = ctx.createRadialGradient(x, y, 0, x, y, 5)
+        pg.addColorStop(0, w2.col + Math.round(al * 200).toString(16).padStart(2, '0'))
+        pg.addColorStop(1, 'transparent')
+        ctx.fillStyle = pg
+        ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill()
+        ctx.fillStyle = w2.col
+        ctx.globalAlpha = al * 0.9
+        ctx.beginPath(); ctx.arc(x, y, 1.4, 0, Math.PI * 2); ctx.fill()
+        ctx.globalAlpha = 1
+      })
+      // cross-cluster bridges flow slowly too
+      ctx.setLineDash([2, 10])
+      ctx.strokeStyle = 'rgba(139,145,180,0.22)'
+      ctx.lineWidth = 0.7
+      ctx.lineDashOffset = -(t * 9)
+      for (let gi = 0; gi < clusters.length - 1; gi++) {
+        const a = clusters[gi].nodes[0], b = clusters[gi + 1].nodes[0]
+        if (a && b) {
+          const p2 = px(gi, a), q = px(gi + 1, b)
+          ctx.beginPath(); ctx.moveTo(p2.x, p2.y); ctx.lineTo(q.x, q.y); ctx.stroke()
+        }
+      }
+      ctx.setLineDash([])
+      // nodes breathing (same as v2, slightly deeper)
+      clusters.forEach((g, gi) => {
+        g.nodes.forEach((nd, ni) => {
+          const p2 = px(gi, nd)
+          const br = Math.sin(t * 1.25 + gi * 2.1 + ni * 0.7)
+          const r = nd.r * (1 + 0.22 * br)
+          const grad = ctx.createRadialGradient(p2.x, p2.y, 0, p2.x, p2.y, r * 3.2)
+          grad.addColorStop(0, g.color + '77')
+          grad.addColorStop(1, 'transparent')
+          ctx.fillStyle = grad
+          ctx.beginPath(); ctx.arc(p2.x, p2.y, r * 3.2, 0, Math.PI * 2); ctx.fill()
+          ctx.globalAlpha = 0.6 + 0.4 * (0.5 + 0.5 * br)
+          ctx.beginPath(); ctx.arc(p2.x, p2.y, r, 0, Math.PI * 2)
+          ctx.fillStyle = g.color; ctx.fill()
+          ctx.globalAlpha = 1
+        })
+      })
+    }
+    const loop = () => {
+      paint(performance.now() / 1000)
+      raf = requestAnimationFrame(loop)
+    }
+    const onVis = () => {
+      cancelAnimationFrame(raf)
+      if (!document.hidden && !reduce) raf = requestAnimationFrame(loop)
+    }
+    if (reduce) paint(0)
+    else {
+      cv.addEventListener('pointermove', onMove)
+      document.addEventListener('visibilitychange', onVis)
+      raf = requestAnimationFrame(loop)
+    }
+    const ro = new ResizeObserver(() => paint(reduce ? 0 : performance.now() / 1000))
+    ro.observe(cv)
+    return () => {
+      cancelAnimationFrame(raf)
+      ro.disconnect()
+      cv.removeEventListener('pointermove', onMove)
+      document.removeEventListener('visibilitychange', onVis)
+    }
   }, [clusters])
   return <canvas ref={ref} style={{ width: '100%', height: '100%', display: 'block' }} />
 }

@@ -279,7 +279,7 @@ export default function Dashboard() {
 
           {/* right rail */}
           <div style={{ display: 'grid', gap: 16, position: 'sticky', top: 16 }}>
-            <Card title="TERMINAL ALPHA AI ANALYST" right={<Badge color="purple">DEEP ANALYSIS</Badge>} glow="#8b5cf6">
+            <Card title="TERMINAL ALPHA AI ANALYST" right={<Badge color="green">DEEP ANALYSIS</Badge>} glow="#00ffa3">
               {loading || !token
                 ? <div style={{ display: 'grid', gap: 10 }}><Skeleton h={18} /><Skeleton h={14} w="80%" /><Skeleton h={14} w="90%" /><Skeleton h={14} w="60%" /></div>
                 : <AiPanel token={token} />}

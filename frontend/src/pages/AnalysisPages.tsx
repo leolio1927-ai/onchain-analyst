@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CHAINS, MEMEATCHI, SCANNER_ROWS, WHALES_TOP, buildClusters } from '../mock/data'
 import { ClusterGraph, ScoreDial, Spark } from '../components/charts'
+import { dataService } from '../services/dataService'
 import { Badge, Card, EmptyState, Meter, Tabs } from '../components/ui'
 import { CHAIN_LABEL } from '../api'
 
@@ -28,10 +29,20 @@ export function ScannerPage() {
   const [q, setQ] = useState('')
   const [chain, setChain] = useState('all')
   const [risk, setRisk] = useState('all')
-  const rows = useMemo(() => SCANNER_ROWS
+  const [live, setLive] = useState<any[]>(SCANNER_ROWS)
+  useEffect(() => {
+    let on = true
+    const pull = () => dataService.getScannerRows().then((r) => { if (on) setLive(r as any[]) })
+    pull()
+    const t = setInterval(pull, 60_000) // provider caches 60s too
+    return () => { on = false; clearInterval(t) }
+  }, [])
+  // null < 50 is true in JS — unscored rows must not fake a "safe" bucket
+  const rows = useMemo(() => live
     .filter((r) => chain === 'all' || r.chain === chain)
-    .filter((r) => risk === 'all' || (risk === 'safe' && r.risk < 50) || (risk === 'risky' && r.risk >= 50))
-    .filter((r) => r.symbol.toLowerCase().includes(q.toLowerCase())), [q, chain, risk])
+    .filter((r) => risk === 'all' || (r.risk !== null && r.risk !== undefined
+      && ((risk === 'safe' && r.risk < 50) || (risk === 'risky' && r.risk >= 50))))
+    .filter((r) => r.symbol.toLowerCase().includes(q.toLowerCase())), [live, q, chain, risk])
 
   return (
     <div className="ta-page">
@@ -57,16 +68,16 @@ export function ScannerPage() {
               </tr></thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.symbol}>
+                  <tr key={r.chain+":"+r.symbol+":"+r.pair}>
                     <td><b>{r.symbol}</b></td>
                     <td><span className="ta-tip"><span className="dot-inline" style={{ background: chainColor(r.chain), width: 8, height: 8, borderRadius: 99, display: 'inline-block' }} /> {CHAIN_LABEL[r.chain as keyof typeof CHAIN_LABEL] ?? r.chain}<span className="ta-tip-pop">{CHAIN_LABEL[r.chain as keyof typeof CHAIN_LABEL] ?? r.chain}</span></span></td>
                     <td className="mono dim">{r.pair}</td>
-                    <td className="r mono">${r.price.toFixed(8)}</td>
-                    <td className={`r mono ${r.chg >= 0 ? 'up' : 'down'}`}>{r.chg >= 0 ? '+' : ''}{r.chg}%</td>
+                    <td className="r mono">{r.price < 1e-8 ? '<1e-8' : '$' + r.price.toFixed(8)}</td>
+                    <td className={`r mono ${r.chg >= 0 ? 'up' : 'down'}`}>{r.chg >= 0 ? '+' : ''}{r.chg.toFixed(2)}%</td>
                     <td className="r mono">{fmtU(r.liq)}</td>
                     <td className="r mono">{fmtU(r.vol)}</td>
-                    <td><Spark seed={r.spark} up={r.chg >= 0} /></td>
-                    <td className="r"><span className={`ta-badge ${r.risk >= 75 ? 'b-red' : r.risk >= 50 ? 'b-amber' : 'b-green'}`}>{r.risk}</span></td>
+                    <td>{r.spark == null ? <span className="dim mono">n/a</span> : <Spark seed={r.spark} up={r.chg >= 0} />}</td>
+                    <td className="r">{r.risk == null ? <span className="dim mono">n/a</span> : <span className={`ta-badge ${r.risk >= 75 ? 'b-red' : r.risk >= 50 ? 'b-amber' : 'b-green'}`}>{r.risk}</span>}</td>
                   </tr>
                 ))}
               </tbody>

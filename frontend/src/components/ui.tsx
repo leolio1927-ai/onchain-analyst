@@ -90,7 +90,7 @@ export function EmptyState({ icon = '◇', title, hint }: { icon?: string; title
   )
 }
 
-export function Meter({ value, max = 100, color = '#a78bfa' }: { value: number; max?: number; color?: string }) {
+export function Meter({ value, max = 100, color = '#00ffa3' }: { value: number; max?: number; color?: string }) {
   return (
     <div className="ta-meter">
       <span style={{ width: `${Math.min(100, (value / max) * 100)}%`, background: color, boxShadow: `0 0 12px ${color}66` }} />

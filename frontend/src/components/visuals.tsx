@@ -1,13 +1,12 @@
 import { useEffect, useRef } from 'react'
 import { useCallback } from 'react'
 
-/* ═══ Landing v5 visual engine — glowing dark-green neon, zero deps.
-   Level 5: full-DPR render (no more jaggy), lambert-lit wireframe globe,
-   beacon nodes + leader-line labels, decluttered radar with lock story.
+/* ═══ Landing v6 visual engine — glowing dark-green neon, zero deps.
+   Level 6: dual-pass render (glow layer + crisp layer — text/lines never soften),
+   dark-orb radar matching the globe, full feature-flow system diagram.
    Scanner signature: NEON GREEN #00ffa3 on near-black. ═══ */
 
 const GREEN = '#00ffa3'
-const GREEN_SOFT = '#aef7dd'
 const TAU = Math.PI * 2
 
 interface SceneOpts {
@@ -17,11 +16,9 @@ interface SceneOpts {
   maxDpr?: number
 }
 
-/* Canvas runner with offscreen scene + downsample bloom composite + crisp pass.
-   Two layers: draw() = glow layer (gets bloom), crisp() = drawn AFTER bloom on
-   the main canvas so lines/ticks/text stay pixel-perfect, never softened.
-   DPR is native-exact (1x screen → 1x render, no supersample downscale blur).
-   Pauses off-screen, respects reduced motion. */
+/* Canvas runner: offscreen scene (glow layer, gets bloom) + crisp pass drawn
+   AFTER bloom on the main canvas so lines/ticks/text stay pixel-perfect.
+   DPR is native-exact. Pauses off-screen, respects reduced motion. */
 function useSceneCanvas(draw: (ctx: CanvasRenderingContext2D, w: number, h: number, t: number) => void, opts: SceneOpts = {}) {
   const { bloom = false, crisp, deps = [], maxDpr = 2 } = opts
   const ref = useRef<HTMLCanvasElement>(null)
@@ -59,13 +56,12 @@ function useSceneCanvas(draw: (ctx: CanvasRenderingContext2D, w: number, h: numb
       ctx.clearRect(0, 0, w, h)
       ctx.drawImage(scene, 0, 0, w, h)
       if (bloom) {
-        b1.getContext('2d')!.drawImage(scene, 0, 0, b1.width, b1.height)
-        b2.getContext('2d')!.drawImage(b1, 0, 0, b2.width, b2.height)
+        const b1ctx = b1.getContext('2d')!
+        b1ctx.clearRect(0, 0, b1.width, b1.height)
+        b1ctx.drawImage(scene, 0, 0, b1.width, b1.height)
         ctx.save()
         ctx.globalCompositeOperation = 'lighter'
-        ctx.globalAlpha = 0.42
-        ctx.drawImage(b2, 0, 0, w, h)
-        ctx.globalAlpha = 0.22
+        ctx.globalAlpha = 0.16
         ctx.drawImage(b1, 0, 0, w, h)
         ctx.restore()
       }
@@ -124,14 +120,14 @@ export function PageBackground() {
   return <canvas ref={ref} className="lvp-bg" aria-hidden="true" />
 }
 
-/* ─────────── HERO radar — one story: sweep → detect → lock → verdict ─────────── */
+/* ─────────── HERO radar — dark glowing platform, chain colors, lock story ─────────── */
 
 const ORBITS = [
-  { color: '#8dffcf', r: 0.52, speed: 0.11, size: 3.2 },
-  { color: '#ffd98a', r: 0.72, speed: -0.08, size: 2.9 },
-  { color: '#93c5fd', r: 0.86, speed: 0.065, size: 2.6 },
-  { color: '#cbb8ff', r: 0.40, speed: -0.13, size: 2.4 },
-  { color: '#ffabab', r: 0.64, speed: 0.09, size: 2.9 },
+  { color: '#8dffcf', r: 0.52, speed: 0.11, size: 3 },
+  { color: '#ffd98a', r: 0.72, speed: -0.08, size: 2.7 },
+  { color: '#93c5fd', r: 0.86, speed: 0.065, size: 2.4 },
+  { color: '#cbb8ff', r: 0.40, speed: -0.13, size: 2.2 },
+  { color: '#ffabab', r: 0.64, speed: 0.09, size: 2.7 },
 ]
 
 const TARGETS = [
@@ -143,13 +139,13 @@ const TARGETS = [
 
 const BLIPS = Array.from({ length: 12 }, (_, i) => ({
   a: (i / 12) * TAU + i * 0.83,
-  r: 0.18 + ((i * 41) % 66) / 100,
+  r: 0.2 + ((i * 41) % 62) / 100,
   t: TARGETS[i % TARGETS.length],
 }))
 
-const DUST = Array.from({ length: 170 }, (_, i) => ({
+const DUST = Array.from({ length: 60 }, (_, i) => ({
   a: (i * 2.399963) % TAU,
-  r: Math.sqrt(((i * 7919) % 1000) / 1000) * 0.95 + 0.05,
+  r: Math.sqrt(((i * 7919) % 1000) / 1000) * 0.94 + 0.06,
   tw: (i * 0.618) % TAU,
 }))
 
@@ -175,7 +171,7 @@ export function RadarScanner() {
   }, [])
 
   const ref = useSceneCanvas((ctx, w, h, t) => {
-    /* ── GLOW LAYER (bloomed) ── */
+    /* ── GLOW LAYER (bloomed) — dark platform + colored life ── */
     const p = ptr.current
     p.x += (p.tx - p.x) * 0.04
     p.y += (p.ty - p.y) * 0.04
@@ -185,13 +181,20 @@ export function RadarScanner() {
     const P = (ang: number, rr: number): [number, number] => [cx + Math.cos(ang) * RX * rr, cy + Math.sin(ang) * RY * rr]
     ctx.globalCompositeOperation = 'lighter'
 
-    const disc = ctx.createRadialGradient(cx, cy, RX * 0.04, cx, cy, RX)
-    disc.addColorStop(0, 'rgba(0,255,163,0.14)')
-    disc.addColorStop(0.55, 'rgba(0,255,163,0.045)')
-    disc.addColorStop(1, 'transparent')
+    // dark platform body — same treatment as the chain globe
     ctx.save()
     ctx.translate(cx, cy); ctx.scale(1, RY / RX); ctx.translate(-cx, -cy)
-    ctx.fillStyle = disc
+    const body = ctx.createRadialGradient(cx - RX * 0.3, cy - RY * 0.4, RX * 0.06, cx, cy, RX)
+    body.addColorStop(0, 'rgba(9,40,27,0.94)')
+    body.addColorStop(0.55, 'rgba(4,18,12,0.95)')
+    body.addColorStop(1, 'rgba(1,9,6,0.97)')
+    ctx.fillStyle = body
+    ctx.beginPath(); ctx.arc(cx, cy, RX, 0, TAU); ctx.fill()
+    const inner = ctx.createRadialGradient(cx, cy + RX * 0.04, 0, cx, cy, RX * 0.8)
+    inner.addColorStop(0, 'rgba(0,255,163,0.12)')
+    inner.addColorStop(0.6, 'rgba(0,255,163,0.04)')
+    inner.addColorStop(1, 'rgba(0,255,163,0)')
+    ctx.fillStyle = inner
     ctx.beginPath(); ctx.arc(cx, cy, RX, 0, TAU); ctx.fill()
     ctx.restore()
 
@@ -204,7 +207,7 @@ export function RadarScanner() {
       ctx.fillRect(x, y, 1.2, 1.2)
     }
 
-    // sweep wedges + beam
+    // sweep — wedges + beam (quiet, on the dark body)
     const sweep = t * 1.05
     ctx.save()
     ctx.translate(cx, cy); ctx.scale(1, RY / RX); ctx.translate(-cx, -cy)
@@ -214,17 +217,17 @@ export function RadarScanner() {
       ctx.moveTo(cx, cy)
       ctx.arc(cx, cy, RX, a - 0.015, a)
       ctx.closePath()
-      ctx.fillStyle = `rgba(0,255,163,${(1 - i / 56) * 0.13})`
+      ctx.fillStyle = `rgba(0,255,163,${(1 - i / 56) * 0.1})`
       ctx.fill()
     }
     ctx.restore()
     {
       const [ex, ey] = P(sweep, 1)
       const grad = ctx.createLinearGradient(cx, cy, ex, ey)
-      grad.addColorStop(0, 'rgba(0,255,163,0.08)')
-      grad.addColorStop(1, 'rgba(0,255,163,0.95)')
+      grad.addColorStop(0, 'rgba(0,255,163,0.06)')
+      grad.addColorStop(1, 'rgba(0,255,163,0.9)')
       ctx.strokeStyle = grad
-      ctx.lineWidth = 1.7
+      ctx.lineWidth = 1.6
       ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(ex, ey); ctx.stroke()
     }
 
@@ -234,34 +237,25 @@ export function RadarScanner() {
       const hot = diff < 1.15 ? 1 - diff / 1.15 : 0.06
       const [x, y] = P(b.a, b.r)
       const col = b.t[2] >= 70 ? '#ff9d9d' : b.t[2] >= 50 ? '#ffd98a' : '#8dffcf'
-      glowDot(ctx, x, y, 1.5 + hot * 2.4, col, 0.28 + hot)
+      glowDot(ctx, x, y, 1.3 + hot * 2, col, 0.26 + hot)
     })
 
-    // orbiting chain accents
+    // orbiting chain accents — the only colors, matching the globe
     ORBITS.forEach((c) => {
       const a = t * c.speed * 2 + c.r * 9
       const x = cx + Math.cos(a) * RX * c.r
       const y = cy - 24 + Math.sin(a) * RX * c.r * 0.34
-      glowDot(ctx, x, y, c.size, c.color, 0.9)
+      glowDot(ctx, x, y, c.size, c.color, 0.95)
     })
-
-    // few rising particles
-    for (let i = 0; i < 14; i++) {
-      const px = cx + Math.sin(i * 12.9898 + t * 0.35) * RX * 0.9
-      const prog = ((t * 24 + i * 53) % (RY * 3.2)) / (RY * 3.2)
-      const py = cy - prog * RY * 3.2 + RY * 0.4
-      ctx.fillStyle = `rgba(0,255,163,${0.24 * (1 - prog)})`
-      ctx.fillRect(px, py, 1.4, 1.4)
-    }
 
     // core glow
     const pulse = 1 + Math.sin(t * 2.1) * 0.09
-    glowDot(ctx, cx, cy, 10 * pulse, GREEN, 0.95)
+    glowDot(ctx, cx, cy, 8 * pulse, GREEN, 0.95)
     ctx.globalCompositeOperation = 'source-over'
   }, {
     bloom: true,
     deps: [],
-    /* ── CRISP LAYER (drawn after bloom — pixel-perfect) ── */
+    /* ── CRISP LAYER (after bloom — rings, ticks, text pixel-perfect) ── */
     crisp: (ctx, w, h, t) => {
       const p = ptr.current
       const cx = w / 2 + p.x * 14, cy = h * 0.54 + p.y * 10
@@ -274,24 +268,26 @@ export function RadarScanner() {
       const [sym, chain, risk] = tgt.t
       const [tx2, ty2] = P(tgt.a, tgt.r)
 
-      // depth shadow-discs
-      for (let d = 3; d >= 1; d--) {
-        ctx.save()
-        ctx.translate(cx, cy + d * 8); ctx.scale(1, RY / RX); ctx.translate(-cx, -cy)
-        ctx.strokeStyle = `rgba(0,255,163,${0.12 - d * 0.03})`
-        ctx.lineWidth = 1.1
-        ctx.beginPath(); ctx.arc(cx, cy, RX * (1 - d * 0.016), 0, TAU); ctx.stroke()
-        ctx.restore()
-      }
-      // rings + ticks
+      // platform rim — faint full ellipse + bright arc on the light side
       ctx.save()
       ctx.translate(cx, cy); ctx.scale(1, RY / RX); ctx.translate(-cx, -cy)
-      for (const rr of [1, 0.66, 0.33]) {
-        ctx.strokeStyle = `rgba(0,255,163,${rr === 1 ? 0.45 : 0.15})`
-        ctx.lineWidth = rr === 1 ? 1.5 : 1.1
+      ctx.strokeStyle = 'rgba(0,255,163,0.16)'
+      ctx.lineWidth = 1.2
+      ctx.beginPath(); ctx.arc(cx, cy, RX, 0, TAU); ctx.stroke()
+      ctx.strokeStyle = 'rgba(140,255,210,0.5)'
+      ctx.lineWidth = 1.6
+      ctx.beginPath(); ctx.arc(cx, cy, RX, Math.PI * 0.6, Math.PI * 1.4); ctx.stroke()
+      ctx.restore()
+
+      // rings + sparse ticks
+      ctx.save()
+      ctx.translate(cx, cy); ctx.scale(1, RY / RX); ctx.translate(-cx, -cy)
+      for (const rr of [0.66, 0.33]) {
+        ctx.strokeStyle = 'rgba(0,255,163,0.16)'
+        ctx.lineWidth = 1.1
         ctx.beginPath(); ctx.arc(cx, cy, RX * rr, 0, TAU); ctx.stroke()
       }
-      ctx.strokeStyle = 'rgba(0,255,163,0.4)'
+      ctx.strokeStyle = 'rgba(0,255,163,0.38)'
       for (let d = 0; d < 360; d += 15) {
         const a = (d * Math.PI) / 180
         const len = d % 45 === 0 ? 9 : 4
@@ -302,7 +298,7 @@ export function RadarScanner() {
       }
       ctx.restore()
 
-      // blip expand rings (non-target)
+      // non-target blip rings
       BLIPS.forEach((b) => {
         if (b === tgt) return
         const diff = Math.abs(((sweep - b.a) % TAU + TAU) % TAU)
@@ -312,7 +308,7 @@ export function RadarScanner() {
         const col = b.t[2] >= 70 ? '#ff9d9d' : b.t[2] >= 50 ? '#ffd98a' : '#8dffcf'
         ctx.strokeStyle = col + 'aa'
         ctx.lineWidth = 1.1
-        ctx.beginPath(); ctx.arc(x, y, 6 + (1 - hot) * 16, 0, TAU); ctx.stroke()
+        ctx.beginPath(); ctx.arc(x, y, 6 + (1 - hot) * 15, 0, TAU); ctx.stroke()
       })
 
       // lock brackets on the story target
@@ -331,10 +327,10 @@ export function RadarScanner() {
       // orbit paths + trails
       ORBITS.forEach((c) => {
         const a = t * c.speed * 2 + c.r * 9
-        ctx.strokeStyle = c.color + '26'
+        ctx.strokeStyle = c.color + '2e'
         ctx.lineWidth = 1.1
         ctx.beginPath(); ctx.ellipse(cx, cy - 24, RX * c.r, RX * c.r * 0.34, 0, 0, TAU); ctx.stroke()
-        ctx.strokeStyle = c.color + '59'
+        ctx.strokeStyle = c.color + '66'
         ctx.lineWidth = 1.6
         ctx.beginPath(); ctx.ellipse(cx, cy - 24, RX * c.r, RX * c.r * 0.34, 0, a - Math.sign(c.speed) * 0.5, a); ctx.stroke()
       })
@@ -343,9 +339,9 @@ export function RadarScanner() {
       const pulse = 1 + Math.sin(t * 2.1) * 0.09
       ctx.strokeStyle = `rgba(0,255,163,${0.5 - Math.sin(t * 2.1) * 0.2})`
       ctx.lineWidth = 1.1
-      ctx.beginPath(); ctx.arc(cx, cy, 24 * pulse, 0, TAU); ctx.stroke()
+      ctx.beginPath(); ctx.arc(cx, cy, 20 * pulse, 0, TAU); ctx.stroke()
       ctx.fillStyle = 'rgba(240,255,249,0.97)'
-      markGlyph(ctx, cx, cy + 1, 7)
+      markGlyph(ctx, cx, cy + 1, 6)
       ctx.font = '700 10.5px Space Grotesk, sans-serif'
       ctx.fillStyle = 'rgba(0,255,163,0.95)'
       ctx.textAlign = 'center'
@@ -458,14 +454,14 @@ export function ChainGlobe({ hovered, onHover }: { hovered: string | null; onHov
       if (vis < -0.05) return
       const col = NET_CHAINS.find((c) => c.id === aId)!.color
       ctx.strokeStyle = col
-      ctx.globalAlpha = 0.14 + Math.max(0, vis) * 0.32
-      ctx.lineWidth = 1 + Math.max(0, vis) * 0.9
+      ctx.globalAlpha = 0.1 + Math.max(0, vis) * 0.22
+      ctx.lineWidth = 0.8 + Math.max(0, vis) * 0.6
       ctx.beginPath()
       let started = false
       for (let s = 0; s <= 26; s++) {
         const k = s / 26
         const m = slerp(A, B, k)
-        const lift = 1 + Math.sin(k * Math.PI) * 0.26
+        const lift = 1 + Math.sin(k * Math.PI) * 0.13
         const x = cx + m.x * R * lift
         const y = cy - m.y * R * lift
         if (!started) { ctx.moveTo(x, y); started = true } else ctx.lineTo(x, y)
@@ -474,8 +470,8 @@ export function ChainGlobe({ hovered, onHover }: { hovered: string | null; onHov
       ctx.globalAlpha = 1
       const k = (t * 0.5 + ai * 0.17) % 1
       const m = slerp(A, B, k)
-      const lift = 1 + Math.sin(k * Math.PI) * 0.26
-      glowDot(ctx, cx + m.x * R * lift, cy - m.y * R * lift, 1.8, col, 0.4 + Math.max(0, vis) * 0.6)
+      const lift = 1 + Math.sin(k * Math.PI) * 0.13
+      glowDot(ctx, cx + m.x * R * lift, cy - m.y * R * lift, 1.4, col, 0.35 + Math.max(0, vis) * 0.45)
     })
 
     // beacon halos
@@ -651,85 +647,155 @@ export function ChainGlobe({ hovered, onHover }: { hovered: string | null; onHov
   )
 }
 
-/* ─────────── neural core — synapse sphere, drifting axes, no bands ─────────── */
+/* ─────────── system flow diagram — full feature chain, live cables ─────────── */
 
-const CORE_N = 64
-const CORE_PTS: [number, number, number][] = Array.from({ length: CORE_N }, (_, i) => {
-  const phi = Math.acos(1 - (2 * (i + 0.5)) / CORE_N)
-  const th = Math.PI * (1 + Math.sqrt(5)) * i
-  return [Math.sin(phi) * Math.cos(th), Math.sin(phi) * Math.sin(th), Math.cos(phi)]
-})
-const CORE_EDGES: [number, number][] = (() => {
-  const e: [number, number][] = []
-  for (let i = 0; i < CORE_N; i++) {
-    for (let j = i + 1; j < CORE_N; j++) {
-      const d = Math.hypot(CORE_PTS[i][0] - CORE_PTS[j][0], CORE_PTS[i][1] - CORE_PTS[j][1], CORE_PTS[i][2] - CORE_PTS[j][2])
-      if (d < 0.62) e.push([i, j])
-    }
-  }
-  return e
-})()
+interface FlowBox { t: string; s: string; accent: string; live?: boolean; chains?: boolean }
+const FLOW: FlowBox[] = [
+  { t: 'DATA LAYER', s: 'DEXSCREENER · GECKO · HELIUS', accent: '#8dffcf' },
+  { t: 'MULTI-CHAIN SCANNER', s: 'SOL · BNB · BASE · HYPE · AVAX', accent: '#ffd98a', chains: true },
+  { t: 'RUG CHECK', s: 'LIQUIDITY · MINT · LP · OWNER', accent: '#ff9d9d' },
+  { t: 'WALLET CLUSTERING', s: 'COORDINATED WALLETS', accent: '#93c5fd' },
+  { t: 'WHALE TRACKING', s: 'NET FLOW · ACCUMULATION', accent: '#cbb8ff' },
+  { t: 'RISK ENGINE', s: 'DETERMINISTIC SCORE 0–100', accent: '#8dffcf', live: true },
+  { t: 'AI ANALYST', s: 'EVIDENCE-FIRST ANSWERS', accent: '#8dffcf' },
+  { t: 'TERMINAL', s: 'DASHBOARD · ALERTS · WATCHLIST', accent: '#8dffcf' },
+]
+const FUTURE = ['SNIPER DETECTION', 'FUNDING SOURCE', 'DEEP RESEARCH']
 
-export function NeuralCore() {
+export function SystemDiagram() {
   const ref = useSceneCanvas((ctx, w, h, t) => {
-    /* ── GLOW LAYER (bloomed) ── */
-    const cx = w / 2, cy = h / 2
-    const R = Math.min(w, h) * 0.34
-    const ry = t * 0.5, rx = 0.42 + 0.28 * Math.sin(t * 0.07), rz = t * 0.05
-    const pts: [number, number, number][] = CORE_PTS.map(([x, y, z]) => {
-      const y1 = y * Math.cos(rx) - z * Math.sin(rx)
-      const z1 = y * Math.sin(rx) + z * Math.cos(rx)
-      const x1 = x * Math.cos(ry) + z1 * Math.sin(ry)
-      const z2 = -x * Math.sin(ry) + z1 * Math.cos(ry)
-      const x2 = x1 * Math.cos(rz) - y1 * Math.sin(rz)
-      const y2 = x1 * Math.sin(rz) + y1 * Math.cos(rz)
-      return [cx + x2 * R, cy - y2 * R, z2]
-    })
-    ctx.globalCompositeOperation = 'lighter'
-    pts.forEach((p) => {
-      const depth = (p[2] + 1) / 2
-      glowDot(ctx, p[0], p[1], 1 + depth * 1.6, depth > 0.55 ? GREEN_SOFT : GREEN, 0.3 + depth * 0.6)
-    })
-    const pulse = 1 + Math.sin(t * 2.4) * 0.14
-    glowDot(ctx, cx, cy, 7 * pulse, '#b9a5ff', 0.85)
-    for (let i = 0; i < 3; i++) {
-      const a = t * (0.9 + i * 0.3) + i * 2.1
-      glowDot(ctx, cx + Math.cos(a) * R * 1.25, cy + Math.sin(a) * R * 0.5, 2, '#cbb8ff', 0.6)
+    /* ── GLOW LAYER — cables + traveling pulses + engine heartbeat ── */
+    const bw = Math.min(206, (w - 48 - 34) / 2)
+    const bh = 54
+    const xL = 24, xR = w - 24 - bw
+    const vgap = Math.min(30, (h - 52 - 4 * bh - 120) / 3)
+    const box = (i: number) => {
+      const row = Math.floor(i / 2)
+      const leftFirst = row % 2 === 0
+      const col = leftFirst ? i % 2 : 1 - (i % 2)
+      return { x: col === 0 ? xL : xR, y: 22 + row * (bh + vgap), row, col }
     }
+    const cablePath = (i: number) => {
+      const a = box(i), b = box(i + 1)
+      const ax = a.x + (a.col === 0 ? bw : 0), ay = a.y + bh / 2
+      const bx = b.x + (b.col === 1 ? 0 : bw), by = b.y + bh / 2
+      if (a.row === b.row) {
+        const mx = (ax + bx) / 2
+        return { p0: [ax, ay], c: [mx, ay - 12], p1: [bx, by] } as const
+      }
+      const bow = a.col === 1 ? bw + 14 : -14
+      return { p0: [a.x + bw / 2, a.y + bh], c: [a.x + bw / 2 + bow, (a.y + bh + b.y) / 2], p1: [a.x + bw / 2, b.y] } as const
+    }
+    ctx.globalCompositeOperation = 'lighter'
+    // cables — soft energy tube + bright core
+    for (let i = 0; i < FLOW.length - 1; i++) {
+      const { p0, c, p1 } = cablePath(i)
+      ctx.strokeStyle = FLOW[i + 1].accent + '33'
+      ctx.lineWidth = 5
+      ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.quadraticCurveTo(c[0], c[1], p1[0], p1[1]); ctx.stroke()
+      ctx.strokeStyle = FLOW[i + 1].accent + 'cc'
+      ctx.lineWidth = 1.8
+      ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.quadraticCurveTo(c[0], c[1], p1[0], p1[1]); ctx.stroke()
+      // pulse packets
+      for (let k = 0; k < 2; k++) {
+        const pt = (t * 0.4 + i * 0.23 + k * 0.5) % 1
+        const q = 1 - pt
+        const px = q * q * p0[0] + 2 * q * pt * c[0] + pt * pt * p1[0]
+        const py = q * q * p0[1] + 2 * q * pt * c[1] + pt * pt * p1[1]
+        glowDot(ctx, px, py, 2.2, FLOW[i + 1].accent, 0.9)
+      }
+    }
+    // engine heartbeat
+    const eng = box(5)
+    const beat = (Math.sin(t * 4) + 1) / 2
+    glowDot(ctx, eng.x + bw - 16, eng.y + 16, 3, '#8dffcf', 0.3 + beat * 0.7)
     ctx.globalCompositeOperation = 'source-over'
   }, {
     bloom: true,
     deps: [],
-    /* ── CRISP LAYER (after bloom — edges & synapses stay sharp) ── */
+    /* ── CRISP LAYER — boxes, labels, badges ── */
     crisp: (ctx, w, h, t) => {
-      const cx = w / 2, cy = h / 2
-      const R = Math.min(w, h) * 0.34
-      const ry = t * 0.5, rx = 0.42 + 0.28 * Math.sin(t * 0.07), rz = t * 0.05
-      const pts: [number, number, number][] = CORE_PTS.map(([x, y, z]) => {
-        const y1 = y * Math.cos(rx) - z * Math.sin(rx)
-        const z1 = y * Math.sin(rx) + z * Math.cos(rx)
-        const x1 = x * Math.cos(ry) + z1 * Math.sin(ry)
-        const z2 = -x * Math.sin(ry) + z1 * Math.cos(ry)
-        const x2 = x1 * Math.cos(rz) - y1 * Math.sin(rz)
-        const y2 = x1 * Math.sin(rz) + y1 * Math.cos(rz)
-        return [cx + x2 * R, cy - y2 * R, z2]
-      })
-      CORE_EDGES.forEach(([i, j]) => {
-        const depth = (pts[i][2] + pts[j][2]) / 2
-        ctx.strokeStyle = `rgba(0,255,163,${0.02 + (depth + 1) * 0.05})`
-        ctx.lineWidth = 0.7
-        ctx.beginPath(); ctx.moveTo(pts[i][0], pts[i][1]); ctx.lineTo(pts[j][0], pts[j][1]); ctx.stroke()
-      })
-      const gen = Math.floor(t / 0.8)
-      for (let k = 0; k < 6; k++) {
-        const [i, j] = CORE_EDGES[(gen * 13 + k * 29) % CORE_EDGES.length]
-        ctx.strokeStyle = `rgba(140,255,210,${0.5 * Math.abs(Math.sin(t * 3 + k * 1.3))})`
-        ctx.lineWidth = 1.1
-        ctx.beginPath(); ctx.moveTo(pts[i][0], pts[i][1]); ctx.lineTo(pts[j][0], pts[j][1]); ctx.stroke()
+      const bw = Math.min(206, (w - 48 - 34) / 2)
+      const bh = 54
+      const xL = 24, xR = w - 24 - bw
+      const vgap = Math.min(30, (h - 52 - 4 * bh - 120) / 3)
+      const box = (i: number) => {
+        const row = Math.floor(i / 2)
+        const leftFirst = row % 2 === 0
+        const col = leftFirst ? i % 2 : 1 - (i % 2)
+        return { x: col === 0 ? xL : xR, y: 22 + row * (bh + vgap), row, col }
       }
+      const roundRect = (x: number, y: number, ww: number, hh: number, r: number) => {
+        ctx.beginPath()
+        ctx.moveTo(x + r, y)
+        ctx.arcTo(x + ww, y, x + ww, y + hh, r)
+        ctx.arcTo(x + ww, y + hh, x, y + hh, r)
+        ctx.arcTo(x, y + hh, x, y, r)
+        ctx.arcTo(x, y, x + ww, y, r)
+        ctx.closePath()
+      }
+      ctx.textAlign = 'left'
+      FLOW.forEach((f, i) => {
+        const { x, y } = box(i)
+        roundRect(x, y, bw, bh, 10)
+        ctx.fillStyle = 'rgba(3,14,9,0.92)'
+        ctx.fill()
+        ctx.strokeStyle = f.accent + '59'
+        ctx.lineWidth = 1.2
+        ctx.stroke()
+        ctx.fillStyle = f.accent
+        ctx.fillRect(x + 10, y + 12, 3, bh - 24)
+        ctx.font = '700 11px JetBrains Mono, monospace'
+        ctx.fillStyle = '#eafff6'
+        ctx.fillText(f.t, x + 22, y + 23)
+        ctx.font = '500 7.5px JetBrains Mono, monospace'
+        ctx.fillStyle = 'rgba(120,190,165,0.95)'
+        ctx.fillText(f.s, x + 22, y + 39)
+        if (f.chains) {
+          const dots = ['#8dffcf', '#ffd98a', '#93c5fd', '#cbb8ff', '#ffabab']
+          dots.forEach((dc, k) => {
+            ctx.fillStyle = dc
+            ctx.beginPath(); ctx.arc(x + bw - 14 - k * 9, y + 17, 2, 0, TAU); ctx.fill()
+          })
+        }
+        if (f.live) {
+          ctx.strokeStyle = '#8dffcf'
+          ctx.lineWidth = 1.2
+          ctx.beginPath(); ctx.arc(x + bw - 16, y + 16, 5.5, 0, TAU); ctx.stroke()
+          const beat = (Math.sin(t * 4) + 1) / 2
+          ctx.fillStyle = `rgba(141,255,207,${0.4 + beat * 0.6})`
+          ctx.beginPath(); ctx.arc(x + bw - 16, y + 16, 2.4, 0, TAU); ctx.fill()
+        }
+      })
+      // future zone
+      const fy = 22 + 4 * bh + 3 * vgap + 20
+      const fw = (w - 48 - 28) / 3
+      ctx.font = '700 8px JetBrains Mono, monospace'
+      FUTURE.forEach((ft, k) => {
+        const fx = 24 + k * (fw + 14)
+        roundRect(fx, fy, fw, 38, 9)
+        ctx.fillStyle = 'rgba(2,10,6,0.85)'
+        ctx.fill()
+        ctx.setLineDash([4, 4])
+        ctx.strokeStyle = 'rgba(0,255,163,0.3)'
+        ctx.lineWidth = 1
+        ctx.stroke()
+        ctx.setLineDash([])
+        ctx.fillStyle = 'rgba(120,190,165,0.95)'
+        ctx.textAlign = 'center'
+        ctx.fillText(ft, fx + fw / 2, fy + 17)
+        ctx.fillStyle = 'rgba(100,149,128,0.9)'
+        ctx.font = '600 7px JetBrains Mono, monospace'
+        ctx.fillText('ROADMAP V3', fx + fw / 2, fy + 29)
+        ctx.font = '700 8px JetBrains Mono, monospace'
+      })
+      ctx.textAlign = 'center'
+      ctx.fillStyle = 'rgba(100,149,128,0.85)'
+      ctx.font = '600 8px JetBrains Mono, monospace'
+      ctx.fillText('LIVE PIPELINE — EVERY SCAN FLOWS THROUGH THIS CHAIN', w / 2, fy + 58)
     },
   })
-  return <canvas ref={ref} className="rv-core-cv" aria-hidden="true" />
+  return <canvas ref={ref} className="rv-flow-cv" aria-hidden="true" />
 }
 
 /* ─────────── pipeline data stream ─────────── */
@@ -743,7 +809,7 @@ export function DataStream({ className = '' }: { className?: string }) {
       <circle r="2.4" fill={GREEN}>
         <animateMotion dur="2.2s" repeatCount="indefinite" path="M2 12 C 30 2, 60 22, 88 10 S 112 14, 118 12" />
       </circle>
-      <circle r="1.7" fill="#a78bfa">
+      <circle r="1.7" fill="#00ffa3">
         <animateMotion dur="2.2s" begin="0.7s" repeatCount="indefinite" path="M2 12 C 30 2, 60 22, 88 10 S 112 14, 118 12" />
       </circle>
     </svg>

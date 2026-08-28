@@ -2,7 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { useEffect, useRef, useState } from 'react'
 import './styles/landing3.css'
-import { ChainGlobe, DataStream, NET_CHAINS, NeuralCore, PageBackground, RadarScanner } from './components/visuals'
+import { ChainGlobe, DataStream, NET_CHAINS, PageBackground, RadarScanner, SystemDiagram } from './components/visuals'
 import { stream, type FeedEvent, type TokenTick } from './lib/liveStream'
 
 /* ═══════════ helpers ═══════════ */
@@ -410,7 +410,7 @@ function Hero() {
           <span className="l2 grad"><Decode text="Understand What Matters." delay={1500} />&nbsp;</span>
         </h1>
         <p className="lv-sub">
-          Every day, <b>18.7 million memecoins launched since 2024 — 98.6% were built to hurt you.</b> Terminal
+          Since 2024, <b>18.7 million memecoins launched — 98.6% were built to hurt you.</b> Terminal
           Alpha scans them across five chains, scores the risk with deterministic heuristics, and
           explains why with evidence-first AI. No signals. No hype. Just the truth, faster.
         </p>
@@ -480,7 +480,7 @@ function RugReality() {
           <p>
             Of <b>18.67M tokens launched on pump.fun since January 2024</b>, <b>98.6% showed rug-pull
             or manipulative behavior</b> — and 68.7% (12.8M) stopped trading the same day they launched.
-            The graduation rate recently fell to <b>0.7–0.8%</b>. One in a hundred survives.
+            The graduation rate recently fell to <b>0.7–0.8%</b>. Fewer than one in a hundred survives.
           </p>
           <p style={{ marginTop: 10 }}>
             You don't need more signals. You need better filters — deterministic, transparent,
@@ -508,10 +508,10 @@ function Trust() {
 }
 
 const STAGES = [
-  { n: 'STAGE 01', t: 'DATA LAYER', icon: 'hex', desc: 'Market, trade and on-chain data aggregated into a unified intelligence layer.', chips: ['DexScreener', 'GeckoTerminal', 'Helius', 'Birdeye', 'Bitquery'] },
-  { n: 'STAGE 02', t: 'HEURISTIC ENGINE', icon: 'cpu', desc: 'Deterministic algorithms detect suspicious patterns before AI reasoning begins.', chips: ['Rug Check', 'Wallet Clustering', 'Liquidity', 'Holders', 'Volume', 'Patterns'] },
-  { n: 'STAGE 03', t: 'AI ANALYST', icon: 'spark', desc: 'AI interprets verified evidence instead of inventing facts.', chips: ['Evidence-Based', 'Risk Explanation', 'Pattern Summary', 'Deep Analysis'] },
-  { n: 'STAGE 04', t: 'TERMINAL', icon: 'grid', desc: 'All intelligence delivered through one powerful terminal experience.', chips: ['Dashboard', 'Alerts', 'AI Chat', 'Watchlist', 'Reports'] },
+  { n: 'STAGE 01', t: 'DATA LAYER', icon: 'hex', badge: false, desc: 'Market, trade and on-chain data aggregated into a unified intelligence layer.', chips: ['DexScreener', 'GeckoTerminal', 'Helius', 'Birdeye', 'Bitquery'] },
+  { n: 'STAGE 02', t: 'ENGINE', icon: 'cpu', badge: true, desc: 'Deterministic algorithms detect suspicious patterns before AI reasoning begins.', chips: ['Rug Check', 'Wallet Clustering', 'Liquidity', 'Holders', 'Volume', 'Patterns'] },
+  { n: 'STAGE 03', t: 'AI ANALYST', icon: 'spark', badge: false, desc: 'AI interprets verified evidence instead of inventing facts.', chips: ['Evidence-Based', 'Risk Explanation', 'Pattern Summary', 'Deep Analysis'] },
+  { n: 'STAGE 04', t: 'TERMINAL', icon: 'grid', badge: false, desc: 'All intelligence delivered through one powerful terminal experience.', chips: ['Dashboard', 'Alerts', 'AI Chat', 'Watchlist', 'Reports'] },
 ]
 
 function How() {
@@ -529,7 +529,7 @@ function How() {
             <DataStream className="stream" />
             <div className="n">{s.n}</div>
             <div className="lv-holo"><span className="ring" /><span className="ring r2" /><span className="core"><Icon name={s.icon} size={26} /></span></div>
-            <h3>{s.t}</h3>
+            <h3>{s.t}{s.badge && <span className="lv-live-badge" aria-hidden="true" />}</h3>
             <p className="desc">{s.desc}</p>
             <div className="lv-chips">{s.chips.map((c) => <span className="lv-chip" key={c}>{c}</span>)}</div>
           </div>
@@ -633,7 +633,7 @@ function AiSection() {
     <section className="lv-sec alt" id="ai">
       <div className="lv-num">05</div>
       <div className="lv-ai">
-        <div className="lv-core rv" aria-hidden="true"><NeuralCore /></div>
+        <div className="lv-core rv" aria-hidden="true"><SystemDiagram /></div>
         <div className="rv d1">
           <div className="lv-k2">AI ANALYST</div>
           <h2 className="lv-h2" style={{ marginBottom: 18 }}>Ask Why. <span className="a">Get Evidence.</span></h2>

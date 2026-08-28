@@ -243,7 +243,11 @@ a { color: inherit; text-decoration: none; }
   background: radial-gradient(circle at 30% 25%, rgba(0,255,163,.24), rgba(139,92,246,.1));
   border: 1px solid rgba(0,255,163,.4); box-shadow: 0 0 30px rgba(0,255,163,.22), inset 0 0 18px rgba(0,255,163,.12); color: var(--g); }
 @keyframes lvspin { to { transform: rotate(360deg); } }
-.lv-stage h3 { font-family: var(--fd); font-size: 16.5px; font-weight: 700; text-align: center; letter-spacing: .04em; }
+.lv-stage h3 { position: relative; font-family: var(--fd); font-size: 16.5px; font-weight: 700; text-align: center; letter-spacing: .04em; }
+.lv-live-badge { position: relative; display: inline-block; width: 8px; height: 8px; margin-left: 9px; vertical-align: 1px;
+  border-radius: 50%; background: var(--g); box-shadow: 0 0 10px var(--g); animation: lvblink 1.2s infinite; }
+.lv-live-badge::before { content: ''; position: absolute; inset: -5px; border-radius: 50%;
+  border: 1px solid rgba(0,255,163,.55); animation: lvpulse 1.6s infinite; }
 .lv-stage .desc { color: var(--mut); font-size: 12.5px; text-align: center; margin: 8px 0 16px; min-height: 38px; }
 .lv-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
 .lv-chip { font-family: var(--fm); font-size: 9.5px; letter-spacing: .05em; color: var(--mut); border: 1px solid var(--line2); padding: 4px 9px; border-radius: 6px; background: rgba(4,8,6,.5); }
@@ -295,9 +299,10 @@ a { color: inherit; text-decoration: none; }
 
 /* ───── AI section ───── */
 .lv-ai { display: grid; grid-template-columns: 1fr 1.15fr; gap: 40px; align-items: center; }
-.lv-core { position: relative; height: 480px; }
+.lv-core { position: relative; height: 500px; }
 .lv-core::before { content: ''; position: absolute; inset: -6%; pointer-events: none;
   background: radial-gradient(closest-side, rgba(2,9,6,.5), transparent 74%); }
+.rv-flow-cv { width: 100%; height: 100%; display: block; }
 .rv-core-cv { width: 100%; height: 100%; display: block; }
 .lv-chat { background: linear-gradient(180deg, rgba(14,26,20,.85), rgba(8,11,14,.95)); border: 1px solid var(--line2); border-radius: 18px; padding: 24px;
   box-shadow: 0 30px 80px rgba(0,0,0,.45), 0 0 40px rgba(0,255,163,.05); }
@@ -503,3 +508,16 @@ a { color: inherit; text-decoration: none; }
   .lv-reality { grid-template-columns: 1fr; gap: 20px; padding: 32px 26px; }
   .rv-big { font-size: clamp(3.4rem, 14vw, 5.4rem); }
 }
+/* ── DNA#4 — landing logo = identical mirror of .ta-side-logo .mark (terminal) ── */
+.lv-logo .m { position: relative; display: inline-block; }
+.lv-logo .m::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border: 1px dashed rgba(0,255,163,.5);
+  border-radius: 12px;
+  animation: ta-orbit 9s linear infinite;
+  pointer-events: none;
+}
+@keyframes ta-orbit { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .lv-logo .m::after { animation: none; } }

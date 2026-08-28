@@ -1,35 +1,24 @@
-/* Service layer — the ONLY thing components import for data.
-   Today: mockService (instant, simulated latency). Tomorrow: apiService hitting
-   webapp/server.py. Same interface → zero UI redesign when the backend lands. */
-
+import { MEMEATCHI, SCANNER_ROWS } from '../mock/data'
 import type { TokenData } from '../mock/data'
-import { SCANNER_ROWS } from '../mock/data'
+import { fetchTrending, toScannerRow } from './dexscreener'
+import type { ScannerRow } from './dexscreener'
 
-export interface DataApi {
-  getToken(address: string): Promise<TokenData>
-  search(q: string): Promise<typeof SCANNER_ROWS>
+const FREEZE = (import.meta as any).env?.VITE_USE_MOCK_SCANNER === 'true'
+const TTL = 60_000
+let cache: { at: number; rows: ScannerRow[] | null } = { at: 0, rows: null }
+
+export const dataService = {
+  async getScannerRows(): Promise<ScannerRow[]> {
+    if (FREEZE) return SCANNER_ROWS
+    if (cache.rows && Date.now() - cache.at < TTL) return cache.rows
+    const live = await fetchTrending()
+    if (live && live.length) { const rows = live.map(toScannerRow); cache = { at: Date.now(), rows }; return rows }
+    return (cache.rows ?? SCANNER_ROWS) as ScannerRow[]
+  },
+  async search(q: string): Promise<ScannerRow[]> {
+    const rows = await dataService.getScannerRows()
+    const s = q.toLowerCase()
+    return rows.filter((r) => r.symbol.toLowerCase().includes(s))
+  },
+  async getToken(address: string): Promise<TokenData> { return { ...MEMEATCHI, address } },
 }
-
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms))
-
-const USE_MOCK = (import.meta.env.VITE_USE_MOCK ?? 'true') !== 'false'
-
-async function mockGetToken(_address: string): Promise<TokenData> {
-  const { MEMEATCHI } = await import('../mock/data')
-  await wait(650) // skeleton shimmer moment — feels like a real fetch
-  return MEMEATCHI
-}
-
-async function mockSearch(_q: string) {
-  await wait(250)
-  return SCANNER_ROWS
-}
-
-async function apiGetToken(_address: string): Promise<TokenData> {
-  // Field mapping (backend scan → TokenData) lands here when the backend is wired.
-  throw new Error('REST adapter not wired yet — run with VITE_USE_MOCK=true (default)')
-}
-
-export const dataService: DataApi = USE_MOCK
-  ? { getToken: mockGetToken, search: mockSearch }
-  : { getToken: apiGetToken, search: mockSearch }

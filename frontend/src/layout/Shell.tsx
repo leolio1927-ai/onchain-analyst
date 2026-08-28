@@ -48,7 +48,7 @@ export function UpgradeModal({ open, onClose }: { open: boolean; onClose: () => 
               { n: 'DEEP', p: '$19/mo', d: 'Unlimited deep runs · priority AI · full cluster graph export', hot: true },
               { n: 'DESK', p: '$99/mo', d: 'Multi-seat · alert webhooks · raw evidence export API', hot: false },
             ].map((t) => (
-              <div key={t.n} className="ta-card" style={t.hot ? { borderColor: 'rgba(167,139,250,0.55)', boxShadow: 'var(--glow-purple)' } : undefined}>
+              <div key={t.n} className="ta-card" style={t.hot ? { borderColor: 'rgba(0,255,163,0.55)', boxShadow: 'var(--glow-brand)' } : undefined}>
                 <div className="ta-card-head"><h3 className="ta-card-title">{t.n}</h3>{t.hot && <span className="ta-badge b-purple">POPULAR</span>}</div>
                 <div style={{ fontFamily: 'var(--f-display)', fontSize: 26, fontWeight: 700, marginBottom: 8 }}>{t.p}</div>
                 <p style={{ color: 'var(--muted)', fontSize: 12, minHeight: 54 }}>{t.d}</p>

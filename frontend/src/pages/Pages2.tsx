@@ -166,13 +166,13 @@ export function GatePage() {
     <div className="ta-page">
       <Head title="Token Gate" sub="Access depth, not truth: the plan changes how deep the AI digs — never what the data says." right={<Badge color="purple">SOULBOUND · TIME-BOUND</Badge>} />
       <div className="grid-3">
-        <Card title="CURRENT PLAN" glow="#8b5cf6">
+        <Card title="CURRENT PLAN" glow="#00ffa3">
           <div style={{ fontFamily: 'var(--f-display)', fontSize: 28, fontWeight: 700 }}>Premium Deep</div>
           <div className="mono" style={{ color: 'var(--purple-2)', fontSize: 12, margin: '4px 0 14px' }}>VALID UNTIL 2026-12-31</div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: 'var(--muted)', marginBottom: 4 }}>
             <span>Cycle usage</span><span className="mono">89%</span>
           </div>
-          <Meter value={89} color="#a78bfa" />
+          <Meter value={89} color="#00ffa3" />
           <div className="rug-list" style={{ marginTop: 14 }}>
             <div className="rug-row"><span className="k">Deep AI runs</span><span className="v ok-yes">unlimited</span></div>
             <div className="rug-row"><span className="k">Cluster graph export</span><span className="v ok-yes">enabled</span></div>
