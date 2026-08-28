@@ -3,9 +3,9 @@
    Brand: purple (identity) · cyan (data) · green (life/scanner) · amber (risk).
    ═══════════════════════════════════════════════════════════════ */
 
-.lv { --p: #8b5cf6; --p2: #a78bfa; --c: #22d3ee; --g: #00ffa3; --g2: #34d399; --y: #fbbf24; --r: #fb7185;
-  --bg: #04060e; --panel: #0a0e1c; --line: #1a2140; --line2: #121832;
-  --text: #e9eefb; --mut: #8a91b4; --dim: #565e85;
+.lv { --p: #8b5cf6; --p2: #a78bfa; --c: #00ffa3; --g: #00ffa3; --g2: #34d399; --y: #fbbf24; --r: #fb7185;
+  --bg: #051009; --panel: #0a1410; --line: #16352a; --line2: #0f2419;
+  --text: #e9fef4; --mut: #8fb3a3; --dim: #4e7a66;
   --fd: 'Space Grotesk', 'Inter', sans-serif; --fm: 'JetBrains Mono', monospace;
   background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh;
   overflow-x: clip; }
@@ -65,14 +65,26 @@
 
 /* ───── hero ───── */
 .lv-hero { min-height: 100vh; display: grid; grid-template-columns: 1.05fr 1fr; align-items: center; gap: 30px;
-  max-width: 1280px; margin: 0 auto; padding: 130px 28px 60px; }
+  max-width: 1280px; margin: 0 auto; padding: 96px 28px 48px; }
 .lv-hero-bg { position: absolute; inset: 0; pointer-events: none;
   background:
-    radial-gradient(1000px 520px at 78% 40%, rgba(0,255,163,.10), transparent 62%),
-    radial-gradient(700px 420px at 12% 88%, rgba(139,92,246,.08), transparent 60%),
-    radial-gradient(rgba(0,255,163,.10) 1px, transparent 1px);
+    radial-gradient(1000px 520px at 78% 38%, rgba(0,255,163,.13), transparent 62%),
+    radial-gradient(700px 420px at 12% 88%, rgba(139,92,246,.09), transparent 60%),
+    radial-gradient(rgba(0,255,163,.12) 1px, transparent 1px);
   background-size: auto, auto, 30px 30px;
-  mask-image: linear-gradient(to bottom, black 70%, transparent); }
+  mask-image: linear-gradient(to bottom, black 74%, transparent); }
+.lv-announce {
+  display: inline-flex; align-items: center; gap: 9px; margin-bottom: 18px;
+  font-family: var(--fm); font-size: 10.5px; font-weight: 700; letter-spacing: .14em;
+  color: var(--g); border: 1px solid rgba(0,255,163,.4); border-radius: 999px;
+  padding: 7px 16px; background: rgba(0,255,163,.06);
+  box-shadow: 0 0 22px rgba(0,255,163,.12); transition: box-shadow .2s, transform .15s;
+  width: fit-content;
+}
+.lv-announce:hover { transform: translateY(-1px); box-shadow: 0 0 34px rgba(0,255,163,.25); }
+.lv-announce i { font-style: normal; transition: transform .15s; }
+.lv-announce:hover i { transform: translateX(3px); }
+.lv-announce .blink { width: 7px; height: 7px; border-radius: 50%; background: var(--g); box-shadow: 0 0 10px var(--g); animation: lvblink 1.2s infinite; }
 .lv-kicker { font-family: var(--fm); font-size: 11px; font-weight: 700; letter-spacing: .3em; color: var(--g); margin-bottom: 22px; display: flex; align-items: center; gap: 10px; }
 .lv-kicker::before { content: ''; width: 26px; height: 1px; background: var(--g); box-shadow: 0 0 8px var(--g); }
 .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--g); box-shadow: 0 0 12px var(--g); animation: lvblink 1.3s infinite; }
@@ -85,7 +97,8 @@
   background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
   animation: lvshim 5.5s linear 2.2s infinite; }
 @keyframes lvshim { to { background-position: 220% 0; } }
-.lv-sub { color: var(--mut); font-size: 16.5px; line-height: 1.7; max-width: 54ch; margin-bottom: 26px; }
+.lv-sub { color: var(--mut); font-size: 16.5px; line-height: 1.7; max-width: 56ch; margin-bottom: 24px; }
+.lv-sub b { color: var(--text); font-weight: 700; }
 .lv-badges { display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 34px; }
 .lv-badge { font-family: var(--fm); font-size: 10.5px; font-weight: 600; letter-spacing: .06em; padding: 6px 13px; border-radius: 999px;
   border: 1px solid var(--line); color: var(--mut); background: rgba(10,14,28,.6); transition: border-color .15s, color .15s; }
@@ -343,4 +356,66 @@
   .lv-sec { padding: 72px 20px; }
   .lv-metrics-in { grid-template-columns: 1fr 1fr; }
   .lv-foot-grid { grid-template-columns: 1fr; }
+}
+
+/* ═══════════ v3 additions ═══════════ */
+
+/* aurora blobs — living green light from top to bottom */
+.lv-aurora { position: fixed; inset: -20%; z-index: 0; pointer-events: none; filter: blur(90px); opacity: .55; }
+.lv-aurora::before, .lv-aurora::after { content: ''; position: absolute; border-radius: 50%; }
+.lv-aurora::before { width: 620px; height: 620px; left: -8%; top: -12%;
+  background: radial-gradient(circle, rgba(0,255,163,.16), transparent 65%);
+  animation: lvaur1 26s ease-in-out infinite alternate; }
+.lv-aurora::after { width: 760px; height: 760px; right: -12%; top: 34%;
+  background: radial-gradient(circle, rgba(139,92,246,.13), transparent 65%);
+  animation: lvaur2 32s ease-in-out infinite alternate; }
+@keyframes lvaur1 { to { transform: translate(160px, 120px) scale(1.15); } }
+@keyframes lvaur2 { to { transform: translate(-140px, -90px) scale(1.1); } }
+
+/* announcement + live feed */
+.lv-feed { margin-top: 26px; border: 1px solid rgba(0,255,163,.25); border-radius: 12px;
+  background: rgba(4,16,10,.72); backdrop-filter: blur(8px); overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0,0,0,.4), 0 0 26px rgba(0,255,163,.06); max-width: 520px; }
+.lv-feed-hd { display: flex; align-items: center; gap: 9px; padding: 9px 14px;
+  font-family: var(--fm); font-size: 9.5px; font-weight: 700; letter-spacing: .18em; color: var(--g);
+  border-bottom: 1px solid rgba(0,255,163,.18); background: rgba(0,255,163,.04); }
+.lv-feed-hd .blink { width: 6px; height: 6px; border-radius: 50%; background: var(--g); box-shadow: 0 0 9px var(--g); animation: lvblink 1.2s infinite; }
+.lv-feed-src { margin-left: auto; color: var(--dim); font-size: 8.5px; letter-spacing: .12em; }
+.lv-feed-row { display: grid; grid-template-columns: 74px 1fr auto; gap: 10px; align-items: center;
+  padding: 8px 14px; font-family: var(--fm); font-size: 11.5px; border-bottom: 1px dashed rgba(0,255,163,.08);
+  animation: lvfeed .35s ease; }
+.lv-feed-row:last-child { border-bottom: none; }
+@keyframes lvfeed { from { opacity: 0; transform: translateY(-8px); } }
+.lv-feed-row .tag { font-size: 9px; font-weight: 700; letter-spacing: .12em; color: var(--dim); }
+.lv-feed-row .sym { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lv-feed-row.f-g .v { color: var(--g); } .lv-feed-row.f-y .v { color: var(--y); } .lv-feed-row.f-r .v { color: var(--r); }
+
+/* metrics source line */
+.lv-metrics-src { text-align: center; padding: 0 28px 14px; font-family: var(--fm); font-size: 8.5px;
+  letter-spacing: .14em; color: rgba(78,122,102,.85); }
+.c-neon { color: var(--g); text-shadow: 0 0 16px rgba(0,255,163,.5); }
+
+/* rug reality band — the honest hook */
+.lv-reality { display: grid; grid-template-columns: auto 1fr; gap: 44px; align-items: center;
+  border: 1px solid rgba(251,113,133,.25); border-radius: 22px; padding: 46px 50px;
+  background:
+    radial-gradient(600px 300px at 8% 10%, rgba(251,113,133,.07), transparent 60%),
+    radial-gradient(500px 300px at 95% 90%, rgba(0,255,163,.06), transparent 60%),
+    linear-gradient(180deg, rgba(14,20,16,.85), rgba(8,11,22,.92));
+  box-shadow: 0 30px 80px rgba(0,0,0,.45); }
+.rv-big { font-family: var(--fd); font-weight: 700; font-size: clamp(4.4rem, 9vw, 8rem); line-height: .9;
+  letter-spacing: -.04em;
+  background: linear-gradient(160deg, var(--r) 20%, #fda4af 55%, var(--g) 105%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 0 26px rgba(251,113,133,.25)); }
+.rv-copy .lv-h2 { font-size: clamp(1.6rem, 3vw, 2.4rem); margin-bottom: 14px; }
+.rv-copy .lv-h2 .a { font-style: italic; font-family: Georgia, 'Times New Roman', serif; font-weight: 500;
+  letter-spacing: -.01em; }
+.rv-copy p { color: var(--mut); font-size: 15px; max-width: 66ch; line-height: 1.7; }
+.rv-copy p b { color: var(--text); }
+.rv-src { margin-top: 18px; font-family: var(--fm); font-size: 9px; letter-spacing: .16em; color: var(--dim); }
+
+@media (max-width: 900px) {
+  .lv-reality { grid-template-columns: 1fr; gap: 20px; padding: 32px 26px; }
+  .rv-big { font-size: clamp(3.4rem, 14vw, 5.4rem); }
 }

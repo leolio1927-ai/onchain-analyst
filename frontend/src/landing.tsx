@@ -225,6 +225,42 @@ function Nav() {
   )
 }
 
+/* live scan feed — streaming mock rows so the hero breathes */
+const FEED_POOL = [
+  ['SCAN', '$WOJAK2.0 · SOL', 'RUG RISK 81', 'r'],
+  ['SCAN', '$PEPEKING · BNB', 'RISK 57', 'y'],
+  ['CLUSTER', '3 groups · 42.3% supply', 'FLAGGED', 'r'],
+  ['SCAN', '$BASEDGOD · BASE', 'RISK 34', 'g'],
+  ['WHALE', '$125.3K accumulated', '7xKX…pump', 'g'],
+  ['SCAN', '$SNOWBALL · AVAX', 'RISK 72', 'y'],
+  ['LOCK', 'LP locked 364d · 98.6%', '$MEMEATCHI', 'g'],
+  ['RUG', 'mint authority active', 'AVOID', 'r'],
+] as const
+
+function LiveFeed() {
+  const [rows, setRows] = useState(FEED_POOL.slice(0, 4))
+  useEffect(() => {
+    let i = 4
+    const id = setInterval(() => {
+      setRows((rs) => [FEED_POOL[i % FEED_POOL.length], ...rs.slice(0, 3)])
+      i++
+    }, 2100)
+    return () => clearInterval(id)
+  }, [])
+  return (
+    <div className="lv-feed" aria-hidden="true">
+      <div className="lv-feed-hd"><span className="blink" /> LIVE SCAN FEED <span className="lv-feed-src">DEXSCREENER + GECKOTERMINAL</span></div>
+      {rows.map((r, i) => (
+        <div className={`lv-feed-row f-${r[3]}`} key={`${r[1]}-${i}`} style={{ animationDelay: `${i * 0.05}s` }}>
+          <span className="tag">{r[0]}</span>
+          <span className="sym">{r[1]}</span>
+          <span className="v">{r[2]}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function Hero() {
   const tilt = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -251,15 +287,18 @@ function Hero() {
     <section className="lv-hero" id="top">
       <div className="lv-hero-bg" />
       <div className="rv vis">
+        <a className="lv-announce" href="#features">
+          <span className="blink" /> NEW — WALLET CLUSTERING v2 IS LIVE <i>→</i>
+        </a>
         <div className="lv-kicker"><span className="live-dot" /> SYSTEM ONLINE — SCANNING ACTIVE</div>
         <h1 className="lv-h1">
           <span className="l1">{words.map((w, i) => <span key={i} style={{ animationDelay: `${0.9 + i * 0.09}s` }}>{w}&nbsp;</span>)}</span>
           <span className="l2 a shimmer">{words2.map((w, i) => <span key={i} style={{ animationDelay: `${1.15 + i * 0.09}s` }}>{w}&nbsp;</span>)}</span>
         </h1>
         <p className="lv-sub">
-          Terminal Alpha is an AI-powered memecoin intelligence terminal that helps traders
-          analyze risk, detect hidden patterns, and understand smarter on-chain behavior
-          across multiple blockchains.
+          Every day, <b>thousands of memecoins launch — most are designed to die.</b> Terminal
+          Alpha scans them across five chains, scores the risk with deterministic heuristics, and
+          explains why with evidence-first AI. No signals. No hype. Just the truth, faster.
         </p>
         <div className="lv-badges">
           <span className="lv-badge hot">✦ AI-Powered Analysis</span>
@@ -272,6 +311,7 @@ function Hero() {
           <Magnetic href="/terminal" className="lv-cta mag">Launch Terminal →</Magnetic>
           <a className="lv-cta ghost" href="#features">Explore Features</a>
         </div>
+        <LiveFeed />
       </div>
       <div className="lv-radar" aria-hidden="true">
         <div className="tilt" ref={tilt}>
@@ -287,12 +327,12 @@ function Hero() {
 }
 
 const METRICS = [
-  { to: 5, suffix: '', label: 'BLOCKCHAINS', c: 'c-cyan', d: 0 },
-  { to: 50, suffix: 'K+', label: 'TOKENS SCANNED', c: 'c-green', d: 0 },
-  { to: 1.2, suffix: 'M+', label: 'ANALYSES RUN', c: 'c-purple', d: 1 },
-  { to: 99.7, suffix: '%', label: 'UPTIME', c: 'c-amber', d: 1 },
-  { to: 6, suffix: '', label: 'RISK SIGNALS', c: 'c-cyan', d: 0 },
-  { to: 0, suffix: '', label: 'TRADES EXECUTED', c: 'c-green', d: 0 },
+  { to: 33.9, prefix: '$', suffix: 'B', label: 'MEMECOIN MARKET CAP', c: 'c-green', d: 1 },
+  { to: 8.2, prefix: '$', suffix: 'B', label: 'DAILY VOLUME', c: 'c-neon', d: 1 },
+  { to: 7, suffix: 'M+', label: 'LAUNCHES SINCE 2024', c: 'c-purple', d: 0 },
+  { to: 98.6, suffix: '%', label: 'ARE RUGS OR SCHEMES', c: 'c-red', d: 1 },
+  { to: 2, prefix: '<', suffix: '%', label: 'EVERY GRADUATE', c: 'c-amber', d: 0 },
+  { to: 0, suffix: '', label: 'TRADES EXECUTED BY US', c: 'c-green', d: 0 },
 ]
 
 function Metrics() {
@@ -301,10 +341,39 @@ function Metrics() {
       <div className="lv-metrics-in">
         {METRICS.map((m) => (
           <div key={m.label}>
-            <b className={m.c}>{m.to === 0 ? '0' : <CountUp to={m.to} decimals={m.d} suffix={m.suffix} />}</b>
+            <b className={m.c}>{m.to === 0 ? '0' : <CountUp to={m.to} decimals={m.d} suffix={m.suffix} prefix={m.prefix ?? ''} />}</b>
             <small>{m.label}</small>
           </div>
         ))}
+      </div>
+      <div className="lv-metrics-src">MARKET DATA 2026 · PHEMEX / SOLIDUS LABS / CRYPTORANK · “TRADES EXECUTED” IS A PRODUCT FACT, NOT A FORECAST</div>
+    </section>
+  )
+}
+
+/* the honest hook — real 2026 numbers, our reason to exist */
+function RugReality() {
+  return (
+    <section className="lv-sec" id="reality">
+      <div className="lv-num">00</div>
+      <div className="lv-reality rv">
+        <div className="rv-big">98.6%</div>
+        <div className="rv-copy">
+          <div className="lv-k2">WHY TERMINAL ALPHA EXISTS</div>
+          <h2 className="lv-h2">Most memecoins are built <span className="a">to hurt you.</span></h2>
+          <p>
+            Of 7M+ tokens launched on pump.fun since 2024, <b>98.6% were identified as rug pulls
+            or manipulative schemes</b> — only ~97,000 were legitimate. Fewer than 2% ever
+            graduate. Around 69% stop trading on launch day itself.
+          </p>
+          <p style={{ marginTop: 10 }}>
+            You don't need more signals. You need better filters — deterministic, transparent,
+            and boring about the truth.
+          </p>
+          <div className="rv-src">
+            SOURCES: SOLIDUS LABS · CRYPTORANK (18.67M TOKENS ANALYZED) · PHEMEX 2026
+          </div>
+        </div>
       </div>
     </section>
   )
@@ -600,12 +669,14 @@ export default function Landing() {
   return (
     <div className="lv">
       {!booted && <Preloader onDone={() => setBooted(true)} />}
+      <div className="lv-aurora" aria-hidden="true" />
       <PageBackground />
       <Spotlight />
       <Nav />
       <Hero />
       <Metrics />
       <Trust />
+      <RugReality />
       <Ticker />
       <How />
       <Chains />

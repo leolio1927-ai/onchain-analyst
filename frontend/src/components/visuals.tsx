@@ -53,31 +53,31 @@ function glowDot(ctx: CanvasRenderingContext2D, x: number, y: number, r: number,
   ctx.globalAlpha = 1
 }
 
-/* ─────────── fixed page background: green grid + drift + slow sweep ─────────── */
+/* ─────────── fixed page background: green aurora + grid + drift + sweep ─────────── */
 
 export function PageBackground() {
   const ref = useGlowCanvas((ctx, w, h, t) => {
-    // faint dot grid
-    ctx.fillStyle = 'rgba(0,255,163,0.05)'
-    const step = 34
+    // brighter dot grid
+    ctx.fillStyle = 'rgba(0,255,163,0.09)'
+    const step = 32
     const off = (t * 4) % step
     for (let x = -step; x < w + step; x += step) {
       for (let y = -step; y < h + step; y += step) {
-        ctx.fillRect(x + off, y + off * 0.4, 1.2, 1.2)
+        ctx.fillRect(x + off, y + off * 0.4, 1.3, 1.3)
       }
     }
-    // drifting motes
-    for (let i = 0; i < 34; i++) {
-      const px = (i * 137.5 + Math.sin(t * 0.22 + i) * 60) % (w + 40) - 20
-      const py = (h - ((t * 12 + i * 97) % (h + 80))) + 40
-      ctx.fillStyle = `rgba(0,255,163,${0.10 + (i % 5) * 0.03})`
-      ctx.fillRect(px, py, 1.4, 1.4)
+    // drifting motes (denser, brighter)
+    for (let i = 0; i < 52; i++) {
+      const px = (i * 137.5 + Math.sin(t * 0.22 + i) * 70) % (w + 40) - 20
+      const py = (h - ((t * 13 + i * 97) % (h + 80))) + 40
+      ctx.fillStyle = `rgba(0,255,163,${0.16 + (i % 5) * 0.05})`
+      ctx.fillRect(px, py, 1.5, 1.5)
     }
     // slow diagonal scan band
     const bandY = ((t * 46) % (h + 400)) - 200
     const grad = ctx.createLinearGradient(0, bandY - 130, w, bandY + 130)
     grad.addColorStop(0, 'rgba(0,255,163,0)')
-    grad.addColorStop(0.5, 'rgba(0,255,163,0.045)')
+    grad.addColorStop(0.5, 'rgba(0,255,163,0.07)')
     grad.addColorStop(1, 'rgba(0,255,163,0)')
     ctx.fillStyle = grad
     ctx.fillRect(0, bandY - 130, w, 260)
@@ -88,9 +88,9 @@ export function PageBackground() {
 /* ─────────── HERO radar — neon green scanner ─────────── */
 
 const CHAIN_ORBITS = [
-  { label: 'SOLANA', color: '#22d3ee', r: 0.52, speed: 0.11, size: 3.4 },
+  { label: 'SOLANA', color: '#00ffa3', r: 0.52, speed: 0.11, size: 3.4 },
   { label: 'BNB CHAIN', color: '#fbbf24', r: 0.72, speed: -0.08, size: 3.0 },
-  { label: 'BASE', color: '#3b82f6', r: 0.86, speed: 0.065, size: 2.7 },
+  { label: 'BASE', color: '#60a5fa', r: 0.86, speed: 0.065, size: 2.7 },
   { label: 'HYPEREVM', color: '#a78bfa', r: 0.40, speed: -0.13, size: 2.5 },
   { label: 'AVALANCHE', color: '#fb7185', r: 0.64, speed: 0.09, size: 3.0 },
 ]
@@ -226,9 +226,9 @@ export function RadarScanner() {
 export interface NetChain { id: string; label: string; color: string; live: boolean; stats: string }
 
 export const NET_CHAINS: NetChain[] = [
-  { id: 'sol', label: 'SOLANA', color: '#22d3ee', live: true, stats: '1,900+ pairs indexed · live scanning' },
+  { id: 'sol', label: 'SOLANA', color: '#00ffa3', live: true, stats: '1,900+ pairs indexed · live scanning' },
   { id: 'bnb', label: 'BNB CHAIN', color: '#fbbf24', live: true, stats: 'PancakeSwap pools · live scanning' },
-  { id: 'base', label: 'BASE', color: '#3b82f6', live: true, stats: 'Aerodrome pools · live scanning' },
+  { id: 'base', label: 'BASE', color: '#60a5fa', live: true, stats: 'Aerodrome pools · live scanning' },
   { id: 'hype', label: 'HYPEREVM', color: '#a78bfa', live: false, stats: 'chainId pending verification — honest by policy' },
   { id: 'avax', label: 'AVALANCHE', color: '#fb7185', live: true, stats: 'TraderJoe pools · live scanning' },
 ]
