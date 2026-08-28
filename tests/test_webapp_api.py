@@ -43,8 +43,8 @@ def _trades(n=25):
 
 
 def _patch_providers(monkeypatch, pair=None, trades=None):
-    monkeypatch.setattr("providers.dexscreener.fetch_pair",
-                        lambda chain, addr: pair if pair is not None else _pair())
+    monkeypatch.setattr("providers.dexscreener.fetch_pairs",
+                        lambda chain, addr: [pair] if pair is not None else [_pair()])
     monkeypatch.setattr("providers.geckoterminal.fetch_trades",
                         lambda chain, pool: trades if trades is not None else _trades())
 
@@ -74,13 +74,13 @@ def test_scan_bad_input(client):
 
 
 def test_scan_404_and_gt_degrade(client, monkeypatch):
-    monkeypatch.setattr("providers.dexscreener.fetch_pair", lambda c, a: None)
+    monkeypatch.setattr("providers.dexscreener.fetch_pairs", lambda c, a: [])
     assert client.post("/api/scan", json={"chain": "sol", "address": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"}).status_code == 404
 
     import urllib.error
     def boom(chain, pool):
         raise urllib.error.HTTPError("u", 429, "rate", None, None)
-    monkeypatch.setattr("providers.dexscreener.fetch_pair", lambda c, a: _pair())
+    monkeypatch.setattr("providers.dexscreener.fetch_pairs", lambda c, a: [_pair()])
     monkeypatch.setattr("providers.geckoterminal.fetch_trades", boom)
     r = client.post("/api/scan", json={"chain": "sol", "address": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"})
     assert r.status_code == 200
@@ -95,8 +95,8 @@ def test_explain_ok_and_server_refetches(client, monkeypatch):
 
     def spy_fetch(chain, addr):
         calls["refetched"] = True
-        return _pair()
-    monkeypatch.setattr("providers.dexscreener.fetch_pair", spy_fetch)
+        return [_pair()]
+    monkeypatch.setattr("providers.dexscreener.fetch_pairs", spy_fetch)
     monkeypatch.setattr(ai_analyst_module(), "_call", lambda *a, **k: (
         '{"summary": "s", "key_signals": [], "limitations": "l"}', "mock", {}))
 

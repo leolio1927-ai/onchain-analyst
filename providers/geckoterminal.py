@@ -18,6 +18,14 @@ BASE = "https://api.geckoterminal.com/api/v2"
 
 NETWORKS = {"sol": "solana", "bnb": "bsc", "base": "base", "avax": "avax"}
 
+def _net(chain_key: str) -> str:
+    """Resolve GT network slug; raise a readable error for chains GT does
+    not serve (e.g. hood) so callers degrade honestly instead of KeyError."""
+    if chain_key not in NETWORKS:
+        raise ValueError(f"geckoterminal: no network for chain {chain_key!r} "
+                         f"(live: {', '.join(sorted(NETWORKS))})")
+    return NETWORKS[chain_key]
+
 
 def _get(path: str) -> dict:
     req = urllib.request.Request(f"{BASE}{path}", headers={
@@ -28,7 +36,7 @@ def _get(path: str) -> dict:
 
 def fetch_pools(chain_key: str, token_address: str) -> list[dict]:
     """Pool tempat token itu diperdagangkan (raw dari GT)."""
-    return _get(f"/networks/{NETWORKS[chain_key]}/tokens/{token_address}/pools").get("data") or []
+    return _get(f"/networks/{_net(chain_key)}/tokens/{token_address}/pools").get("data") or []
 
 
 def best_pool(pools: list[dict]) -> dict | None:
@@ -49,7 +57,7 @@ def fetch_trades(chain_key: str, pool_address: str) -> list[dict]:
     """Trade terbaru pool → normalisasi buat clustering:
     {"wallet", "kind", "ts" (ISO str), "usd" (float), "base_token"}.
     Trade dengan field wajib bolong di-skip — jangan nebak."""
-    data = _get(f"/networks/{NETWORKS[chain_key]}/pools/{pool_address}/trades")
+    data = _get(f"/networks/{_net(chain_key)}/pools/{pool_address}/trades")
     out: list[dict] = []
     for item in data.get("data") or []:
         a = item.get("attributes") or {}

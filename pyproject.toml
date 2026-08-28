@@ -12,6 +12,7 @@ dependencies = [
     "textual>=8.2.8",
     "textual-plotext>=1.0.1",
     "uvicorn>=0.52.4",
+    "websockets>=13",
 ]
 
 [dependency-groups]
