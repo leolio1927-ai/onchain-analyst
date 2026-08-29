@@ -292,7 +292,7 @@ async def assets(subpath: str):
 
 
 # ── B4a: live snapshot feed (real data only — the frontend fake-walk dies here) ──
-from fastapi import WebSocket, WebSocketDisconnect  # noqa: E402
+from fastapi import WebSocket, WebSocketDisconnect
 
 _STATS: dict = {"scans": 0}
 _T0 = time.monotonic()
