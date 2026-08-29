@@ -31,7 +31,7 @@ from pydantic import BaseModel
 import ai_analyst
 from access import token_gate
 from heuristics import clustering, rug_check
-from providers import dexscreener, discovery, geckoterminal, helius
+from providers import dexscreener, discovery, geckoterminal, helius, live
 
 CACHE_TTL_S = 30.0
 SCAN_CACHE_MAX = 512  # hard cap — every /api/scan key would otherwise live forever (memory DoS)
@@ -108,6 +108,7 @@ and auditable (heuristics/)."""
 
 _TAGS = [
     {"name": "market", "description": "Token scanning, discovery radar and market evidence."},
+    {"name": "live", "description": "Live per-chain memecoin feed — keyless GeckoTerminal, ≥120s TTL cache, honest live:false for networks GT does not serve."},
     {"name": "ai", "description": "Evidence-first narrative: LLM providers or the keyless deterministic local tier."},
     {"name": "whale", "description": "Wallet balances via Helius (needs HELIUS_API_KEY)."},
     {"name": "system", "description": "Health, version and live process metrics."},
@@ -341,6 +342,40 @@ async def api_discovery(chain: str = "sol", mode: str = "trending", limit: int =
     except (urllib.error.URLError, TimeoutError, OSError) as e:
         raise HTTPException(502, f"GeckoTerminal unreachable ({str(e)[:60]})") from e
     return {"chain": chain, "mode": mode, "count": len(items), "items": items}
+
+
+@app.get("/api/v1/live/{chain}", tags=["live"])
+async def api_live(chain: str, mode: str = "new", limit: int = 20) -> dict:
+    """Live memecoin feed per chain (G.7) — modes: new | trending | volume | alpha.
+
+    Keyless GeckoTerminal only, TTL-cached ≥120s per (chain, mode) — the free
+    tier is ~10 calls/min and `alpha` re-ranks the volume feed with zero extra
+    calls. A chain without a GT network answers live:false with an empty item
+    list — never fabricated. Unknown chain → 404; bad mode/limit → 400;
+    upstream failure without a cache fallback → 502 (a warm expired cache is
+    served with stale:true instead)."""
+    info = live.CHAINS.get(chain)
+    if info is None:
+        raise HTTPException(404, f"unknown chain '{chain}' — pick {'|'.join(live.CHAINS)}")
+    if mode not in live.MODES:
+        raise HTTPException(400, f"mode must be {'|'.join(live.MODES)}")
+    if not 1 <= limit <= live.LIMIT_MAX:
+        raise HTTPException(400, f"limit must be 1..{live.LIMIT_MAX}")
+    generated_at = datetime.now(UTC).isoformat()
+    if not info["live"]:
+        return {"chain": chain, "network_id": None, "live": False,
+                "generated_at": generated_at, "cached": False, "stale": False,
+                "items": []}
+    try:
+        items, meta = await asyncio.to_thread(live.get_feed, chain, mode, limit)
+    except ValueError as e:  # unreachable post-validation — kept for contract
+        raise HTTPException(400, str(e)) from e
+    except urllib.error.HTTPError as e:
+        raise HTTPException(502, f"GeckoTerminal HTTP {e.code} — live feed upstream failed") from e
+    except (urllib.error.URLError, TimeoutError, OSError) as e:
+        raise HTTPException(502, f"GeckoTerminal unreachable ({str(e)[:60]})") from e
+    return {"chain": chain, "network_id": info["network_id"], "live": True,
+            "generated_at": generated_at, **meta, "items": items}
 
 
 _NO_BUILD = """<!doctype html><html><head><meta charset="utf-8">
