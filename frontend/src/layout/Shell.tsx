@@ -4,6 +4,7 @@ import '../styles/app.css'
 
 const NAV: { id: string; icon: string; label: string; pill?: 'NEW' | number }[] = [
   { id: 'dashboard', icon: '▦', label: 'Dashboard' },
+  { id: 'swap', icon: '⇅', label: 'Swap', pill: 'NEW' },
   { id: 'scanner', icon: '⌕', label: 'Token Scanner' },
   { id: 'rugcheck', icon: '⛨', label: 'Rug Check' },
   { id: 'whale', icon: '◍', label: 'Whale Tracker' },
