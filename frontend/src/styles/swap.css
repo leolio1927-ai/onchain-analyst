@@ -18,7 +18,11 @@
   background: radial-gradient(circle, rgba(20, 241, 149, .15), transparent 65%); }
 .tk-root > .tk-aurora::after { width: 760px; height: 760px; right: -12%; top: 30%;
   background: radial-gradient(circle, rgba(77, 141, 255, .1), transparent 65%); }
-.tk-root > .tk-page { position: relative; z-index: 2; padding: 18px 20px 60px; }
+/* landing particle-grid DNA, as pure CSS (no canvas — crash-proof) */
+.tk-dots { position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: .45;
+  background-image: radial-gradient(rgba(20, 241, 149, .16) 1px, transparent 1.4px);
+  background-size: 26px 26px; }
+.tk-root > .tk-page { position: relative; z-index: 2; padding: 14px 16px 40px; }
 
 .tk-mono { font-family: var(--font-mono); }
 .tk-wrap { max-width: 1560px; margin: 0 auto; display: grid; gap: 16px; }
@@ -81,7 +85,7 @@
 .tk-chip.pos b { color: var(--brand-2); } .tk-chip.neg b { color: var(--rose); }
 
 /* ── [C1] chart card ──────────────────────────────────────────── */
-.tk-chart { display: grid; grid-template-columns: 44px 1fr; min-height: 520px; }
+.tk-chart { display: grid; grid-template-columns: 44px 1fr; min-height: 440px; }
 .tk-rail { border-right: 1px dashed color-mix(in srgb, var(--acc, var(--brand)) 26%, transparent);
   display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0; }
 .tk-tool { width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center;
@@ -100,7 +104,7 @@
   color: var(--muted-deep); }
 .tk-cb .g { cursor: pointer; } .tk-cb .g:hover { color: var(--brand); }
 .tk-canvas { position: relative; }
-.tk-canvas svg { display: block; width: 100%; height: auto; }
+.tk-canvas svg { display: block; width: 100%; height: auto; max-height: 430px; }
 .tk-overlay { position: absolute; top: 8px; left: 60px; font-family: var(--font-mono);
   font-size: 10.5px; color: var(--muted); pointer-events: none; }
 .tk-xaxis { display: flex; align-items: center; gap: 14px; padding: 8px 14px;
