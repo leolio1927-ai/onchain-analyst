@@ -131,17 +131,17 @@ const ORBITS = [
   { color: '#ffabab', r: 0.64, speed: 0.09, size: 2.7 },
 ]
 
-const TARGETS = [
-  ['$FROGZILLA', 'SOL', 73], ['PEPEKING', 'BNB', 57], ['BASEDGOD', 'BASE', 34],
-  ['WOJAK2.0', 'SOL', 81], ['SNOWBALL', 'AVAX', 72], ['MOONBOI', 'SOL', 49],
-  ['HYPERCAT', 'HYPE', 88], ['$LABUBU9', 'BNB', 66], ['GRINDBOG', 'BASE', 41],
-  ['$MEMEATCHI', 'SOL', 68], ['BONKLET', 'SOL', 29], ['TURBOCAT', 'BASE', 55],
-] as const
+/* the radar sweeps the real feed universe — the six founder-locked chains,
+   colored with their exact accents (mirrors pages/liveParts CHAIN_ACCENT) */
+const SCANCHAINS: readonly (readonly [string, string, string])[] = [
+  ['SOL', 'SOLANA', '#14F195'], ['BNB', 'BNB CHAIN', '#F0B90B'], ['BASE', 'BASE', '#4D8DFF'],
+  ['HYPE', 'HYPEREVM', '#2DD4BF'], ['HOOD', 'ROBINHOOD', '#00C805'], ['AVAX', 'AVALANCHE', '#E84142'],
+]
 
 const BLIPS = Array.from({ length: 12 }, (_, i) => ({
   a: (i / 12) * TAU + i * 0.83,
   r: 0.2 + ((i * 41) % 62) / 100,
-  t: TARGETS[i % TARGETS.length],
+  t: SCANCHAINS[i % SCANCHAINS.length],
 }))
 
 const DUST = Array.from({ length: 60 }, (_, i) => ({
@@ -237,7 +237,7 @@ export function RadarScanner() {
       const diff = Math.abs(((sweep - b.a) % TAU + TAU) % TAU)
       const hot = diff < 1.15 ? 1 - diff / 1.15 : 0.06
       const [x, y] = P(b.a, b.r)
-      const col = b.t[2] >= 70 ? '#ff9d9d' : b.t[2] >= 50 ? '#ffd98a' : '#8dffcf'
+      const col = b.t[2]
       glowDot(ctx, x, y, 1.3 + hot * 2, col, 0.26 + hot)
     })
 
@@ -266,7 +266,7 @@ export function RadarScanner() {
       const sweep = t * 1.05
       const rev = Math.floor(sweep / TAU)
       const tgt = BLIPS[((rev % BLIPS.length) + BLIPS.length) % BLIPS.length]
-      const [sym, chain, risk] = tgt.t
+      const [sym, label, colr] = tgt.t
       const [tx2, ty2] = P(tgt.a, tgt.r)
 
       // platform rim — faint full ellipse + bright arc on the light side
@@ -306,7 +306,7 @@ export function RadarScanner() {
         const hot = diff < 1.15 ? 1 - diff / 1.15 : 0.06
         if (hot <= 0.5) return
         const [x, y] = P(b.a, b.r)
-        const col = b.t[2] >= 70 ? '#ff9d9d' : b.t[2] >= 50 ? '#ffd98a' : '#8dffcf'
+        const col = b.t[2]
         ctx.strokeStyle = col + 'aa'
         ctx.lineWidth = 1.1
         ctx.beginPath(); ctx.arc(x, y, 6 + (1 - hot) * 15, 0, TAU); ctx.stroke()
@@ -315,7 +315,7 @@ export function RadarScanner() {
       // lock brackets on the story target
       {
         const s = 7
-        ctx.strokeStyle = risk >= 70 ? '#ffb3b3' : '#8dffcf'
+        ctx.strokeStyle = colr
         ctx.lineWidth = 1.4
         ctx.beginPath()
         ctx.moveTo(tx2 - s, ty2 - s + 3); ctx.lineTo(tx2 - s, ty2 - s); ctx.lineTo(tx2 - s + 3, ty2 - s)
@@ -353,13 +353,13 @@ export function RadarScanner() {
       ctx.font = '600 10px JetBrains Mono, monospace'
       const rx2 = cx + RX * 0.97, ry2 = cy - RY * 1.08
       ctx.fillStyle = 'rgba(120,190,165,0.95)'
-      ctx.fillText('TARGET LOCKED', rx2, ry2)
+      ctx.fillText('FEED LOCKED', rx2, ry2)
       ctx.font = '700 12px JetBrains Mono, monospace'
       ctx.fillStyle = 'rgba(240,255,249,0.97)'
-      ctx.fillText(`${sym} · ${chain}`, rx2, ry2 + 17)
+      ctx.fillText(`${sym} · ${label}`, rx2, ry2 + 17)
       ctx.font = '700 10.5px JetBrains Mono, monospace'
-      ctx.fillStyle = risk >= 70 ? '#ffb3b3' : risk >= 50 ? '#ffe0a3' : '#a9ffd9'
-      ctx.fillText(`RISK ${risk} — ${risk >= 70 ? 'RUG PATTERN' : risk >= 50 ? 'MONITOR' : 'CLEAN SIGNAL'}`, rx2, ry2 + 33)
+      ctx.fillStyle = '#a9ffd9'
+      ctx.fillText('LIVE · KEYLESS · 180s CACHE', rx2, ry2 + 33)
     },
   })
   return <canvas ref={ref} className="rv-radar-cv" aria-hidden="true" />
@@ -370,9 +370,9 @@ export function RadarScanner() {
    component-only); NODE_LL/ARCS below reference its ids. */
 
 const NODE_LL: Record<string, [number, number]> = {
-  sol: [0.38, 0.7], bnb: [-0.2, 2.6], base: [0.55, 4.4], hype: [-0.55, 5.5], avax: [0.02, 3.4],
+  sol: [0.38, 0.7], bnb: [-0.2, 2.6], base: [0.55, 4.4], hype: [-0.55, 5.5], avax: [0.02, 3.4], hood: [-0.42, 1.6],
 }
-const ARCS: [string, string][] = [['sol', 'bnb'], ['bnb', 'base'], ['base', 'sol'], ['sol', 'hype'], ['avax', 'sol'], ['avax', 'base']]
+const ARCS: [string, string][] = [['sol', 'bnb'], ['bnb', 'base'], ['base', 'sol'], ['sol', 'hype'], ['avax', 'sol'], ['avax', 'base'], ['hood', 'sol'], ['hood', 'bnb'], ['hype', 'hood']]
 
 const STARS = Array.from({ length: 70 }, (_, i) => ({ x: (i * 0.618) % 1, y: (i * 0.382) % 1, tw: (i * 0.9) % 6 }))
 
@@ -645,7 +645,7 @@ export function ChainGlobe({ hovered, onHover }: { hovered: string | null; onHov
 interface FlowBox { t: string; s: string; accent: string; live?: boolean; chains?: boolean }
 const FLOW: FlowBox[] = [
   { t: 'DATA LAYER', s: 'DEXSCREENER · GECKO · HELIUS', accent: '#8dffcf' },
-  { t: 'MULTI-CHAIN SCANNER', s: 'SOL · BNB · BASE · HYPE · AVAX', accent: '#ffd98a', chains: true },
+  { t: 'MULTI-CHAIN SCANNER', s: 'SOL · BNB · BASE · HYPE · HOOD · AVAX', accent: '#ffd98a', chains: true },
   { t: 'RUG CHECK', s: 'LIQUIDITY · MINT · LP · OWNER', accent: '#ff9d9d' },
   { t: 'WALLET CLUSTERING', s: 'COORDINATED WALLETS', accent: '#93c5fd' },
   { t: 'WHALE TRACKING', s: 'NET FLOW · ACCUMULATION', accent: '#cbb8ff' },
