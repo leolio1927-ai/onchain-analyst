@@ -16,12 +16,14 @@ import asyncio
 import logging
 import os
 import re
+import sys
 import time
 import urllib.error
 from collections import defaultdict, deque
 from datetime import UTC, datetime
 from pathlib import Path
 
+import fastapi
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
@@ -90,7 +92,37 @@ def _apply_cors(app: FastAPI) -> None:
     )
 
 
-app = FastAPI(title="Terminal Alpha", docs_url=None, redoc_url=None)
+APP_VERSION = "0.1.0"
+
+_DESCRIPTION = """Read-only multichain memecoin research terminal — reduce noise, add context.
+
+- **POST /api/scan** — DexScreener pair + GeckoTerminal trade clustering → deterministic, weighted risk assessment
+- **GET /api/v1/discovery** — keyless trending/new pool radar (GeckoTerminal free tier)
+- **POST /api/explain** — evidence-first AI narrative; `provider: "local"` serves a deterministic heuristic narrative with zero API keys
+- **POST /api/whale** — Helius wallet balances (key required)
+- **WS /ws/snap** — full honest snapshot ticker · **WS /ws/tape** — live trade-tape deltas for the active pool
+
+Every value is copied verbatim from the upstream APIs; absent fields stay absent —
+nothing is simulated, zero-filled or random-walked. Heuristic thresholds are public
+and auditable (heuristics/)."""
+
+_TAGS = [
+    {"name": "market", "description": "Token scanning, discovery radar and market evidence."},
+    {"name": "ai", "description": "Evidence-first narrative: LLM providers or the keyless deterministic local tier."},
+    {"name": "whale", "description": "Wallet balances via Helius (needs HELIUS_API_KEY)."},
+    {"name": "system", "description": "Health, version and live process metrics."},
+]
+
+app = FastAPI(
+    title="Terminal Alpha",
+    version=APP_VERSION,
+    summary="Evidence-first multichain memecoin risk terminal",
+    description=_DESCRIPTION,
+    license_info={"name": "MIT", "identifier": "MIT"},
+    openapi_tags=_TAGS,
+    docs_url="/docs",
+    redoc_url="/redoc",
+)
 _apply_cors(app)
 
 
@@ -210,7 +242,7 @@ def _throttle_hit(ip: str) -> bool:
     return True
 
 
-@app.get("/api/health")
+@app.get("/api/health", tags=["system"])
 async def health() -> dict:
     return {
         "status": "ok",
@@ -221,7 +253,24 @@ async def health() -> dict:
     }
 
 
-@app.post("/api/scan")
+@app.get("/api/version", tags=["system"])
+async def version() -> dict:
+    """Build identity — real toolchain versions, nothing invented."""
+    return {"name": "Terminal Alpha", "version": APP_VERSION,
+            "python": sys.version.split()[0], "fastapi": fastapi.__version__,
+            "uptime_s": int(time.monotonic() - _T0)}
+
+
+@app.get("/api/metrics", tags=["system"])
+async def metrics() -> dict:
+    """Live process counters — every number is measured, none estimated."""
+    return {"scans": _STATS["scans"], "uptime_s": int(time.monotonic() - _T0),
+            "ws_clients": len(_WS_CLIENTS), "scan_cache_entries": len(_scan_cache),
+            "gt_trade_cache_entries": len(geckoterminal._trade_cache),
+            "throttled_ips": len(_ai_hits)}
+
+
+@app.post("/api/scan", tags=["market"])
 async def api_scan(body: ScanBody) -> dict:
     _validate(body.chain, body.address)
     out = await _get_scan(body.chain, body.address, body.refresh)
@@ -229,7 +278,7 @@ async def api_scan(body: ScanBody) -> dict:
     return out
 
 
-@app.post("/api/explain")
+@app.post("/api/explain", tags=["ai"])
 async def api_explain(body: ExplainBody, request: Request) -> dict:
     if body.provider != "local" and body.provider not in ai_analyst.PROVIDERS:
         raise HTTPException(400, f"unknown provider '{body.provider}' — pick {'|'.join(ai_analyst.PROVIDERS)}|local")
@@ -255,7 +304,7 @@ async def api_explain(body: ExplainBody, request: Request) -> dict:
     return {**out, "tier": token_gate.resolve_tier(), "provider": body.provider}
 
 
-@app.post("/api/whale")
+@app.post("/api/whale", tags=["whale"])
 async def api_whale(body: WhaleBody) -> dict:
     if not re.fullmatch(r"[1-9A-HJ-NP-Za-km-z]{32,44}|0x[a-fA-F0-9]{40}", body.address or ""):
         raise HTTPException(400, "invalid wallet address format")
@@ -265,7 +314,7 @@ async def api_whale(body: WhaleBody) -> dict:
         raise HTTPException(503, str(e)) from e
 
 
-@app.get("/api/v1/discovery")
+@app.get("/api/v1/discovery", tags=["market"])
 async def api_discovery(chain: str = "sol", mode: str = "trending", limit: int = 20) -> dict:
     """Keyless radar feed (G.3): trending or new pools via GeckoTerminal free
     tier. Validation → 400; upstream failure → honest 502. Items carry only
