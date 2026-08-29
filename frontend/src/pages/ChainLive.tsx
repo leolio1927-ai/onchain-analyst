@@ -8,8 +8,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { LIVE_CHAINS, LIVE_CHAIN_LABEL, LiveFeedError, fetchLiveFeed } from '../lib/liveApi'
 import type { LiveChain, LiveFeed, LiveItem, LiveMode } from '../lib/liveApi'
-import { fmtAge, fmtCount, fmtPct, fmtPrice, fmtUsdCompact, fmtUtcClock } from '../lib/liveFormat'
-import { CopyAddr, EmptyBox, ErrBox, Skel, StatusChips, TokenLogo } from './liveParts'
+import { fmtAge, fmtCount, fmtPrice, fmtUsdCompact, fmtUtcClock } from '../lib/liveFormat'
+import { ChgBadge, CopyAddr, EmptyBox, ErrBox, Skel, StatusChips, TokenLogo, TradeComingModal, accentStyle } from './liveParts'
 
 const LIMIT = 20
 const RETRY_COOLDOWN_S = 60
@@ -28,11 +28,15 @@ type ColState =
   | { st: 'ok'; feed: LiveFeed }
   | { st: 'error'; msg: string }
 
-function FullRow({ item, chain, rank }: { item: LiveItem; chain: LiveChain; rank?: number }) {
-  const chg = item.change_24h === null ? null : Number(item.change_24h)
-  const cls = chg === null ? 'flat' : chg > 0 ? 'up' : chg < 0 ? 'down' : 'flat'
+function FullRow({ item, chain, rank, onOpen }:
+  { item: LiveItem; chain: LiveChain; rank?: number; onOpen: (it: LiveItem) => void }) {
   return (
-    <div className={`lx-trow${rank !== undefined ? ' ranked' : ''}`}>
+    <div className={`lx-trow${rank !== undefined ? ' ranked' : ''}`} role="button" tabIndex={0}
+      title="Trade — coming soon"
+      onClick={() => onOpen(item)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(item) }
+      }}>
       {rank !== undefined ? <span className="lx-rank">#{rank}</span> : null}
       <TokenLogo src={item.logo} symbol={item.token_symbol} />
       <div className="lx-idc">
@@ -41,7 +45,7 @@ function FullRow({ item, chain, rank }: { item: LiveItem; chain: LiveChain; rank
       </div>
       <div className="lx-pric">
         <span className="lx-px">{fmtPrice(item.price_usd)}</span>
-        <span className={`lx-chg ${cls}`}>{fmtPct(item.change_24h)}</span>
+        <ChgBadge value={item.change_24h} />
       </div>
       <div className="lx-meta">
         <span><span className="k">MC·FDV </span>{fmtUsdCompact(item.fdv_usd)}</span>
@@ -79,6 +83,7 @@ export function ChainLive({ chain }: { chain: string }) {
   const known = (LIVE_CHAINS as readonly string[]).includes(chain)
   const [states, setStates] = useState<Partial<Record<ColMode, ColState>>>({})
   const [cooldown, setCooldown] = useState<Partial<Record<ColMode, number>>>({})
+  const [tradeItem, setTradeItem] = useState<LiveItem | null>(null)
   const alive = useRef(true)
 
   const load = useCallback((mode: ColMode) => {
@@ -159,7 +164,8 @@ export function ChainLive({ chain }: { chain: string }) {
             const st = states[col.mode] ?? { st: 'loading' as const }
             const feed = st.st === 'ok' ? st.feed : null
             return (
-              <section className="lx-col" data-chain={typedChain} key={col.mode}>
+              <section className="lx-col" data-chain={typedChain} key={col.mode}
+                style={accentStyle(typedChain)}>
                 <div className="lx-col-hd">
                   <div className="lx-col-t">
                     {col.label}
@@ -183,7 +189,7 @@ export function ChainLive({ chain }: { chain: string }) {
                         <div className="lx-rows">
                           {feed!.items.map((it, i) => (
                             <FullRow key={it.pool_address ?? i} item={it} chain={typedChain}
-                              rank={col.alpha ? i + 1 : undefined} />
+                              rank={col.alpha ? i + 1 : undefined} onOpen={setTradeItem} />
                           ))}
                         </div>
                       )}
@@ -194,6 +200,7 @@ export function ChainLive({ chain }: { chain: string }) {
         <p className="lx-note">
           FREE LIVE DATA VIA <b>GECKOTERMINAL</b> · α = LIQUIDITY-ADJUSTED VOLUME &amp; ACTIVITY (LOCAL SCORE) · LIMIT {LIMIT}/COLUMN
         </p>
+        <TradeComingModal item={tradeItem} onClose={() => setTradeItem(null)} />
       </main>
     </div>
   )
