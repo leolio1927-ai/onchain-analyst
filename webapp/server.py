@@ -244,6 +244,7 @@ def _throttle_hit(ip: str) -> bool:
 
 @app.get("/api/health", tags=["system"])
 async def health() -> dict:
+    """Liveness + served chains + active tier + which AI providers have keys."""
     return {
         "status": "ok",
         "chains": sorted(dexscreener.CHAIN_IDS),
@@ -272,6 +273,8 @@ async def metrics() -> dict:
 
 @app.post("/api/scan", tags=["market"])
 async def api_scan(body: ScanBody) -> dict:
+    """Full evidence scan: pair view + weighted risk assessment + clustering.
+    `refresh: true` bypasses the 30s TTL cache and forces a fresh fetch."""
     _validate(body.chain, body.address)
     out = await _get_scan(body.chain, body.address, body.refresh)
     _STATS["scans"] += 1  # real usage counter — cache hits count as served scans
@@ -280,6 +283,9 @@ async def api_scan(body: ScanBody) -> dict:
 
 @app.post("/api/explain", tags=["ai"])
 async def api_explain(body: ExplainBody, request: Request) -> dict:
+    """Evidence-first narrative. `provider`: claude|glm|kimi (LLM, rate-limited,
+    needs its key) or `local` (deterministic heuristics, keyless, unlimited).
+    Evidence is always re-fetched and re-assessed server-side."""
     if body.provider != "local" and body.provider not in ai_analyst.PROVIDERS:
         raise HTTPException(400, f"unknown provider '{body.provider}' — pick {'|'.join(ai_analyst.PROVIDERS)}|local")
     # validate input first — invalid requests must not consume a rate-limit slot
@@ -306,6 +312,7 @@ async def api_explain(body: ExplainBody, request: Request) -> dict:
 
 @app.post("/api/whale", tags=["whale"])
 async def api_whale(body: WhaleBody) -> dict:
+    """Solana wallet balances via Helius (needs HELIUS_API_KEY)."""
     if not re.fullmatch(r"[1-9A-HJ-NP-Za-km-z]{32,44}|0x[a-fA-F0-9]{40}", body.address or ""):
         raise HTTPException(400, "invalid wallet address format")
     try:
