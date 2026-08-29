@@ -392,6 +392,90 @@ async def ws_snap(ws: WebSocket) -> None:
     finally:
         _WS_CLIENTS.discard(ws)
 
+
+# ── G.4: live tape — additive delta channel over real GT per-trade data ──
+# /ws/snap and its payload schema above are untouched; /ws/tape is a separate
+# channel whose frames carry only trades GeckoTerminal actually returned
+# (deltas deduped by trade identity — nothing replayed, nothing fabricated).
+
+def _tape_interval() -> float:
+    try:
+        v = float(os.environ.get("ALPHA_TAPE_INTERVAL_S", "5"))
+    except ValueError:
+        return 5.0
+    return max(0.2, v)  # floor: a runaway client must not spam upstream
+
+
+def _latest_scan_pool() -> tuple[str, str] | None:
+    """"Active pool" = the pool of the most recent /api/scan result."""
+    newest = None
+    for (chain_key, _addr), (at, res) in _scan_cache.items():
+        pool = (res.get("pair") or {}).get("pairAddress")
+        if pool and (newest is None or at > newest[0]):
+            newest = (at, chain_key, pool)
+    return (newest[1], newest[2]) if newest else None
+
+
+def _tape_delta(seen: dict[str, bool], trades: list[dict]) -> list[dict]:
+    """Return the trades not yet sent on this connection, marking them seen.
+    First poll = full recent window; later polls = only new identities."""
+    fresh = []
+    for t in trades:
+        key = f"{t.get('wallet')}|{t.get('ts')}|{t.get('kind')}|{t.get('usd')}"
+        if seen.get(key):
+            continue
+        seen[key] = True
+        fresh.append(t)
+    while len(seen) > 512:  # insertion-ordered — drop the oldest identities
+        del seen[next(iter(seen))]
+    return fresh
+
+
+@app.websocket("/ws/tape")
+async def ws_tape(ws: WebSocket, chain: str | None = None, pool: str | None = None) -> None:
+    """Live trade tape for the active pool: additive delta frames of real
+    GeckoTerminal trades (same trade schema the clustering heuristic eats).
+    ?chain=&pool= pins a pool; without params the tape follows the most
+    recently scanned pool. Same auth + client cap as /ws/snap."""
+    if not _ws_auth_ok(ws):
+        await ws.accept()
+        await ws.close(code=4401)  # unauthorized
+        return
+    if len(_WS_CLIENTS) >= _ws_max_clients():
+        await ws.accept()
+        await ws.close(code=4429)  # too many clients
+        return
+    if bool(chain) != bool(pool) or (chain and chain not in geckoterminal.NETWORKS):
+        await ws.accept()
+        await ws.close(code=4400)  # pinned pool needs both chain and pool, chain must be live
+        return
+    await ws.accept()
+    _WS_CLIENTS.add(ws)
+    try:
+        seen: dict[str, dict[str, bool]] = {}
+        while True:
+            target = (chain, pool) if chain and pool else _latest_scan_pool()
+            if target is None:
+                await ws.send_json({"type": "tape", "chain": None, "pool": None,
+                                    "trades": [], "ts": datetime.now(UTC).isoformat()})
+            else:
+                ch, pl = target
+                frame: dict = {"type": "tape", "chain": ch, "pool": pl,
+                               "ts": datetime.now(UTC).isoformat()}
+                try:
+                    trades = await asyncio.to_thread(geckoterminal.fetch_trades, ch, pl)
+                    frame["trades"] = _tape_delta(seen.setdefault(pl, {}), trades)
+                except (urllib.error.HTTPError, urllib.error.URLError,
+                        TimeoutError, OSError, ValueError) as e:
+                    frame["trades"] = []
+                    frame["error"] = f"trade fetch failed ({str(e)[:60]})"
+                await ws.send_json(frame)
+            await asyncio.sleep(_tape_interval())
+    except (WebSocketDisconnect, RuntimeError):
+        pass
+    finally:
+        _WS_CLIENTS.discard(ws)
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="webapp", description="Terminal Alpha web server")
     parser.add_argument("--host", default="127.0.0.1")
