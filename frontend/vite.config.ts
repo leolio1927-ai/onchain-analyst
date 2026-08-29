@@ -19,6 +19,7 @@ export default defineConfig({
         index: 'index.html',
         terminal: 'terminal.html',
         live: 'live.html',
+        docs: 'docs.html',
       },
     },
   },
