@@ -5,7 +5,7 @@
    60s cool-down / empty). No fabricated numbers anywhere: absent → "–". */
 import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
-import type { LiveChain, LiveItem } from '../lib/liveApi'
+import type { LiveChain, LiveItem, TokenSocials } from '../lib/liveApi'
 import { fmtPct, truncAddr } from '../lib/liveFormat'
 
 /* Founder-mandated CHAIN ACCENT MAP (exact hexes) — mirrored in live.css
@@ -89,6 +89,25 @@ export function ChgBadge({ value }: { value: string | number | null }) {
     : typeof value === 'number' ? value : Number(value)
   const cls = n === null || !Number.isFinite(n) ? 'flat' : n < 0 ? 'neg' : 'pos'
   return <span className={`lx-chg ${cls}`}>{fmtPct(value)}</span>
+}
+
+/* X (Twitter) + website, exactly what DexScreener returned — absent links
+   render nothing, never a placeholder. Links stop row-click propagation. */
+export function SocialLinks({ socials }: { socials: TokenSocials | null }) {
+  if (!socials) return null
+  const stop = (e: React.MouseEvent) => e.stopPropagation()
+  return (
+    <span className="lx-socials">
+      {socials.twitter
+        ? <a className="lx-soc" href={socials.twitter} target="_blank" rel="noopener noreferrer"
+            title="X (Twitter)" onClick={stop}>𝕏</a>
+        : null}
+      {socials.website
+        ? <a className="lx-soc" href={socials.website} target="_blank" rel="noopener noreferrer"
+            title="Website" onClick={stop}>🌐</a>
+        : null}
+    </span>
+  )
 }
 
 /* Founder addendum: clicking a token card opens the honest TRADE — COMING
