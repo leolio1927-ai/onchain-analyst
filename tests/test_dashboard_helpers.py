@@ -1,11 +1,11 @@
-"""Regression bug audit P1: priceChange -100% tidak boleh menjatuhkan app."""
+"""Audit P1 regression: a priceChange of -100% must not crash the app."""
 from ui.dashboard import _est_points
 
 
 def test_est_points_change_minus_100_tidak_crash():
     pts = _est_points(100.0, {"h24": -100, "h6": -50, "h1": 0, "m5": 10})
-    assert pts[0] == 0.0      # penyebut nol → di-clamp, bukan ZeroDivisionError
-    assert pts[1] == 200.0    # turun 50% → harga 6 jam lalu 200
+    assert pts[0] == 0.0      # zero denominator → clamped, no ZeroDivisionError
+    assert pts[1] == 200.0    # down 50% → the 6h-ago price was 200
     assert pts[-1] == 100.0
 
 

@@ -1,4 +1,4 @@
-"""Parser trade feed harus cocok dengan response asli (fixture dari live 2026-08-27)."""
+"""The trade-feed parser must match the real response (fixture captured live 2026-08-27)."""
 import json
 from pathlib import Path
 
@@ -14,7 +14,7 @@ def _with(monkeypatch, payload):
 def test_normalisasi_trade(monkeypatch):
     _with(monkeypatch, FIX)
     trades = geckoterminal.fetch_trades("sol", "POOLX")
-    assert len(trades) == 10  # 11 item, 1 tanpa volume_in_usd → di-skip
+    assert len(trades) == 10  # 11 items, 1 without volume_in_usd → skipped
     first = trades[0]
     assert set(first) == {"wallet", "kind", "ts", "usd", "base_token"}
     assert first["wallet"] == "WA1"
@@ -28,13 +28,13 @@ def test_normalisasi_trade(monkeypatch):
 def test_trade_rusak_dilewati(monkeypatch):
     _with(monkeypatch, {"data": [
         {"attributes": {"tx_from_address": "W", "kind": "buy",
-                        "block_timestamp": "2026-08-27T06:00:00Z"}},                # tanpa usd
+                        "block_timestamp": "2026-08-27T06:00:00Z"}},                # no usd
         {"attributes": {"tx_from_address": None, "kind": "buy",
-                        "block_timestamp": "2026-08-27T06:00:01Z", "volume_in_usd": "1"}},  # tanpa wallet
+                        "block_timestamp": "2026-08-27T06:00:01Z", "volume_in_usd": "1"}},  # no wallet
         {"attributes": {"tx_from_address": "W", "kind": "swap",
                         "block_timestamp": "2026-08-27T06:00:02Z", "volume_in_usd": "1"}},  # kind asing
         {"attributes": {"tx_from_address": "W", "kind": "buy",
-                        "volume_in_usd": "bukan-angka"}},                            # usd rusak
+                        "volume_in_usd": "not-a-number"}},                       # broken usd
     ]})
     assert geckoterminal.fetch_trades("sol", "P") == []
 

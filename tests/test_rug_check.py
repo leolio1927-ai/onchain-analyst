@@ -1,4 +1,4 @@
-"""Heuristik harus deterministik: input sama → verdict sama, selamanya."""
+"""The heuristics must be deterministic: same input → same verdict, forever."""
 import time
 
 from heuristics import rug_check

@@ -1,9 +1,9 @@
-"""Clustering deterministik: input sama → verdict sama; sampel kurang → jujur."""
+"""Deterministic clustering: same input → same verdict; insufficient sample → honest."""
 from datetime import UTC, datetime
 
 from heuristics import clustering
 
-BASE_TS = 1787839200  # epoch detik, acak tapi tetap
+BASE_TS = 1787839200  # epoch seconds, arbitrary but fixed
 
 
 def _t(wallet, dt, usd, kind="buy"):

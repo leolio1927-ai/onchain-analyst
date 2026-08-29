@@ -1,5 +1,5 @@
-"""Regression visual: tampilan dashboard dikunci; refactor yang mengubah
-layout secara tak sengaja akan gagal di sini."""
+"""Visual regression: the dashboard view is locked; a refactor that
+accidentally changes the layout fails here."""
 from pathlib import Path
 
 APP_PATH = str(Path(__file__).parent.parent / "app.py")

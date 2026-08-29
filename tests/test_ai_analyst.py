@@ -1,4 +1,4 @@
-"""AI layer: evidence terkontrol, tanpa key → gagal jujur di SEMUA provider,
+"""AI layer: controlled evidence, no key → honest failure on EVERY provider,
 output terstruktur JSON + grounding log mencatat parse_ok."""
 import json
 
@@ -76,7 +76,7 @@ def test_grounding_log_terstruktur(monkeypatch, tmp_path):
 
 
 def test_tier_hanya_panjang_bukan_kebenaran(monkeypatch, tmp_path):
-    """Invariant §2.3: beda tier hanya max_tokens — prompt & evidence identik."""
+    """Invariant §2.3: tiers differ only in max_tokens — prompt & evidence identical."""
     monkeypatch.chdir(tmp_path)
     seen = {}
 
