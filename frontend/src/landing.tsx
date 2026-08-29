@@ -490,6 +490,7 @@ const EVM_RE = /^0x[a-fA-F0-9]{40}$/
 
 function SevBar({ severity }: { severity: number | null }) {
   if (severity === null || severity === undefined) return <span className="lv-ns">NOT SCORED</span>
+  if (severity <= 0) return <span className="lv-sev"><span className="ok">✓</span></span>
   const pct = Math.max(0, Math.min(1, severity)) * 100
   return <span className="lv-sev"><span className={`fill${severity >= 0.5 ? ' hot' : ''}`} style={{ width: `${pct}%` }} /></span>
 }
@@ -703,8 +704,7 @@ function LiveScan() {
             </div>
             <div className="lv-cluster">
               <b>WALLET CLUSTERING</b>
-              <span>{res.clustering.wallets} wallets · {res.clustering.buys} buys</span>
-              <span>{res.clustering.evidence || '–'}</span>
+              <span>{res.clustering.evidence || `${res.clustering.wallets} wallets · ${res.clustering.buys} buys`}</span>
             </div>
             {res.assessment.notes.length > 0 && (
               <div className="lv-cluster">
