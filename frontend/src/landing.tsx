@@ -894,7 +894,7 @@ function Security() {
           { i: 'ban', t: 'No Trading Execution', d: 'Zero transaction paths exist in the product — by design.' },
           { i: 'lock', t: 'No Custody', d: 'We never hold funds or ask for private keys. Ever.' },
           { i: 'check', t: 'No Accounts', d: 'No login, no cookie, no session. Public data in, insight out.' },
-          { i: 'scan', t: 'No Third-Party Scripts', d: 'Verify in view-source — the bundle is self-hosted, fonts aside.' },
+          { i: 'scan', t: 'Zero Third-Party Requests', d: 'Verify in view-source — bundle AND fonts are self-hosted. Nothing leaves the page.' },
         ].map((p, i) => (
           <div className={`lv-pr rv d${i}`} key={p.t}>
             <div className="ico"><Icon name={p.i} size={26} /></div>
