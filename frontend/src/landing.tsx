@@ -7,6 +7,8 @@ import { NET_CHAINS } from './lib/netChains'
 import { fetchLiveFeed, LIVE_CHAINS, LIVE_CHAIN_LABEL, LIVE_MODES } from './lib/liveApi'
 import type { LiveChain, LiveItem } from './lib/liveApi'
 import { fmtPct, fmtPrice, fmtUtcClock } from './lib/liveFormat'
+import { api, ApiError } from './api'
+import type { Chain, ScanResult } from './api'
 import { ChainLogo } from './pages/chainLogos'
 import { BRAND_NAME, BRAND_LEGAL } from './lib/brand'
 
@@ -339,7 +341,7 @@ function StatRow() {
 /* ═══════════ sections ═══════════ */
 
 const NAV = [
-  ['How It Works', 'how'], ['Product', 'product'], ['Multi-Chain', 'chains'], ['Security', 'security'],
+  ['Try It', 'scan'], ['How It Works', 'how'], ['Product', 'product'], ['Multi-Chain', 'chains'], ['Security', 'security'],
 ]
 const NAV_BOXED = [
   ['Memecoin Live', '/live'], ['Docs', '/docs'], ['Roadmap', '/roadmap'],
@@ -463,6 +465,143 @@ function TapeBand() {
   return (
     <section className="lv-tapeband">
       <Tape />
+    </section>
+  )
+}
+
+
+/* ═══════════ live scan — the real engine, on the landing ═══════════
+   Paste an address → POST /api/scan → render the shipped engine's verdict:
+   weighted signals with public thresholds, clustering, launch venue.
+   Honesty law: absent → "–", a null severity renders NOT SCORED, upstream
+   errors are quoted verbatim. The scanner allowlist is five chains — hype
+   joins when its chainId is verified upstream, and the UI says so. */
+
+const SCAN_CHAINS: { id: Chain; label: string; accent: string }[] = [
+  { id: 'sol', label: 'SOL', accent: '#14F195' },
+  { id: 'bnb', label: 'BNB', accent: '#F0B90B' },
+  { id: 'base', label: 'BASE', accent: '#4D8DFF' },
+  { id: 'avax', label: 'AVAX', accent: '#E84142' },
+  { id: 'hood', label: 'HOOD', accent: '#00C805' },
+]
+
+function SevBar({ severity }: { severity: number | null }) {
+  if (severity === null || severity === undefined) return <span className="lv-ns">NOT SCORED</span>
+  const pct = Math.max(0, Math.min(1, severity)) * 100
+  return <span className="lv-sev"><span className={`fill${severity >= 0.5 ? ' hot' : ''}`} style={{ width: `${pct}%` }} /></span>
+}
+
+function LiveScan() {
+  const [chain, setChain] = useState<Chain>('sol')
+  const [addr, setAddr] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  const [res, setRes] = useState<ScanResult | null>(null)
+
+  const run = () => {
+    const a = addr.trim()
+    if (!a || busy) return
+    setBusy(true)
+    setErr(null)
+    api.scan(chain, a)
+      .then(setRes)
+      .catch((e: unknown) => {
+        setRes(null)
+        setErr(e instanceof ApiError ? e.message : 'Scan failed — try again')
+      })
+      .finally(() => setBusy(false))
+  }
+
+  const level = res?.assessment.level
+  const lvlChip = level === 'low' ? 'live' : level === 'medium' ? 'sim' : level === 'high' ? 'high' : 'design'
+
+  return (
+    <section className="lv-scanband" id="scan">
+      <div className="lv-scanhead rv">
+        <div className="lv-k2">LIVE SCAN — THE REAL ENGINE</div>
+        <h2 className="lv-h2">Paste an Address. <span className="a">Get the Verdict.</span></h2>
+        <p className="lv-lead" style={{ marginInline: 'auto' }}>
+          No sign-up, no wallet, no wait — the shipped engine answers right here, live.
+        </p>
+      </div>
+      <div className="lv-scancard rv">
+        <div className="lv-scanrow">
+          <div className="lv-chainbtns">
+            {SCAN_CHAINS.map((c) => (
+              <button key={c.id} type="button" className={`lv-chipbtn${chain === c.id ? ' on' : ''}`}
+                style={{ '--acc': c.accent } as React.CSSProperties}
+                onClick={() => setChain(c.id)} aria-pressed={chain === c.id}>
+                <span className="dot" />{c.label}
+              </button>
+            ))}
+          </div>
+          <input className="lv-scanin" value={addr} spellCheck={false}
+            onChange={(e) => setAddr(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && run()}
+            aria-label="Token or pair address" />
+          <button type="button" className="lv-cta neon lv-scanbtn" onClick={run} disabled={busy}>
+            {busy ? 'SCANNING…' : 'SCAN →'}
+          </button>
+        </div>
+        <div className="lv-scanhint">
+          SCANNER ALLOWLIST: SOL · BNB · BASE · AVAX · HOOD — HYPEREVM JOINS WHEN ITS CHAINID IS VERIFIED UPSTREAM
+        </div>
+        {busy && <div className="lv-scanwait">FETCHING LIVE EVIDENCE — DEXSCREENER + GECKOTERMINAL…</div>}
+        {!busy && err && (
+          <div className="lv-scanerr" role="alert">⚠ {err} — the API answers honestly; nothing is made up to fill the gap.</div>
+        )}
+        {!busy && !err && !res && (
+          <div className="lv-scanwait" style={{ color: 'var(--muted-deep, var(--dim))' }}>
+            THE VERDICT RENDERS EXACTLY WHAT THE ENGINE RETURNED — NOTHING MORE
+          </div>
+        )}
+        {!busy && res && (
+          <div className="lv-verdict">
+            <div className="lv-vhd">
+              <span className="sym">{res.pair.baseToken?.symbol ?? '–'}</span>
+              <span className="pair">{res.pair.pairAddress ?? '–'} · {res.pair.quoteToken?.symbol ?? '–'}</span>
+              {res.launch_venue && <span className="venue">BORN ON {res.launch_venue.toUpperCase()}</span>}
+              <span style={{ marginLeft: 'auto' }} className={`lv-status ${lvlChip}`}>
+                {res.assessment.level_label}
+              </span>
+            </div>
+            <div className="lv-scorebox">
+              <div className="lv-score">{res.assessment.score ?? '–'}<small> /100 RISK</small></div>
+              <div style={{ fontSize: 12, color: 'var(--mut)', lineHeight: 1.7, maxWidth: 460 }}>
+                Weighted combination of the signals below — thresholds public in
+                heuristics/rug_check.py. Higher = riskier. Never a binary verdict.
+              </div>
+            </div>
+            <div className="lv-sigs">
+              {res.assessment.signals.map((sig) => (
+                <div className="lv-sig" key={sig.key}>
+                  <span className="lb">{sig.label}</span>
+                  <span className="wt">{Math.round(sig.weight * 100)}%</span>
+                  <SevBar severity={sig.severity} />
+                  <span className="ev">{sig.evidence || '–'}</span>
+                </div>
+              ))}
+            </div>
+            <div className="lv-cluster">
+              <b>WALLET CLUSTERING</b>
+              <span>{res.clustering.wallets} wallets · {res.clustering.buys} buys</span>
+              <span>{res.clustering.evidence || '–'}</span>
+            </div>
+            {res.assessment.notes.length > 0 && (
+              <div className="lv-cluster">
+                <b>NOTES</b>
+                <span>{res.assessment.notes.join(' · ')}</span>
+              </div>
+            )}
+          </div>
+        )}
+        <div className="lv-scanft">
+          <span>POST /api/scan · SAME ENGINE AS THE TUI</span>
+          <span>SOURCES: {res ? res.sources.join(' + ').toUpperCase() : 'DEXSCREENER + GECKOTERMINAL'}</span>
+          {res && <span>TS {fmtUtcClock(res.ts)}</span>}
+          <a className="fill" href="/api/docs">FULL CONTRACT →</a>
+        </div>
+      </div>
     </section>
   )
 }
@@ -987,6 +1126,7 @@ export default function Landing() {
       <Nav />
       <Hero />
       <TapeBand />
+      <LiveScan />
       <Problem />
       <Honesty />
       <How />
