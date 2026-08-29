@@ -17,11 +17,14 @@ Stage-0 verified 2026-08-29 against api.geckoterminal.com/api/v2:
 """
 from __future__ import annotations
 
+import json
 import math
 import os
 import time
+import urllib.request
 from datetime import UTC, datetime
 
+from providers import dexscreener
 from providers import geckoterminal as gt
 
 # Founder-locked display order (2026-08-29).
@@ -84,10 +87,18 @@ FEED_CACHE_MAX = 32       # 6 chains × 3 sources = 18 keys; cap anyway
 
 FIELDS = ("pool_address", "token_symbol", "token_name", "pair", "logo",
           "price_usd", "volume_24h", "change_24h", "liquidity_usd",
-          "txns_24h", "fdv_usd", "created_at", "dex_id", "launchpad")
+          "txns_24h", "fdv_usd", "created_at", "dex_id", "launchpad",
+          "token_address", "socials")
 
 # (chain, source_mode) → (monotonic_ts, raw GT payload)
 _feed_cache: dict[tuple[str, str], tuple[float, dict]] = {}
+
+# token_address → (monotonic_ts, {"twitter": url|None, "website": url|None})
+# X/website lookups come from DexScreener's token endpoint (the only upstream
+# here that returns them); cached long — profiles barely change.
+SOCIALS_TTL_S = 3600.0
+SOCIALS_MAX = 128
+_socials_cache: dict[str, tuple[float, dict]] = {}
 
 
 def _clamp(limit: int) -> int:
@@ -186,6 +197,8 @@ def _normalize(raw: dict, limit: int) -> list[dict]:
             "created_at": a.get("pool_created_at"),
             "dex_id": dex_id,
             "launchpad": LAUNCHPAD.get(dex_id) if dex_id else None,
+            "token_address": (bt.split("_", 1)[-1] if bt else None),
+            "socials": None,  # filled best-effort by _enrich_socials
         })
     return [i for i in out if i["pair"]]
 
@@ -262,6 +275,81 @@ def _dedupe(items: list[dict]) -> list[dict]:
     return [it for _, it in ranked]
 
 
+def _ds_get(path: str) -> list | dict:
+    """DexScreener GET — the only upstream that returns token socials."""
+    req = urllib.request.Request(f"https://api.dexscreener.com{path}",
+                                 headers={"User-Agent": "terminal-alpha/0.1",
+                                          "Accept": "application/json"})
+    with urllib.request.urlopen(req, timeout=8) as r:
+        return json.load(r)
+
+
+def _cache_put_socials(key: str, socials: dict) -> None:
+    now = time.monotonic()
+    expired = [k for k, (t, _) in _socials_cache.items() if now - t >= SOCIALS_TTL_S]
+    for k in expired:
+        del _socials_cache[k]
+    while len(_socials_cache) >= SOCIALS_MAX:
+        del _socials_cache[min(_socials_cache, key=lambda k: _socials_cache[k][0])]
+    _socials_cache[key] = (now, socials)
+
+
+def _enrich_socials(chain: str, items: list[dict]) -> None:
+    """Fill `socials` in place for the page's tokens — best-effort, batched
+    (≤30 addresses per DexScreener call), 1h cache. Honesty: only URLs
+    DexScreener actually returned are surfaced; a dead lookup or a chain
+    DexScreener does not list (hype) leaves socials absent and NEVER breaks
+    the feed."""
+    missing: list[tuple[str, dict]] = []
+    for it in items:
+        addr = it.get("token_address")
+        if not addr:
+            continue
+        hit = _socials_cache.get(addr)
+        if hit and time.monotonic() - hit[0] < SOCIALS_TTL_S:
+            soc = hit[1]
+            it["socials"] = soc if (soc["twitter"] or soc["website"]) else None
+        else:
+            missing.append((addr, it))
+    if not missing:
+        return
+    chain_id = dexscreener.CHAIN_IDS.get(chain)
+    if not chain_id:
+        return
+    fetched: dict[str, dict] = {}
+    for i in range(0, len(missing), 30):
+        batch = missing[i:i + 30]
+        wanted = {a for a, _ in batch}
+        try:
+            data = _ds_get(f"/tokens/v1/{chain_id}/{','.join(a for a, _ in batch)}")
+        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError,
+                json.JSONDecodeError, ValueError):
+            break  # DS down → socials stay absent, un-cached
+        for entry in data or []:
+            addr = (entry.get("baseToken") or {}).get("address")
+            if addr not in wanted or addr in fetched:
+                continue
+            info = entry.get("info") or {}
+            socials: dict = {"twitter": None, "website": None}
+            for w in info.get("websites") or []:
+                if w.get("url"):
+                    socials["website"] = w["url"]
+                    break
+            for s in info.get("socials") or []:
+                if s.get("type") == "twitter" and s.get("url"):
+                    socials["twitter"] = s["url"]
+                    break
+            fetched[addr] = socials
+        for addr in wanted:  # batch succeeded: cache honest empties too
+            fetched.setdefault(addr, {"twitter": None, "website": None})
+    for addr, it in missing:
+        if addr in fetched:
+            _cache_put_socials(addr, fetched[addr])
+            soc = fetched[addr]
+            # nothing found → absent, not an empty shell object
+            it["socials"] = soc if (soc["twitter"] or soc["website"]) else None
+
+
 def get_feed(chain: str, mode: str, limit: int = 20) -> tuple[list[dict], dict]:
     """→ (items, {"cached": bool, "stale": bool}).
 
@@ -293,4 +381,6 @@ def get_feed(chain: str, mode: str, limit: int = 20) -> tuple[list[dict], dict]:
     items = _dedupe(items)  # one token = one card, before ranking/slicing
     if mode == "alpha":
         items = _alpha_rank(items)
-    return items[:limit], {"cached": cached, "stale": stale}
+    page = items[:limit]
+    _enrich_socials(chain, page)  # best-effort X/website, never fatal
+    return page, {"cached": cached, "stale": stale}
