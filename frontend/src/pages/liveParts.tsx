@@ -1,9 +1,28 @@
 /* Shared building blocks for the Memecoin Live pages (board + chain view):
-   token logo with initial-block fallback, copy-address control, and honest
-   state views (skeletons / error+retry with 60s cool-down / empty). No
-   fabricated numbers anywhere: absent renders as "–". */
+   token logo with initial-block fallback, copy-address control, semantic
+   change badge (pos/neg — never neutral), the founder-mandated TRADE
+   COMING SOON popup, and honest state views (skeletons / error+retry with
+   60s cool-down / empty). No fabricated numbers anywhere: absent → "–". */
 import { useEffect, useState } from 'react'
-import { truncAddr } from '../lib/liveFormat'
+import type { CSSProperties } from 'react'
+import type { LiveChain, LiveItem } from '../lib/liveApi'
+import { fmtPct, truncAddr } from '../lib/liveFormat'
+
+/* Founder-mandated CHAIN ACCENT MAP (exact hexes) — mirrored in live.css
+   [data-chain] fallbacks; passed inline per card/column root as
+   --chain-accent so borders/glow/chips all derive from one property. */
+export const CHAIN_ACCENT: Record<LiveChain, string> = {
+  sol: '#14F195',
+  bnb: '#F0B90B',
+  base: '#4D8DFF',
+  hype: '#2DD4BF',
+  hood: '#00C805',
+  avax: '#E84142',
+}
+
+export function accentStyle(chain: LiveChain): CSSProperties {
+  return { '--chain-accent': CHAIN_ACCENT[chain] } as CSSProperties
+}
 
 export function TokenLogo({ src, symbol }: { src: string | null; symbol: string | null }) {
   const [broken, setBroken] = useState(false)
@@ -39,7 +58,8 @@ export function CopyAddr({ address }: { address: string | null }) {
     return () => clearTimeout(t)
   }, [copied])
   if (!address) return <span className="lx-copy" style={{ cursor: 'default' }}>–</span>
-  const onCopy = () => {
+  const onCopy = (e: React.MouseEvent) => {
+    e.stopPropagation() // rows are clickable (trade popup) — copy must not trigger them
     const done = () => setCopied(true)
     if (navigator.clipboard?.writeText) {
       navigator.clipboard.writeText(address).then(done, () => { if (copyViaTextarea(address)) done() })
@@ -52,6 +72,47 @@ export function CopyAddr({ address }: { address: string | null }) {
       onClick={onCopy} title={`copy pool address ${address}`}>
       {copied ? '✓ copied' : `${truncAddr(address)} ⧉`}
     </button>
+  )
+}
+
+/* Semantic 24h change: pos (green) / neg (rose) — an actual value is never
+   neutral; absent renders the honest dash. */
+export function ChgBadge({ value }: { value: string | number | null }) {
+  const n = value === null
+    ? null
+    : typeof value === 'number' ? value : Number(value)
+  const cls = n === null || !Number.isFinite(n) ? 'flat' : n < 0 ? 'neg' : 'pos'
+  return <span className={`lx-chg ${cls}`}>{fmtPct(value)}</span>
+}
+
+/* Founder addendum: clicking a token card opens the honest TRADE — COMING
+   SOON popup. Escape / backdrop / × all close it. */
+export function TradeComingModal({ item, onClose }: { item: LiveItem | null; onClose: () => void }) {
+  useEffect(() => {
+    if (!item) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = ''
+    }
+  }, [item, onClose])
+  if (!item) return null
+  return (
+    <div className="lx-modal" role="presentation" onClick={onClose}>
+      <div className="lx-modal-card" role="dialog" aria-modal="true" aria-label="Trade coming soon"
+        onClick={(e) => e.stopPropagation()}>
+        <button type="button" className="lx-modal-x" onClick={onClose} aria-label="Close">×</button>
+        <div className="lx-modal-kicker">TRADE</div>
+        <div className="lx-modal-title">COMING SOON</div>
+        <p className="lx-modal-sub">
+          <b>{item.token_symbol ?? '–'}</b> · {item.pair ?? '–'}<br />
+          Terminal Alpha is read-only research — execution is not live yet.
+          Nothing to sign, nothing to click. Watch this space.
+        </p>
+      </div>
+    </div>
   )
 }
 
