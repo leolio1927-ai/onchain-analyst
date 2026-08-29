@@ -1,53 +1,53 @@
-# CATATAN KERJA — Terminal Alpha (AI Memecoin Scanner Terminal)
+# WORKING NOTES — Terminal Alpha (AI Memecoin Scanner Terminal)
 
-## 1. Apa Ini dan Kenapa Dibuat
-Terminal Alpha adalah terminal (CLI/TUI) untuk trader memecoin: hunting, scanning, analisis risiko, AI reasoning — lintas chain (Solana, BSC, Base, HyperEVM/Hyperliquid, Avalanche).
-BUKAN: bot trading (TIDAK ada eksekusi transaksi), bukan pengganti platform eksekusi (Axiom/GMGN/BullX), bukan penyedia sinyal beli/jual. Diferensiasi: AI yang menjelaskan KENAPA dengan reasoning transparan, tanpa custody.
+## 1. What This Is and Why It Was Built
+Terminal Alpha is a terminal (CLI/TUI) for memecoin traders: hunting, scanning, risk analysis, AI reasoning — across chains (Solana, BSC, Base, HyperEVM/Hyperliquid, Avalanche).
+It is NOT: a trading bot (NO transaction execution), not a replacement for execution platforms (Axiom/GMGN/BullX), not a buy/sell signal provider. Differentiation: AI that explains WHY with transparent reasoning, without custody.
 
-## 2. Prinsip yang Gak Boleh Dilanggar
-1. Tidak ada eksekusi transaksi. Terminal murni riset/analisis.
-2. Tidak ada custody dana user. Tidak pernah minta/simpan private key; cek saldo hanya via public address.
-3. Versi gratis tidak boleh sengaja dibikin kurang akurat. Token utility mengatur KEDALAMAN (tier free/deep), bukan KEBENARAN data.
-4. AI tidak boleh mengarang fakta. Semua kesimpulan berbasis data provider (evidence-first).
-5. Tidak ada klaim "akurasi tinggi/jaminan cuan". Framing: mengurangi noise, menambah konteks.
-6. Verdict risiko tidak pernah biner dari satu sinyal. Gabungan heuristik; data kurang → jujur "DATA KURANG".
+## 2. Principles That Must Never Be Violated
+1. No transaction execution. The terminal is purely for research/analysis.
+2. No custody of user funds. Never ask for or store private keys; balance checks only via public address.
+3. The free version must not be deliberately made less accurate. The utility token controls DEPTH (free/deep tier), not the CORRECTNESS of the data.
+4. The AI must not invent facts. All conclusions are grounded in provider data (evidence-first).
+5. No "high accuracy / guaranteed profit" claims. Framing: reducing noise, adding context.
+6. The risk verdict is never binary from a single signal. Combined heuristics; insufficient data → honestly "INSUFFICIENT DATA".
 
-## 3. Cakupan Chain
-Target: Solana (sol), BNB (bnb), Base, HyperEVM/Hyperliquid (hype), Avalanche (avax).
-Robinhood Chain ($HOOD) belum terverifikasi di provider manapun — jangan ditampilkan sebagai supported sampai diverifikasi.
+## 3. Chain Coverage
+Targets: Solana (sol), BNB (bnb), Base, HyperEVM/Hyperliquid (hype), Avalanche (avax).
+Robinhood Chain ($HOOD) is not yet verified on any provider — do not display it as supported until it is verified.
 
-## 4. Arsitektur
-CLI/TUI input → Data Layer (DexScreener agregat; GeckoTerminal trade per-wallet; Helius wallet balance; nanti Birdeye/Bitquery) → Heuristic Layer deterministik (rug_check, clustering) → AI Analyst (terima hasil heuristik + data sebagai konteks; tidak boleh menambah fakta; output per tier) → Terminal UI (Textual).
-Prinsip: AI tidak pernah bicara langsung ke API mentah — selalu lewat heuristic layer.
-Web (2026-08-27): frontend/ (React+Vite+TS, MPA: index=landing, terminal=web terminal) + webapp/ (FastAPI serve dist + /api/scan|explain|whale|health). Engine sama dgn TUI; /api/explain re-fetch + re-assess SERVER-SIDE (client tak bisa menempa evidence); endpoint AI rate-limited per-IP; tanpa dist → halaman jujur "run npm run build". Semua user-facing string English (web + TUI + evidence + output AI); dokumen internal tetap Indonesia.
+## 4. Architecture
+CLI/TUI input → Data Layer (DexScreener aggregate; GeckoTerminal per-wallet trades; Helius wallet balance; later Birdeye/Bitquery) → deterministic Heuristic Layer (rug_check, clustering) → AI Analyst (receives heuristic results + data as context; must not add facts; output per tier) → Terminal UI (Textual).
+Principle: the AI never talks directly to raw APIs — always through the heuristic layer.
+Web (2026-08-27): frontend/ (React+Vite+TS, MPA: index=landing, terminal=web terminal) + webapp/ (FastAPI serving dist + /api/scan|explain|whale|health). Same engine as the TUI; /api/explain re-fetches and re-assesses SERVER-SIDE (the client cannot forge evidence); AI endpoints rate-limited per-IP; without a dist → an honest "run npm run build" page. All user-facing strings are English (web + TUI + evidence + AI output); all documents and code comments are English too (translated 2026-08-29).
 
-## 5. Strategi Sumber Data
-MVP: DexScreener (gratis, tanpa key, TANPA data per-wallet). Paralel: GeckoTerminal (trade individual, gratis, dasar clustering). Nanti: Birdeye (produksi, MCP server resmi), Bitquery (deep query, pricing opaque).
+## 5. Data Source Strategy
+MVP: DexScreener (free, no key, NO per-wallet data). In parallel: GeckoTerminal (individual trades, free, basic clustering). Later: Birdeye (production, official MCP server), Bitquery (deep queries, opaque pricing).
 
-## 6. Rug-Check & Clustering — Status Jujur
-Sudah jalan: 6 sinyal berbobot deterministik (heuristics/rug_check.py) — likuiditas, FDV/likuiditas, volume/likuiditas, rasio beli/jual 24j, umur pair, PLUS koordinasi wallet dari heuristics/clustering.py v0 (burst timing + amount uniformity; data trade per-wallet GeckoTerminal; sampel <8 wallet → tidak diskor, tampil jujur). /load menghitung clustering otomatis; provider gagal → degrade jujur ke 5 sinyal + catatan.
-Belum ada (jangan diklaim ke user): top holder concentration; funding-source traceback; database sniper-bot; circular transfer detection.
-Prinsip false-positive: fair-launch/airdrop/KOL call bisa mirror pola "buruk". Heuristik = bantu keputusan, bukan vonis.
+## 6. Rug-Check & Clustering — Honest Status
+Already running: 6 weighted deterministic signals (heuristics/rug_check.py) — liquidity, FDV/liquidity, volume/liquidity, 24h buy/sell ratio, pair age, PLUS wallet coordination from heuristics/clustering.py v0 (burst timing + amount uniformity; GeckoTerminal per-wallet trade data; samples of <8 wallets → not scored, shown honestly). /load computes clustering automatically; if the provider fails → honest degradation to 5 signals + a note.
+Not yet present (do not claim these to users): top holder concentration; funding-source traceback; sniper-bot database; circular transfer detection.
+False-positive principle: fair-launch/airdrop/KOL calls can mirror the "bad" pattern. Heuristics = decision support, not a verdict.
 
 ## 7. AI Analyst
-Pola: provider → heuristic → AI reasoning. Sudah ada (ai_analyst.py): system prompt larang klaim kepastian/ajakan; multi-provider claude/glm/kimi via registry + .env; grounding log per panggilan → logs/grounding/YYYY-MM-DD.jsonl (evidence + output mentah + output terstruktur + parse_ok + token usage); output JSON terstruktur {"ringkasan","sinyal_kunci","keterbatasan"} dengan fallback jujur ke teks mentah kalau model tidak patuh format; tier di signature mengatur PANJANG saja (max_tokens 400/1000 — bukan kebenaran), akses via access/token_gate.py v0 yang selalu "free" (deep ditunda sampai soulbound ada).
-Belum ada: validasi runtime kepatuhan evidence-first model asli (butuh key founder).
+Pattern: provider → heuristic → AI reasoning. Already present (ai_analyst.py): a system prompt forbidding certainty claims/solicitation; multi-provider claude/glm/kimi via registry + .env; grounding log per call → logs/grounding/YYYY-MM-DD.jsonl (evidence + raw output + structured output + parse_ok + token usage); structured JSON output {"summary","key_signals","limitations"} (keys "ringkasan"/"sinyal_kunci"/"keterbatasan" at audit time, since renamed) with an honest fallback to raw text if the model ignores the format; the tier in the signature only controls LENGTH (max_tokens 400/1000 — not correctness), access via access/token_gate.py v0 which is always "free" (deep postponed until soulbound exists).
+Not yet present: runtime validation of the real model's evidence-first compliance (requires the founder's keys).
 
 ## 8. Token Utility
-Token TIDAK atur custody/eksekusi, TIDAK dijual dengan narasi profit. Murni atur akses kedalaman fitur AI. Analogi aman: software license/API key. Direkomendasikan (belum diimplementasi): non-transferable/soulbound, time-bound, jalur bayar USDC alternatif, governance token dipisah total.
+The token does NOT control custody/execution and is NOT sold with a profit narrative. It purely controls access to AI feature depth. Safe analogy: a software license/API key. Recommended (not yet implemented): non-transferable/soulbound, time-bound, an alternative USDC payment path, governance kept fully separate.
 
-## 9. Status Modul Kode
-providers/dexscreener.py (jalan; sol/bnb/base/avax; hype ditahan), providers/geckoterminal.py (jalan; trade per-wallet; field & network id TERVERIFIKASI live 2026-08-27), providers/helius.py (kerangka; saldo wallet butuh HELIUS_API_KEY — urusan founder; response belum diverifikasi runtime), heuristics/rug_check.py (jalan; 6 sinyal berbobot, clustering opsional), heuristics/clustering.py (jalan; burst + uniformity; <8 wallet tidak diskor), ai_analyst.py (jalan; multi-provider; grounding log; output JSON terstruktur), access/token_gate.py (kerangka v0 free-only; hook soulbound/time-bound), app.py + ui/ (MVP jalan; /load, /verify, /cluster, /explain [claude|glm|kimi], /whale, /help), webserve.py (jalan; textual-serve localhost:8000), tests/ (26 test hijau: rug_check, clustering, geckoterminal, ai JSON/grounding/tier, token_gate, helper chart, snapshot UI).
-Daftar modul versi dokumen lama (data_sources.py, trade_feed.py, whale_tracker.py, token_gate.py flat di root) TIDAK berlaku — sudah direstrukturisasi ke paket providers/ + heuristics/ + access/.
-Tambahan web: webapp/server.py (FastAPI; scan/explain/whale/health; TTL cache 30s; rate limit AI per-IP via ALPHA_AI_RATELIMIT_HOURLY/DAILY), frontend/ (Vite 8 + React 19 + TS 7, MPA 2 entry, tanpa UI framework; watchlist localStorage; command bar sama dgn TUI).
+## 9. Code Module Status
+providers/dexscreener.py (running; sol/bnb/base/avax; hype held back), providers/geckoterminal.py (running; per-wallet trades; fields & network ids VERIFIED live 2026-08-27), providers/helius.py (skeleton; wallet balance needs HELIUS_API_KEY — the founder's to handle; response not yet verified at runtime), heuristics/rug_check.py (running; 6 weighted signals, optional clustering), heuristics/clustering.py (running; burst + uniformity; <8 wallets not scored), ai_analyst.py (running; multi-provider; grounding log; structured JSON output), access/token_gate.py (v0 skeleton, free-only; soulbound/time-bound hook), app.py + ui/ (MVP running; /load, /verify, /cluster, /explain [claude|glm|kimi], /whale, /help), webserve.py (running; textual-serve localhost:8000), tests/ (26 green tests: rug_check, clustering, geckoterminal, ai JSON/grounding/tier, token_gate, chart helper, UI snapshot).
+The old document version's module list (data_sources.py, trade_feed.py, whale_tracker.py, token_gate.py flat in the root) NO LONGER applies — everything was restructured into the providers/ + heuristics/ + access/ packages.
+Web additions: webapp/server.py (FastAPI; scan/explain/whale/health; 30s TTL cache; per-IP AI rate limit via ALPHA_AI_RATELIMIT_HOURLY/DAILY), frontend/ (Vite 8 + React 19 + TS 7, 2-entry MPA, no UI framework; watchlist in localStorage; command bar identical to the TUI).
 
-## 10. Terverifikasi vs Masih Asumsi
-Terverifikasi: GeckoTerminal ada endpoint trade per-wallet gratis; DexScreener tidak expose per-wallet; Birdeye punya MCP server; paper wash-trading (arXiv 2603.13830) ada. TERVERIFIKASI TAMBAHAN 2026-08-27 (dicek live): field response GeckoTerminal (tx_from_address, kind, block_timestamp, volume_in_usd, from/to_token_address); network id GeckoTerminal solana/bsc/base/avax.
-Masih asumsi (JANGAN dikutip ke user/marketing): angka "AUC 0.9098", "lead time 3.81 jam", "$0.003/request"; model ID GLM "glm-5.3" & Kimi "kimi-k3" beserta base URL-nya (tunggu key founder); response shape Helius (butuh key); chain ID HyperEVM.
+## 10. Verified vs Still Assumed
+Verified: GeckoTerminal has a free per-wallet trade endpoint; DexScreener does not expose per-wallet data; Birdeye has an MCP server; the wash-trading paper (arXiv 2603.13830) exists. ADDITIONAL VERIFICATION 2026-08-27 (checked live): GeckoTerminal response fields (tx_from_address, kind, block_timestamp, volume_in_usd, from/to_token_address); GeckoTerminal network ids solana/bsc/base/avax.
+Still assumptions (DO NOT quote to users/marketing): the figures "AUC 0.9098", "lead time 3.81 hours", "$0.003/request"; the GLM "glm-5.3" & Kimi "kimi-k3" model IDs and their base URLs (waiting on the founder's keys); the Helius response shape (needs a key); the HyperEVM chain ID.
 
-## 11. Roadmap Prioritas
-1. Validasi runtime bersama founder (model ID glm/kimi, response Helius, kepatuhan JSON model asli). 2. Funding traceback (sampling 10-15 wallet). 3. DB sniper-bot. 4. Top holder concentration (butuh provider data holder). 5. Migrasi Birdeye begitu ada traksi. 6. Token gate soulbound/time-bound + aktifkan tier deep.
-(Selesai & dicoret dari roadmap lama: grounding log, output JSON terstruktur, clustering v0.)
+## 11. Priority Roadmap
+1. Runtime validation together with the founder (glm/kimi model IDs, Helius response, the real model's JSON compliance). 2. Funding traceback (sampling 10-15 wallets). 3. Sniper-bot DB. 4. Top holder concentration (needs a holder-data provider). 5. Migrate to Birdeye once there is traction. 6. Soulbound/time-bound token gate + activate the deep tier.
+(Done & crossed off the old roadmap: grounding log, structured JSON output, clustering v0.)
 
-## 12. Disclaimer Produk (wajib di UI/marketing)
-Tool untuk analisis & edukasi. Output AI BUKAN saran finansial. Skor risiko = heuristik otomatis, bukan audit resmi. DYOR. Trading memecoin sangat berisiko.
+## 12. Product Disclaimer (mandatory in UI/marketing)
+Tool for analysis & education. AI output is NOT financial advice. The risk score is an automated heuristic, not an official audit. DYOR. Trading memecoins is very risky.
