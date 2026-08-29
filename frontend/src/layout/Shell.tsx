@@ -1,6 +1,24 @@
-import { useEffect, useState } from 'react'
+import { Component, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import '../styles/app.css'
+
+/* crash guard: a broken page must NEVER white-screen the terminal — the
+   actual error is surfaced honestly so it can be screenshotted and fixed */
+class PageBoundary extends Component<{ children: ReactNode }, { err: Error | null }> {
+  state = { err: null as Error | null }
+  static getDerivedStateFromError(err: Error) { return { err } }
+  render() {
+    if (this.state.err) {
+      return (
+        <div style={{ padding: 40, fontFamily: 'var(--f-mono, monospace)', color: 'var(--muted, #9cc3b2)' }}>
+          <b style={{ color: 'var(--red, #fb7185)' }}>⚠ page error — </b>
+          <span>{String(this.state.err.message)}</span>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 const NAV: { id: string; icon: string; label: string; pill?: 'NEW' | number; soon?: boolean }[] = [
   { id: 'dashboard', icon: '▦', label: 'Dashboard' },
@@ -107,7 +125,9 @@ export function Shell({ pages }: { pages: Record<string, ReactNode> }) {
           </button>
         </div>
       </aside>
-      <main className="ta-main">{current}</main>
+      <main className="ta-main">
+        <PageBoundary>{current}</PageBoundary>
+      </main>
       <UpgradeModal open={upgrade} onClose={() => setUpgrade(false)} />
     </div>
   )
