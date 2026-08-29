@@ -230,6 +230,38 @@ def _alpha_rank(items: list[dict], now: datetime | None = None) -> list[dict]:
     return sorted(items, key=lambda i: (-_alpha_score(i, now), -_f(i.get("volume_24h"))))
 
 
+def _liq_rank(item: dict) -> float:
+    """Liquidity as a dedupe score — None counts as lowest."""
+    try:
+        return float(item.get("liquidity_usd"))
+    except (TypeError, ValueError):
+        return -1.0
+
+
+def _dedupe(items: list[dict]) -> list[dict]:
+    """One token = one card: the same (token_symbol, token_name) appearing in
+    N pools (4× WAVAX on small chains) keeps only its MOST LIQUID pool —
+    None counts as lowest, ties keep the first occurrence (stable). Items
+    without a token symbol have no honest identity and pass through."""
+    best: dict[tuple, dict] = {}
+    first_pos: dict[tuple, int] = {}
+    passthrough: list[tuple[int, dict]] = []
+    for idx, it in enumerate(items):
+        sym = it.get("token_symbol")
+        if not sym:
+            passthrough.append((idx, it))
+            continue
+        key = (sym, it.get("token_name"))
+        if key not in best:
+            best[key] = it
+            first_pos[key] = idx
+        elif _liq_rank(it) > _liq_rank(best[key]):
+            best[key] = it
+    ranked = [(first_pos[k], it) for k, it in best.items()] + passthrough
+    ranked.sort(key=lambda p: p[0])
+    return [it for _, it in ranked]
+
+
 def get_feed(chain: str, mode: str, limit: int = 20) -> tuple[list[dict], dict]:
     """→ (items, {"cached": bool, "stale": bool}).
 
@@ -258,6 +290,7 @@ def get_feed(chain: str, mode: str, limit: int = 20) -> tuple[list[dict], dict]:
                 raise
             raw, cached, stale = hit[1], True, True
     items = _normalize(raw, LIMIT_MAX)
+    items = _dedupe(items)  # one token = one card, before ranking/slicing
     if mode == "alpha":
         items = _alpha_rank(items)
     return items[:limit], {"cached": cached, "stale": stale}
