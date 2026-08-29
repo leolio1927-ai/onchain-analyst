@@ -145,12 +145,14 @@
 .lx-tcard { display: grid; grid-template-columns: var(--tok-size) minmax(0, 1fr) auto;
   gap: 0 14px; align-items: center; padding: 13px 14px; border-radius: var(--radius);
   cursor: pointer; background: color-mix(in srgb, var(--panel-2) 55%, transparent);
-  border: 1px solid color-mix(in srgb, var(--chain-accent, var(--brand)) 35%, transparent);
+  /* founder X: same 2px thickness as the chain-card bordir, louder accent */
+  border: 2px solid color-mix(in srgb, var(--chain-accent, var(--brand)) 60%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--chain-accent, var(--brand)) 14%, transparent);
   transition: border-color .2s, transform .2s, box-shadow .2s; }
-.lx-tcard:hover { border-color: color-mix(in srgb, var(--chain-accent, var(--brand)) 65%, transparent);
+.lx-tcard:hover { border-color: color-mix(in srgb, var(--chain-accent, var(--brand)) 90%, transparent);
   transform: translateY(-2px);
   box-shadow: 0 6px 18px rgba(0, 0, 0, .35),
-    0 0 14px color-mix(in srgb, var(--chain-accent, var(--brand)) 12%, transparent); }
+    0 0 20px color-mix(in srgb, var(--chain-accent, var(--brand)) 24%, transparent); }
 /* square token-logo tile — same bordir for image and initial fallback.
    Scoped to .lx-rows: the topbar brand also uses .lx-logo for its TYPE
    styles and must never inherit the tile's 44px clip (the "TER" bug). */
