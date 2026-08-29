@@ -1,8 +1,9 @@
 /* Shared building blocks for the Memecoin Live pages (board + chain view):
    token logo with initial-block fallback, copy-address control, semantic
-   change badge (pos/neg — never neutral), the founder-mandated TRADE
-   COMING SOON popup, and honest state views (skeletons / error+retry with
-   60s cool-down / empty). No fabricated numbers anywhere: absent → "–". */
+   change badge (pos/neg — never neutral), the honest TRADE IN BUILD popup,
+   and honest state views (skeletons / error+retry with 60s cool-down /
+   empty). No fabricated numbers anywhere: absent → "–". Register follows
+   the site-wide status grammar (Documentation §13): unwired = IN BUILD. */
 import { useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 import type { LiveChain, LiveItem, TokenSocials } from '../lib/liveApi'
@@ -110,8 +111,9 @@ export function SocialLinks({ socials }: { socials: TokenSocials | null }) {
   )
 }
 
-/* Founder addendum: clicking a token card opens the honest TRADE — COMING
-   SOON popup. Escape / backdrop / × all close it. */
+/* Founder addendum: clicking a token card opens the honest TRADE popup —
+   execution is not wired, so the popup says exactly that. Escape /
+   backdrop / × all close it. */
 export function TradeComingModal({ item, onClose }: { item: LiveItem | null; onClose: () => void }) {
   useEffect(() => {
     if (!item) return
@@ -126,11 +128,11 @@ export function TradeComingModal({ item, onClose }: { item: LiveItem | null; onC
   if (!item) return null
   return (
     <div className="lx-modal" role="presentation" onClick={onClose}>
-      <div className="lx-modal-card" role="dialog" aria-modal="true" aria-label="Trade coming soon"
+      <div className="lx-modal-card" role="dialog" aria-modal="true" aria-label="Trade — execution not wired yet"
         onClick={(e) => e.stopPropagation()}>
         <button type="button" className="lx-modal-x" onClick={onClose} aria-label="Close">×</button>
         <div className="lx-modal-kicker">TRADE</div>
-        <div className="lx-modal-title">COMING SOON</div>
+        <div className="lx-modal-title">IN BUILD</div>
         <p className="lx-modal-sub">
           <b>{item.token_symbol ?? '–'}</b> · {item.pair ?? '–'}<br />
           Terminal Alpha is read-only research — execution is not live yet.
@@ -165,7 +167,7 @@ export function EmptyBox({ what }: { what: string }) {
 }
 
 export function StatusChips({ live, cached, stale }: { live: boolean; cached: boolean; stale: boolean }) {
-  if (!live) return <span className="lx-chip dead">COMING SOON</span>
+  if (!live) return <span className="lx-chip dead">IN BUILD</span>
   return (
     <>
       <span className="lx-chip live"><span className="dot" />LIVE</span>
