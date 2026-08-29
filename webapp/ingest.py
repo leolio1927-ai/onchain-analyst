@@ -143,8 +143,10 @@ def run_once(sources: list[Path], now: datetime, db_path: Path) -> dict:
 
 
 def purge(keep_days: int, now: datetime, db_path: Path) -> dict[str, int]:
-    """Delete rows strictly older than now - keep_days. Whole rows only;
-    records its own ingest_run so the purge itself is auditable."""
+    """Delete rows whose ingested_at is strictly older than now - keep_days.
+    Retention ages data from its arrival, not its event time — backfilled
+    history must not be nuked for being old. Whole rows only; the purge
+    records its own ingest_run so it is itself auditable."""
     cutoff = (now - timedelta(days=keep_days)).isoformat()
     conn = db.connect(db_path)
     try:
@@ -152,7 +154,7 @@ def purge(keep_days: int, now: datetime, db_path: Path) -> dict[str, int]:
         now_iso = now.isoformat()
         deleted = {}
         for table in ("price_points", "trades", "scan_snapshots"):
-            cur = conn.execute(f"DELETE FROM {table} WHERE ts < ?", (cutoff,))
+            cur = conn.execute(f"DELETE FROM {table} WHERE ingested_at < ?", (cutoff,))
             deleted[table] = cur.rowcount
         conn.execute(
             "INSERT INTO ingest_run (run_at, data_mode, source, params_json,"
