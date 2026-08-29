@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Shell } from './layout/Shell'
 import Dashboard from './pages/Dashboard'
+import { SwapPanel } from './pages/SwapPanel'
 import { ClusterPage, RugCheckPage, ScannerPage, WhalePage } from './pages/AnalysisPages'
 import { AiPage, AlertsPage, DocsPage, FeedbackPage, GatePage, HoldingsPage, PortfolioPage, SettingsPage } from './pages/Pages2'
 import './styles/app.css'
@@ -11,6 +12,7 @@ createRoot(document.getElementById('root')!).render(
     <Shell
       pages={{
         dashboard: <Dashboard />,
+        swap: <SwapPanel />,
         scanner: <ScannerPage />,
         rugcheck: <RugCheckPage />,
         whale: <WhalePage />,
