@@ -214,3 +214,34 @@ def test_discovery_upstream_fail_is_502(client, monkeypatch):
 
     monkeypatch.setattr(gt, "_get", unreach)
     assert client.get("/api/v1/discovery", params={"chain": "sol"}).status_code == 502
+
+
+def test_version_and_metrics_real_values(client):
+    j = client.get("/api/version").json()
+    assert j["name"] == "Terminal Alpha" and j["version"] == server.APP_VERSION
+    assert j["python"].startswith("3.") and j["fastapi"]
+    assert isinstance(j["uptime_s"], int) and j["uptime_s"] >= 0
+
+    m = client.get("/api/metrics").json()
+    assert {"scans", "uptime_s", "ws_clients", "scan_cache_entries",
+            "gt_trade_cache_entries", "throttled_ips"} <= set(m)
+    assert m["scan_cache_entries"] == len(server._scan_cache)  # measured, not invented
+
+
+def test_openapi_premium_surface(client):
+    spec = client.get("/openapi.json").json()
+    assert spec["info"]["title"] == "Terminal Alpha"
+    assert spec["info"]["version"] == server.APP_VERSION
+    assert spec["info"]["license"]["identifier"] == "MIT"
+    assert spec["info"]["description"].startswith("Read-only multichain memecoin")
+    tags = {t["name"] for t in spec["tags"]}
+    assert {"market", "ai", "whale", "system"} <= tags
+    for path, method in (("/api/scan", "post"), ("/api/explain", "post"),
+                         ("/api/whale", "post"), ("/api/health", "get"),
+                         ("/api/v1/discovery", "get"), ("/api/version", "get"),
+                         ("/api/metrics", "get")):
+        op = spec["paths"][path][method]
+        assert op["tags"] and set(op["tags"]) <= tags
+        assert op.get("description")  # every public op documents itself
+    assert client.get("/docs").status_code == 200
+    assert client.get("/redoc").status_code == 200
