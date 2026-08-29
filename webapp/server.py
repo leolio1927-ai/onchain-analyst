@@ -32,6 +32,7 @@ import ai_analyst
 from access import token_gate
 from heuristics import clustering, rug_check
 from providers import dexscreener, discovery, geckoterminal, helius, live
+from webapp import schemas
 
 CACHE_TTL_S = 30.0
 SCAN_CACHE_MAX = 512  # hard cap — every /api/scan key would otherwise live forever (memory DoS)
@@ -176,10 +177,11 @@ async def _scan_chain(chain_key: str, address: str) -> dict | None:
                 trades = await asyncio.to_thread(geckoterminal.fetch_trades, chain_key, addr)
         cl = clustering.analyze(trades)
     except urllib.error.HTTPError as e:
-        cl = {"wallets": 0, "buys": 0, "severity": None,
+        # counts stay None (never 0): the fetch observed no wallets — it failed
+        cl = {"wallets": None, "buys": None, "severity": None,
               "evidence": f"GeckoTerminal HTTP {e.code} — clustering data unavailable"}
     except Exception as e:  # noqa: BLE001 — clustering failing ≠ token can't be assessed
-        cl = {"wallets": 0, "buys": 0, "severity": None,
+        cl = {"wallets": None, "buys": None, "severity": None,
               "evidence": f"GeckoTerminal failed ({str(e)[:60]}) — clustering data unavailable"}
 
     assessment = rug_check.assess(pair, cl)
@@ -243,6 +245,23 @@ def _throttle_hit(ip: str) -> bool:
     return True
 
 
+# ── BE-F1 versioning: /api/v1/* aliases call the same handlers; the legacy
+# paths stay forever compatible, flagged deprecated via headers only ──
+_DEPRECATED_PATHS = {"/api/scan": "/api/v1/scan",
+                     "/api/explain": "/api/v1/explain",
+                     "/api/whale": "/api/v1/whale"}
+
+
+@app.middleware("http")
+async def _deprecation_headers(request: Request, call_next):
+    resp = await call_next(request)
+    successor = _DEPRECATED_PATHS.get(request.url.path)
+    if successor is not None:
+        resp.headers["Deprecation"] = "true"
+        resp.headers["Link"] = f'<{successor}>; rel="successor-version"'
+    return resp
+
+
 @app.get("/api/health", tags=["system"])
 async def health() -> dict:
     """Liveness + served chains + active tier + which AI providers have keys."""
@@ -272,7 +291,8 @@ async def metrics() -> dict:
             "throttled_ips": len(_ai_hits)}
 
 
-@app.post("/api/scan", tags=["market"])
+@app.post("/api/v1/scan", response_model=schemas.ScanResponse, tags=["market"])
+@app.post("/api/scan", response_model=schemas.ScanResponse, tags=["market"], deprecated=True)
 async def api_scan(body: ScanBody) -> dict:
     """Full evidence scan: pair view + weighted risk assessment + clustering.
     `refresh: true` bypasses the 30s TTL cache and forces a fresh fetch."""
@@ -282,7 +302,8 @@ async def api_scan(body: ScanBody) -> dict:
     return out
 
 
-@app.post("/api/explain", tags=["ai"])
+@app.post("/api/v1/explain", tags=["ai"])
+@app.post("/api/explain", tags=["ai"], deprecated=True)
 async def api_explain(body: ExplainBody, request: Request) -> dict:
     """Evidence-first narrative. `provider`: claude|glm|kimi (LLM, rate-limited,
     needs its key) or `local` (deterministic heuristics, keyless, unlimited).
@@ -311,13 +332,15 @@ async def api_explain(body: ExplainBody, request: Request) -> dict:
     return {**out, "tier": token_gate.resolve_tier(), "provider": body.provider}
 
 
-@app.post("/api/whale", tags=["whale"])
+@app.post("/api/v1/whale", response_model=schemas.WhaleResponse, tags=["whale"])
+@app.post("/api/whale", response_model=schemas.WhaleResponse, tags=["whale"], deprecated=True)
 async def api_whale(body: WhaleBody) -> dict:
     """Solana wallet balances via Helius (needs HELIUS_API_KEY)."""
     if not re.fullmatch(r"[1-9A-HJ-NP-Za-km-z]{32,44}|0x[a-fA-F0-9]{40}", body.address or ""):
         raise HTTPException(400, "invalid wallet address format")
     try:
-        return await asyncio.to_thread(helius.fetch_balances, body.address)
+        out = await asyncio.to_thread(helius.fetch_balances, body.address)
+        return {**out, "sources": ["helius"]}
     except helius.NoKeyError as e:
         raise HTTPException(503, str(e)) from e
 
@@ -341,10 +364,11 @@ async def api_discovery(chain: str = "sol", mode: str = "trending", limit: int =
         raise HTTPException(502, f"GeckoTerminal HTTP {e.code} — discovery upstream failed") from e
     except (urllib.error.URLError, TimeoutError, OSError) as e:
         raise HTTPException(502, f"GeckoTerminal unreachable ({str(e)[:60]})") from e
-    return {"chain": chain, "mode": mode, "count": len(items), "items": items}
+    return {"chain": chain, "mode": mode, "count": len(items), "items": items,
+            "sources": ["geckoterminal"]}
 
 
-@app.get("/api/v1/live/{chain}", tags=["live"])
+@app.get("/api/v1/live/{chain}", response_model=schemas.LiveResponse, tags=["live"])
 async def api_live(chain: str, mode: str = "new", limit: int = 20) -> dict:
     """Live memecoin feed per chain (G.7) — modes: new | trending | volume | alpha.
 
@@ -365,7 +389,7 @@ async def api_live(chain: str, mode: str = "new", limit: int = 20) -> dict:
     if not info["live"]:
         return {"chain": chain, "network_id": None, "live": False,
                 "generated_at": generated_at, "cached": False, "stale": False,
-                "items": []}
+                "items": [], "sources": []}  # no upstream was called
     try:
         items, meta = await asyncio.to_thread(live.get_feed, chain, mode, limit)
     except ValueError as e:  # unreachable post-validation — kept for contract
@@ -374,8 +398,11 @@ async def api_live(chain: str, mode: str = "new", limit: int = 20) -> dict:
         raise HTTPException(502, f"GeckoTerminal HTTP {e.code} — live feed upstream failed") from e
     except (urllib.error.URLError, TimeoutError, OSError) as e:
         raise HTTPException(502, f"GeckoTerminal unreachable ({str(e)[:60]})") from e
+    # sources = upstreams that actually contributed to THIS payload: GT serves
+    # the feed; DexScreener appears only when a social link survived enrichment
+    sources = ["geckoterminal"] + (["dexscreener"] if any(i.get("socials") for i in items) else [])
     return {"chain": chain, "network_id": info["network_id"], "live": True,
-            "generated_at": generated_at, **meta, "items": items}
+            "generated_at": generated_at, **meta, "items": items, "sources": sources}
 
 
 _NO_BUILD = """<!doctype html><html><head><meta charset="utf-8">

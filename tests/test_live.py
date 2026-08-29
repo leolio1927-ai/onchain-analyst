@@ -422,7 +422,9 @@ def test_route_ok_shape(client, monkeypatch):
     assert r.status_code == 200
     j = r.json()
     assert set(j) == {"chain", "network_id", "live", "generated_at",
-                      "cached", "stale", "items"}
+                      "cached", "stale", "items",
+                      # BE-F1 contract footer — additive, never renames
+                      "data_mode", "schema_version", "sources", "ts"}
     assert j["chain"] == "sol" and j["network_id"] == "solana" and j["live"] is True
     assert j["cached"] is False and j["stale"] is False
     assert len(j["items"]) == 3
