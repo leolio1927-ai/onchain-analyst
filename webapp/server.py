@@ -438,6 +438,8 @@ def _db_or_503() -> Path:
 
 def _history_params(limit: int, cursor: str | None, since: str | None,
                     until: str | None) -> dict:
+    if not 1 <= limit <= db.HISTORY_LIMIT_MAX:
+        raise HTTPException(400, f"limit must be 1..{db.HISTORY_LIMIT_MAX}")
     return {"limit": limit, "cursor": cursor, "since": since, "until": until}
 
 
