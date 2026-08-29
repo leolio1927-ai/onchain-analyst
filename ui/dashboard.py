@@ -181,7 +181,7 @@ class Dashboard(Screen):
     def _verify(self) -> None:
         ai = self.query_one("#ai", RichLog)
         if not self._last_pair or not self._assessment:
-            ai.write("[#e67e22]Belum ada token — /load <chain> <address> dulu.[/]")
+            ai.write("[#e67e22]No token loaded — run /load <chain> <address> first.[/]")
             return
         p, a = self._last_pair, self._assessment
         base = (p.get("baseToken") or {}).get("symbol") or "?"
@@ -209,7 +209,7 @@ class Dashboard(Screen):
     async def _explain(self, prov: str = "claude") -> None:
         ai = self.query_one("#ai", RichLog)
         if not self._last_pair or not self._assessment:
-            ai.write("[#e67e22]Belum ada token — /load <chain> <address> dulu.[/]")
+            ai.write("[#e67e22]No token loaded — run /load <chain> <address> first.[/]")
             return
         symbol = (self._last_pair.get("baseToken") or {}).get("symbol") or "?"
         tier = token_gate.resolve_tier()
@@ -369,7 +369,7 @@ class Dashboard(Screen):
             self._liq_usd[row[6]] = float(liq or 0)
         except (TypeError, ValueError):
             self._liq_usd.setdefault(row[6], 0.0)
-        t.sort("Likuiditas", key=lambda s: self._liq_usd.get(s, 0.0), reverse=True)
+        t.sort("Liquidity", key=lambda s: self._liq_usd.get(s, 0.0), reverse=True)
 
         self._chart_est(p)
         if announce:
