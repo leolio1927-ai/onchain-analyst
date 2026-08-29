@@ -29,7 +29,7 @@ from pydantic import BaseModel
 import ai_analyst
 from access import token_gate
 from heuristics import clustering, rug_check
-from providers import dexscreener, geckoterminal, helius
+from providers import dexscreener, discovery, geckoterminal, helius
 
 CACHE_TTL_S = 30.0
 SCAN_CACHE_MAX = 512  # hard cap — every /api/scan key would otherwise live forever (memory DoS)
@@ -256,6 +256,28 @@ async def api_whale(body: WhaleBody) -> dict:
         return await asyncio.to_thread(helius.fetch_balances, body.address)
     except helius.NoKeyError as e:
         raise HTTPException(503, str(e)) from e
+
+
+@app.get("/api/v1/discovery")
+async def api_discovery(chain: str = "sol", mode: str = "trending", limit: int = 20) -> dict:
+    """Keyless radar feed (G.3): trending or new pools via GeckoTerminal free
+    tier. Validation → 400; upstream failure → honest 502. Items carry only
+    what the API returned — absent fields stay absent (None)."""
+    if chain not in geckoterminal.NETWORKS:
+        raise HTTPException(400, f"discovery: chain '{chain}' not served — "
+                                 f"pick {'|'.join(sorted(geckoterminal.NETWORKS))}")
+    if mode not in ("trending", "new"):
+        raise HTTPException(400, "mode must be 'trending' or 'new'")
+    try:
+        items = await (discovery.new_pools(chain, limit) if mode == "new"
+                       else discovery.trending_pools(chain, limit))
+    except ValueError as e:  # provider-level chain guard (gt._net)
+        raise HTTPException(400, str(e)) from e
+    except urllib.error.HTTPError as e:
+        raise HTTPException(502, f"GeckoTerminal HTTP {e.code} — discovery upstream failed") from e
+    except (urllib.error.URLError, TimeoutError, OSError) as e:
+        raise HTTPException(502, f"GeckoTerminal unreachable ({str(e)[:60]})") from e
+    return {"chain": chain, "mode": mode, "count": len(items), "items": items}
 
 
 _NO_BUILD = """<!doctype html><html><head><meta charset="utf-8">
