@@ -101,11 +101,17 @@ brackets) and was last re-verified 2026-08-29.
 
 ## Site Surfaces
 
+- / — the honest showpiece: 3D hero with an honest readout, a live REST tape
+  band (top trending per chain), the full product blueprint with status chips,
+  the machine layer for AI agents, and a FAQ. The terminal entry button is
+  disabled on purpose: the product ships in phases, and every ship is dated in
+  the roadmap ledger.
 - /live — Memecoin Live board: six chain cards, founder-locked order, trending
   top-3 previews, staggered fetches, per-card 60s retry [src/pages/LiveBoard.tsx].
 - /live/{chain} — three columns per chain (NEW | TRENDING | VOLUME·ALPHA) with
   alpha ranks [src/pages/ChainLive.tsx].
-- /terminal — terminal shell (internal beta). Its data surfaces render
+- /terminal — terminal shell (the product, ships in phases; the landing entry
+  stays disabled until the Locked deploy). Its data surfaces render
   deterministic simulated data sets; the swap desk has no session, no wallet, no
   chain calls [src/pages/TokenPage.tsx].
 - /roadmap — the weekly hub of proof: shipped ledger TA-001..TA-008 with stable
@@ -148,6 +154,7 @@ humans and AI agents; dates come from commit history and are re-verifiable with
 `git log` [src/pages/RoadmapPage.tsx].
 
 Shipped ledger (newest first, letters are the sprint taxonomy):
+- TA-009 · L — Landing flagship, the honest showpiece · 2026-08-29
 - TA-008 · R — Roadmap weekly hub (this page) · 2026-08-29
 - TA-007 · D — Documentation flagship /docs · 2026-08-29
 - TA-006 · S — Swap desk, SIMULATED surface (deterministic data, no wallet) · 2026-08-29
