@@ -294,3 +294,22 @@
   .lx-chip.live .dot, .lx-skel i { animation: none !important; }
   .lx-modal-card { animation: none !important; transform: none; }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   V.3 SEMANTIC PASS — change colors are law, accent identity everywhere
+   ═══════════════════════════════════════════════════════════════ */
+.lx-chg.pos { color: var(--brand); text-shadow: 0 0 12px rgba(20, 241, 149, .22); }
+.lx-chg.neg { color: var(--rose); text-shadow: 0 0 12px rgba(251, 113, 133, .18); }
+.lx-chg.flat { color: var(--muted); }
+
+/* OPEN CHAIN → speaks in the chain's accent */
+.lx-open { color: var(--chain-accent, var(--brand)); font-weight: 700; }
+.lx-open:hover { color: var(--chain-accent, var(--brand)); filter: brightness(1.18);
+  text-shadow: 0 0 14px color-mix(in srgb, var(--chain-accent, var(--brand)) 65%, transparent); }
+
+/* footer chip rides the accent, quietly */
+.lx-chip.lp { border-color: color-mix(in srgb, var(--chain-accent, var(--brand)) 32%, transparent); }
+
+/* column header underline ticks the accent (companion to the tick square) */
+.lx-col-t { padding-bottom: 6px; border-bottom: 1px solid
+  color-mix(in srgb, var(--chain-accent, var(--brand)) 26%, transparent); }
