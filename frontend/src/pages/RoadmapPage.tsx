@@ -20,6 +20,15 @@ function Chip({ kind, children }: { kind: ChipKind; children: React.ReactNode })
 
 const SHIPPED: { id: string; tag: string; letter: string; title: string; date: string; points: string[]; evi: string; sim?: boolean }[] = [
   {
+    id: 'ta-009', tag: 'TA-009', letter: 'L', title: 'Landing flagship — the honest showpiece', date: '2026-08-29',
+    points: [
+      '3D hero + real REST tape band — top trending per chain, staggered 60s sweep, honest flags',
+      'Product blueprint: every terminal feature on the record with its true status chip',
+      'Machine layer for AI agents, ledger teaser, FAQ — six-chain boxed nav DNA site-wide',
+    ],
+    evi: 'EVIDENCE · 5f4cd95 · fddb122 · 7783d0a · 63d97e2 · d7dcd9e · 0f35759 · 43c91ab · 8a24ae4 · 3c0e26f · 2370887 · f91407f · 7070825 · src/landing.tsx',
+  },
+  {
     id: 'ta-008', tag: 'TA-008', letter: 'R', title: 'Roadmap weekly hub — this page', date: '2026-08-29',
     points: [
       'Governance upgrade: stable IDs, anchor permalinks, git-dated ledger',
@@ -100,10 +109,10 @@ const NOW: { title: string; chips: ChipKind[]; band?: string; points: string[] }
     ],
   },
   {
-    title: 'Landing parity', chips: ['progress'],
+    title: 'Terminal branding parity', chips: ['progress'],
     points: [
-      'Landing copy still references five chains; the live board serves six (founder-locked order)',
-      'Converging every surface on the six-chain truth — meta description, hero copy, chain counts',
+      'The six-chain boxed nav DNA now runs on landing, /live, /docs and /roadmap topnavs',
+      'The terminal sidebar joins the same DNA with the product PR — one brand thread everywhere',
     ],
   },
   {
