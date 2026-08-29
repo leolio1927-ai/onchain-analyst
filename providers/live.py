@@ -176,7 +176,10 @@ def _normalize(raw: dict, limit: int) -> list[dict]:
             "logo": ta.get("image_url"),
             "price_usd": _no_neg(a.get("base_token_price_usd")),
             "volume_24h": _no_neg((a.get("volume_usd") or {}).get("h24")),
-            "change_24h": _no_neg((a.get("price_change_percentage") or {}).get("h24")),
+            # negative change is legitimate market data (price went down) —
+            # copied verbatim, colored by the UI; the junk guard is only for
+            # values that CANNOT be negative
+            "change_24h": (a.get("price_change_percentage") or {}).get("h24"),
             "liquidity_usd": _no_neg(a.get("reserve_in_usd")),
             "txns_24h": _txns_24h(a),
             "fdv_usd": _no_neg(a.get("fdv_usd")),
