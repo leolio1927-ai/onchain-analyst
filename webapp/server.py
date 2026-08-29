@@ -345,7 +345,7 @@ async def api_whale(body: WhaleBody) -> dict:
         raise HTTPException(503, str(e)) from e
 
 
-@app.get("/api/v1/discovery", tags=["market"])
+@app.get("/api/v1/discovery", response_model=schemas.DiscoveryResponse, tags=["market"])
 async def api_discovery(chain: str = "sol", mode: str = "trending", limit: int = 20) -> dict:
     """Keyless radar feed (G.3): trending or new pools via GeckoTerminal free
     tier. Validation → 400; upstream failure → honest 502. Items carry only
