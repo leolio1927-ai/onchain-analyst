@@ -8,7 +8,7 @@ import { fetchLiveFeed, LIVE_CHAINS, LIVE_CHAIN_LABEL, LIVE_MODES } from './lib/
 import type { LiveChain, LiveItem } from './lib/liveApi'
 import { fmtPct, fmtPrice, fmtUtcClock } from './lib/liveFormat'
 import { ChainLogo } from './pages/chainLogos'
-import { BRAND_NAME, BRAND_LEGAL, BRAND_DATA, BRAND_POSTURE } from './lib/brand'
+import { BRAND_NAME, BRAND_LEGAL } from './lib/brand'
 
 /* ═══════════ helpers ═══════════ */
 
@@ -968,7 +968,7 @@ function Foot() {
         </div>
       </div>
       <div className="lv-wordmark" aria-hidden="true">{BRAND_NAME}</div>
-      <div className="lv-foot-legal">{BRAND_LEGAL} · {BRAND_DATA} · {BRAND_POSTURE}</div>
+      <div className="lv-foot-legal">{BRAND_LEGAL}</div>
     </footer>
   )
 }
