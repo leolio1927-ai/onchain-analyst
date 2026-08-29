@@ -9,7 +9,7 @@ import type { LiveChain } from '../lib/liveApi'
 import { truncAddr } from '../lib/liveFormat'
 import { accentStyle } from './liveParts'
 import { ChainLogo } from './chainLogos'
-import './styles/live.css'
+import '../styles/live.css'
 
 interface MockToken {
   symbol: string
