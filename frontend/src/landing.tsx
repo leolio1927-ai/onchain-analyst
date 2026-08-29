@@ -371,6 +371,7 @@ function Nav() {
             {NAV.map(([l, id]) => (
               <a key={id} href={`#${id}`} className={cur === id ? 'on' : ''}>{l}</a>
             ))}
+            <a href="/live" style={{ color: 'var(--g)', textShadow: '0 0 14px rgba(0,255,163,.45)' }}>Memecoin Live</a>
             <span className="lv-clock" title="UTC">◉ {clock} UTC</span>
             <a className="lv-cta neon" href="/terminal">Launch Terminal →</a>
           </div>
@@ -378,6 +379,7 @@ function Nav() {
         </div>
         {open && (
           <div className="lv-nav-drop">
+            <a href="/live" onClick={() => setOpen(false)}>Memecoin Live</a>
             {NAV.map(([l, id]) => <a key={id} href={`#${id}`} onClick={() => setOpen(false)}>{l}</a>)}
           </div>
         )}
