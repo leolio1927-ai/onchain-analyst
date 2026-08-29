@@ -386,6 +386,34 @@ def test_socials_fail_soft_and_hype_skipped(monkeypatch):
     assert hitems[0]["socials"] is None and calls == []
 
 
+def test_socials_evm_case_insensitive_match(monkeypatch):
+    # founder bug: DexScreener re-checksums EVM addresses, so the returned
+    # baseToken.address never string-equals our GT form — socials must still
+    # land on 0x chains (bnb/base/avax/hood), not only solana
+    pairs = [_pool(30, symbol="TKN", tok_name="Token X")]
+    payload = {"data": [e for e, _ in pairs], "included": [t for _, t in pairs]}
+    # make the item look like an EVM token with mixed-case form
+    payload["data"][0]["relationships"]["base_token"]["data"]["id"] = "bnb_0xABC123def"
+    payload["included"][0]["id"] = "bnb_0xABC123def"
+    live._feed_cache.clear()
+    _patch(monkeypatch, payload)
+
+    seen = {}
+
+    def fake_ds(path):
+        seen["path"] = path
+        return [{"baseToken": {"address": "0xabc123DEF"},  # DS re-checksummed form
+                 "info": {"socials": [{"type": "twitter", "url": "https://x.com/evm"}],
+                          "websites": [{"url": "https://evm.example"}]}}]
+
+    monkeypatch.setattr(live, "_ds_get", fake_ds)
+    items, _ = live.get_feed("bnb", "new", 20)
+    assert items[0]["token_address"] == "0xABC123def"
+    assert items[0]["socials"] == {"twitter": "https://x.com/evm",
+                                   "website": "https://evm.example"}
+    assert seen["path"].startswith("/tokens/v1/bsc/")
+
+
 # ── route ────────────────────────────────────────────────────────────────
 
 def test_route_ok_shape(client, monkeypatch):
