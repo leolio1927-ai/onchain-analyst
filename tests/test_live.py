@@ -173,6 +173,32 @@ def test_upstream_fail_without_cache_raises(monkeypatch):
         live.get_feed("sol", "new", 20)
 
 
+def test_ttl_env_override_clamped(monkeypatch):
+    monkeypatch.setenv("FEED_CACHE_TTL_S", "300")
+    assert live._feed_ttl() == 300.0
+    monkeypatch.setenv("FEED_CACHE_TTL_S", "10")
+    assert live._feed_ttl() == 60.0    # floor
+    monkeypatch.setenv("FEED_CACHE_TTL_S", "99999")
+    assert live._feed_ttl() == 600.0   # ceiling
+    monkeypatch.setenv("FEED_CACHE_TTL_S", "garbage")
+    assert live._feed_ttl() == 180.0   # non-numeric → default
+    monkeypatch.delenv("FEED_CACHE_TTL_S")
+    assert live._feed_ttl() == 180.0   # unset → default
+
+
+def test_ttl_override_extends_freshness(monkeypatch):
+    calls: list = []
+    _patch(monkeypatch, calls=calls)
+    monkeypatch.setenv("FEED_CACHE_TTL_S", "600")
+    live.get_feed("sol", "new", 20)
+    # 200s old: stale under the 180s default, still fresh under a 600s override
+    live._feed_cache[("sol", "new")] = (time.monotonic() - 200,
+                                        live._feed_cache[("sol", "new")][1])
+    _, meta = live.get_feed("sol", "new", 20)
+    assert len(calls) == 1
+    assert meta == {"cached": True, "stale": False}
+
+
 def test_unknown_and_notlive_chain_raise(monkeypatch):
     with pytest.raises(ValueError, match="unknown chain"):
         live.get_feed("moon", "new")
