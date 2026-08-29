@@ -32,11 +32,13 @@ export function fmtPrice(v: string | null): string {
   return `$${n.toPrecision(4).replace(/0+$/, '').replace(/\.$/, '')}`
 }
 
-/* +12.4% · -3.1% · 0.0% */
+/* +12.4% · −3.1% · +0.0% — always signed (real minus glyph U+2212); zero
+   reads positive so an actual change value is never rendered neutral.
+   Absent → "–". */
 export function fmtPct(v: string | number | null): string {
   const n = num(v)
   if (n === null) return DASH
-  return `${n > 0 ? '+' : ''}${n.toFixed(1)}%`
+  return `${n < 0 ? '−' : '+'}${Math.abs(n).toFixed(1)}%`
 }
 
 /* "2m" · "5h" · "3d" — floor of elapsed time since created_at. */
