@@ -33,7 +33,7 @@ function FullRow({ item, chain, rank, onOpen }:
   { item: LiveItem; chain: LiveChain; rank?: number; onOpen: (it: LiveItem) => void }) {
   return (
     <div className={`lx-tcard${rank !== undefined ? ' ranked' : ''}`} role="button" tabIndex={0}
-      title="Trade — coming soon"
+      title="Trade — execution not wired yet"
       onClick={() => onOpen(item)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(item) }
@@ -74,6 +74,8 @@ function TopBar({ active }: { active: string }) {
         <nav className="lx-top-links">
           <a className={active === 'board' ? 'on' : ''} href="/live">BOARD</a>
           <a className={active !== 'board' ? 'on' : ''} href={`/live/${active}`}>{active.toUpperCase()}</a>
+          <a className="boxed" href="/docs">DOCS</a>
+          <a className="boxed" href="/roadmap">ROADMAP</a>
           <a href="/terminal">TERMINAL →</a>
         </nav>
       </div>
@@ -104,10 +106,17 @@ export function ChainLive({ chain }: { chain: string }) {
 
   useEffect(() => {
     alive.current = true
-    const timers = COLUMNS.map((c, i) => window.setTimeout(() => load(c.mode), i * 1000))
+    // staggered columns (≥1s apart), then one staggered auto-refresh sweep
+    // per 60s — the 180s server cache absorbs the load; flags stay honest
+    let timers = COLUMNS.map((c, i) => window.setTimeout(() => load(c.mode), i * 1000))
+    const iv = window.setInterval(() => {
+      timers.forEach(clearTimeout)
+      timers = COLUMNS.map((c, i) => window.setTimeout(() => load(c.mode), i * 1000))
+    }, 60000)
     return () => {
       alive.current = false
       timers.forEach(clearTimeout)
+      clearInterval(iv)
     }
   }, [load])
 
@@ -186,7 +195,7 @@ export function ChainLive({ chain }: { chain: string }) {
                   : st.st === 'error'
                     ? <ErrBox msg={st.msg} cooldown={cooldown[col.mode] ?? 0} onRetry={() => load(col.mode)} />
                     : feed && feed.items.length === 0
-                      ? <EmptyBox what={feed.live ? `No ${col.mode} pools returned right now.` : 'Not live yet — coming soon.'} />
+                      ? <EmptyBox what={feed.live ? `No ${col.mode} pools returned right now.` : 'Not live yet — network not served upstream.'} />
                       : (
                         <div className="lx-rows">
                           {feed!.items.map((it, i) => (
