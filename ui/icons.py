@@ -1,6 +1,6 @@
-"""Registry icon — SATU-satunya file yang boleh berisi glyph Nerd Font.
-Ditulis sebagai escape \\uXXXX biar aman di-copy-paste.
-Mode --ascii mengganti semua ke karakter standar (font apa pun)."""
+"""Icon registry — the ONLY file allowed to contain Nerd Font glyphs.
+Written as \\uXXXX escapes so they survive copy-paste.
+--ascii mode swaps all of them for standard characters (any font)."""
 
 
 class _Set:

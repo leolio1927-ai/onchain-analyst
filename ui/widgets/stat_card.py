@@ -1,4 +1,4 @@
-"""Kartu statistik: label kecil di atas, angka besar, delta ±%."""
+"""Stat card: small label on top, large number, ±% delta."""
 from rich.text import Text
 from textual.reactive import reactive
 from textual.widget import Widget

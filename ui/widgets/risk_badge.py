@@ -1,5 +1,5 @@
-"""Badge risiko — warna HANYA untuk semantik (prinsip desain).
-Label berasal dari heuristics.rug_check — satu sumber kebenaran."""
+"""Risk badge — color is for SEMANTICS only (design principle).
+Labels come from heuristics.rug_check — a single source of truth."""
 from rich.text import Text
 from textual.reactive import reactive
 from textual.widget import Widget

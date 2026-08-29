@@ -1,8 +1,8 @@
-"""Dashboard Terminal Alpha.
+"""Terminal Alpha dashboard.
 
-Prinsip: UI tidak pernah mengarang data. Kolom kosong = "n/a",
-error = pesan yang bisa dipahami, sumber + sinyal selalu ditulis.
-UI tidak berisi logika heuristik — itu tugas heuristics/rug_check.
+Principle: the UI never invents data. An empty cell renders "n/a",
+errors render readable messages, sources + signals are always written.
+The UI holds no heuristic logic — that is heuristics/rug_check's job.
 """
 from __future__ import annotations
 
@@ -64,8 +64,8 @@ def _pct(v) -> str:
 
 
 def _est_points(price: float, pc: dict) -> list[float]:
-    """Estimasi jalur harga dari priceChange (h24→now). Penyebut <= 0
-    (change tepat -100%) di-clamp ke 0.0 — data ekstrem tidak boleh menjatuhkan app."""
+    """Estimate the price path from priceChange (h24→now). A denominator <= 0
+    (an exact -100% change) is clamped to 0.0 — extreme data must not crash the app."""
     pts = []
     for k in ("h24", "h6", "h1", "m5"):
         d = 1 + float(pc.get(k) or 0) / 100
@@ -89,7 +89,7 @@ def _sev_color(sev):
 class Dashboard(Screen):
     def compose(self) -> ComposeResult:
         self._keys: set = set()
-        self._liq_usd: dict[str, float] = {}  # sel tampilan Likuiditas → nilai numerik (sort key)
+        self._liq_usd: dict[str, float] = {}  # displayed Liquidity cell → numeric value (sort key)
         self._last_pair: dict | None = None
         self._assessment: dict | None = None
         self._chain_key: str | None = None
@@ -364,7 +364,7 @@ class Dashboard(Screen):
         else:
             t.add_row(*row, key=key)
             self._keys.add(key)
-        # Textual 8 tidak punya DataTable.order() — sort numerik via key fn atas sel tampilan
+        # Textual 8 has no DataTable.order() — numeric sort via a key fn over the displayed cells
         try:
             self._liq_usd[row[6]] = float(liq or 0)
         except (TypeError, ValueError):
