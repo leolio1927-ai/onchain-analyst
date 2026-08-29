@@ -515,9 +515,9 @@ export function DocsPage() {
                 <span className="u">/live/{'{chain}'}</span>
               </a>
               <a className="dd-surf" href="/terminal">
-                <span className="chiprow"><Chip kind="live">live</Chip><Chip kind="sim">simulated</Chip></span>
-                <span className="t">Terminal Beta + Swap Desk</span>
-                <span className="s">The shell ships open (no flag gate in code). Its data surfaces render deterministic simulated data sets; the swap desk adds no session, no wallet, no chain calls.</span>
+                <span className="chiprow"><Chip kind="build">in build</Chip><Chip kind="sim">simulated</Chip></span>
+                <span className="t">Terminal + Swap Desk</span>
+                <span className="s">The product ships in phases: the landing entry stays disabled until the Locked deploy, while this surface stays reachable and honestly labeled — no session, no wallet, no chain calls.</span>
                 <span className="u">/terminal</span>
               </a>
               <a className="dd-surf" href="/roadmap">
@@ -586,6 +586,8 @@ export function DocsPage() {
           <Sec id="changelog" n="12" title="ENGINEERING CHANGELOG — SHIPPED"
             sub="Dates and hashes read from git log — never guessed. Every line is checkable with one command.">
             <ul className="dd-chg">
+              <li><span className="d">2026-08-29 · LANDING</span> <span className="h">5f4cd95 · fddb122 · 7783d0a · 63d97e2 · d7dcd9e · 0f35759 · f91407f · 7070825</span>
+                <p><b>Landing flagship:</b> the honest showpiece — 3D hero + real REST tape, the full product blueprint with true status chips, the machine layer for AI agents, and the six-chain boxed nav DNA.</p></li>
               <li><span className="d">2026-08-29 · INTEGRITY</span> <span className="h">f44b162 · 3ffff05 · b094da2 · 319e36c · d2a3ec7</span>
                 <p><b>Data integrity pass:</b> junk-numeric guard (impossible values → “–”), verbatim negative changes kept, per-token dedupe, X/website social chips + the EVM case-insensitive match fix.</p></li>
               <li><span className="d">2026-08-29 · MARKS</span> <span className="h">86be5e4 · 6b21fac · 7a56b68</span>
