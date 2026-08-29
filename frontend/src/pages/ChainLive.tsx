@@ -148,7 +148,7 @@ export function ChainLive({ chain }: { chain: string }) {
   }, null)
 
   return (
-    <div className="lvx">
+    <div className="lvx" style={accentStyle(typedChain)}>
       <TopBar active={chain} />
       <main className="lx-wrap">
         <div className="lx-hd">
