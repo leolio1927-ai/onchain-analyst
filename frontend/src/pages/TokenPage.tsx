@@ -275,6 +275,7 @@ export function TokenPage() {
 
           {/* ── [C1] chart + rail ── */}
           <div className="tk-main">
+            <div className="tk-left">
             <section className="tk-panel tk-chart" data-chain={chain}>
               <div className="tk-rail">
                 {TOOLS.map((t) => (
@@ -357,7 +358,8 @@ export function TokenPage() {
           </div>
 
           {/* ── [C2] bonding + trades ── */}
-          <div className="tk-left">
+          {/* ── [C2] bonding + trades: INSIDE the left column — directly under
+                 the chart, same width, zero empty space ── */}
             <section className="tk-panel tk-bond" data-chain={chain}>
               <ChainLogo chain={chain} size={26} />
               <span className="t">BONDING CURVE PROGRESS</span>
