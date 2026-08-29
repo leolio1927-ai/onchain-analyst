@@ -79,3 +79,10 @@ def test_launch_venue_unknown_dex_passes_through():
 def test_launch_venue_map_covers_known_launchpads():
     assert dexscreener.VENUE_MAP["pumpfun"] == "pump.fun"
     assert dexscreener.VENUE_MAP["launchlab"] == "bonk.fun (LaunchLab)"
+
+
+def test_avax_chain_id_is_dexscreeners_avalanche_slug():
+    # Regression (found live 2026-08-29): DexScreener's Avalanche chainId is
+    # "avalanche" — the old "avax" slug matched nothing, so every avax scan
+    # answered an honest-but-wrong "no pair found".
+    assert dexscreener.CHAIN_IDS["avax"] == "avalanche"
