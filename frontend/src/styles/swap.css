@@ -41,9 +41,9 @@
   border: 1px dashed color-mix(in srgb, var(--acc, var(--brand)) 24%, transparent);
   border-radius: calc(var(--radius-lg) - 4px); }
 .tk-panel > * { position: relative; z-index: 1; }
-.tk-phd { display: flex; align-items: center; gap: 8px; padding: 13px 16px;
+.tk-phd { display: flex; align-items: center; gap: 8px; padding: 11px 14px;
   border-bottom: 1px solid var(--border-soft); font-family: var(--font-mono);
-  font-size: 9.5px; letter-spacing: .18em; color: var(--muted-deep); text-transform: uppercase; }
+  font-size: 9px; letter-spacing: .16em; color: var(--muted-deep); text-transform: uppercase; }
 
 .tk-mock { font-family: var(--font-mono); font-size: 8px; font-weight: 700; letter-spacing: .18em;
   color: var(--amber); border: 1px solid color-mix(in srgb, var(--amber) 45%, transparent);
@@ -115,70 +115,70 @@
 .tk-xaxis .tg.on { color: var(--brand); border-color: color-mix(in srgb, var(--brand) 45%, transparent); }
 
 /* ── right rail: swap ─────────────────────────────────────────── */
-.tk-swap { padding: 16px; display: grid; gap: 12px; }
-.sw-tabs2 { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px;
-  background: var(--panel); border-radius: 10px;
+.tk-swap { padding: 12px; display: grid; gap: 10px; }
+.sw-tabs2 { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 3px;
+  background: var(--panel); border-radius: 9px;
   border: 1px solid color-mix(in srgb, var(--acc, var(--brand)) 35%, transparent); }
-.sw-tab2 { height: 38px; border: none; border-radius: 8px; cursor: pointer;
-  font-family: var(--font-mono); font-weight: 700; font-size: 11.5px; letter-spacing: .18em;
+.sw-tab2 { height: 34px; border: none; border-radius: 7px; cursor: pointer;
+  font-family: var(--font-mono); font-weight: 700; font-size: 10.5px; letter-spacing: .16em;
   color: var(--muted); background: none; }
 .sw-tab2.buy.on { color: #052e1c; background: linear-gradient(135deg, var(--brand), var(--brand-2));
-  box-shadow: 0 0 18px rgba(20, 241, 149, .35); }
+  box-shadow: 0 0 14px rgba(20, 241, 149, .3); }
 .sw-tab2.sell.on { color: #2e0508; background: linear-gradient(135deg, var(--rose), #f43f5e);
-  box-shadow: 0 0 18px rgba(251, 113, 133, .3); }
-.sw2-field { display: grid; gap: 8px; padding: 12px; border-radius: 11px;
+  box-shadow: 0 0 14px rgba(251, 113, 133, .25); }
+.sw2-field { display: grid; gap: 7px; padding: 9px 10px; border-radius: 10px;
   border: 1px dashed color-mix(in srgb, var(--acc, var(--brand)) 28%, transparent); }
 .sw2-hd { display: flex; justify-content: space-between; font-family: var(--font-mono);
-  font-size: 9px; letter-spacing: .18em; color: var(--muted-deep); }
-.sw2-row { display: flex; align-items: center; gap: 8px; }
+  font-size: 8.5px; letter-spacing: .16em; color: var(--muted-deep); }
+.sw2-row { display: flex; align-items: center; gap: 7px; }
 .sw2-input { flex: 1; min-width: 0; background: none; border: none; outline: none;
-  color: var(--text); font-family: var(--font-mono); font-size: 22px; font-weight: 600;
+  color: var(--text); font-family: var(--font-mono); font-size: 18px; font-weight: 600;
   font-variant-numeric: tabular-nums; }
 .sw2-input.ro { color: var(--brand); }
-.sw2-chip { display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 8px;
-  border-radius: 9px; border: 2px solid color-mix(in srgb, var(--acc, var(--brand)) 55%, transparent);
+.sw2-chip { display: flex; align-items: center; gap: 5px; height: 30px; padding: 0 7px;
+  border-radius: 8px; border: 2px solid color-mix(in srgb, var(--acc, var(--brand)) 55%, transparent);
   background: color-mix(in srgb, var(--panel) 85%, transparent); font-family: var(--font-mono);
-  font-size: 11px; cursor: pointer; position: relative; }
+  font-size: 10px; cursor: pointer; position: relative; }
 .sw2-chip:hover { border-color: var(--acc, var(--brand)); }
-.sw2-quick { display: flex; gap: 6px; flex-wrap: wrap; }
-.sw2-quick button { font-family: var(--font-mono); font-size: 10px; padding: 4px 10px;
+.sw2-quick { display: flex; gap: 5px; flex-wrap: wrap; }
+.sw2-quick button { font-family: var(--font-mono); font-size: 9px; padding: 3px 9px;
   border-radius: 999px; border: 1px solid var(--border); background: none; color: var(--muted);
   cursor: pointer; }
 .sw2-quick button:hover { color: var(--brand); border-color: color-mix(in srgb, var(--brand) 55%, transparent); }
 .sw2-rail { position: relative; height: 0; border-top: 2px dashed
   color-mix(in srgb, var(--acc, var(--brand)) 35%, transparent); }
-.sw2-rail i { position: absolute; top: -5px; width: 9px; height: 9px; margin-left: -4px;
+.sw2-rail i { position: absolute; top: -4px; width: 8px; height: 8px; margin-left: -4px;
   border-radius: 50%; background: var(--brand);
-  box-shadow: 0 0 10px var(--brand); }
-.sw2-rail i.fill { top: -3px; height: 2px; margin: 0; border-radius: 2px; background:
+  box-shadow: 0 0 8px var(--brand); }
+.sw2-rail i.fill { top: -2px; height: 2px; margin: 0; border-radius: 2px; background:
   linear-gradient(90deg, var(--brand-2), var(--brand)); box-shadow: 0 0 8px rgba(20, 241, 149, .5); }
 .sw2-pct { display: flex; justify-content: space-between; font-family: var(--font-mono);
-  font-size: 9px; color: var(--muted-deep); }
-.sw2-flip { display: flex; justify-content: center; margin: -2px 0; }
-.sw2-flip button { width: 32px; height: 32px; border-radius: 50%; cursor: pointer;
+  font-size: 8.5px; color: var(--muted-deep); }
+.sw2-flip { display: flex; justify-content: center; margin: -3px 0; }
+.sw2-flip button { width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
   border: 2px solid color-mix(in srgb, var(--acc, var(--brand)) 55%, transparent);
-  background: var(--panel); color: var(--acc, var(--brand)); transition: transform .25s; }
+  background: var(--panel); color: var(--acc, var(--brand)); font-size: 12px; transition: transform .25s; }
 .sw2-flip button:hover { transform: rotate(180deg); }
-.sw2-adv { font-family: var(--font-mono); font-size: 9px; letter-spacing: .2em;
+.sw2-adv { font-family: var(--font-mono); font-size: 8.5px; letter-spacing: .2em;
   color: var(--muted-deep); background: none; border: none; cursor: pointer;
   display: flex; justify-content: flex-end; gap: 6px; align-items: center; }
 .sw2-adv:hover { color: var(--brand); }
-.sw2-adv-body { display: grid; gap: 8px; padding: 10px; border-radius: 9px;
+.sw2-adv-body { display: grid; gap: 7px; padding: 8px 9px; border-radius: 8px;
   border: 1px dashed color-mix(in srgb, var(--acc, var(--brand)) 26%, transparent); }
-.sw2-adv-body label { display: grid; gap: 4px; font-size: 8.5px; letter-spacing: .14em;
+.sw2-adv-body label { display: grid; gap: 3px; font-size: 8px; letter-spacing: .12em;
   color: var(--muted-deep); font-family: var(--font-mono); }
-.sw2-adv-body input { height: 30px; padding: 0 9px; border-radius: 7px; color: var(--muted);
+.sw2-adv-body input { height: 26px; padding: 0 8px; border-radius: 6px; color: var(--muted);
   background: rgba(255, 255, 255, .02); border: 1px solid var(--border-soft);
   font-family: var(--font-mono); }
-.sw2-cta { height: 48px; border: none; border-radius: 11px; cursor: pointer;
-  font-family: var(--font-display); font-weight: 700; font-size: 12.5px; letter-spacing: .22em;
+.sw2-cta { height: 40px; border: none; border-radius: 10px; cursor: pointer;
+  font-family: var(--font-display); font-weight: 700; font-size: 11px; letter-spacing: .2em;
   color: #04130b; background: linear-gradient(120deg, var(--brand) 0%, var(--brand-2) 45%, #4D8DFF 100%);
-  box-shadow: 0 0 22px rgba(20, 241, 149, .3), 0 10px 28px rgba(0, 0, 0, .4); }
+  box-shadow: 0 0 18px rgba(20, 241, 149, .28), 0 8px 22px rgba(0, 0, 0, .4); }
 .sw2-cta:hover { filter: brightness(1.08); }
-.sw2-note { margin: 0; font-family: var(--font-mono); font-size: 9.5px; color: var(--muted-deep); }
+.sw2-note { margin: 0; font-family: var(--font-mono); font-size: 9px; color: var(--muted-deep); }
 
 /* right rail: information + stats + txns/volume */
-.tk-info { padding: 15px 16px; display: grid; gap: 11px; }
+.tk-info { padding: 12px 14px; display: grid; gap: 9px; }
 .tk-info-row { display: flex; align-items: center; gap: 12px; }
 .tk-info-logo { width: 46px; height: 46px; border-radius: 11px; display: grid; place-items: center;
   font-family: var(--font-mono); font-weight: 700; font-size: 17px;
@@ -195,13 +195,13 @@
 .tk-badge { justify-self: start; font-family: var(--font-mono); font-size: 8.5px; font-weight: 700;
   letter-spacing: .16em; color: var(--amber); padding: 3px 9px; border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--amber) 45%, transparent); }
-.tk-grid2 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 0 16px 14px; }
-.tk-cell { display: grid; gap: 3px; justify-items: center; padding: 9px 4px;
-  border: 1px solid var(--border-soft); border-radius: 9px; font-family: var(--font-mono); }
-.tk-cell .t { font-size: 8.5px; letter-spacing: .14em; color: var(--muted-deep); }
-.tk-cell .v { font-size: 12px; font-variant-numeric: tabular-nums; }
+.tk-grid2 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 0 14px 12px; }
+.tk-cell { display: grid; gap: 2px; justify-items: center; padding: 7px 4px;
+  border: 1px solid var(--border-soft); border-radius: 8px; font-family: var(--font-mono); }
+.tk-cell .t { font-size: 8px; letter-spacing: .12em; color: var(--muted-deep); }
+.tk-cell .v { font-size: 11px; font-variant-numeric: tabular-nums; }
 .tk-cell .v.pos { color: var(--brand-2); } .tk-cell .v.neg { color: var(--rose); }
-.tk-split { display: grid; gap: 7px; padding: 0 16px 15px; }
+.tk-split { display: grid; gap: 5px; padding: 0 14px 12px; }
 .tk-split-row { display: flex; align-items: center; gap: 10px; font-family: var(--font-mono);
   font-size: 10px; }
 .tk-split-row .t { width: 44px; color: var(--muted-deep); letter-spacing: .12em; }
@@ -254,7 +254,7 @@
 .tk-pagefoot button { border: 1px solid var(--border); background: none; color: var(--muted);
   border-radius: 6px; width: 24px; height: 22px; cursor: pointer; }
 
-.tk-rail-r { display: grid; gap: 16px; min-width: 0; }
+.tk-rail-r { display: grid; gap: 12px; min-width: 0; position: sticky; top: 14px; }
 .tk-yt { font-family: var(--font-mono); font-size: 9px; fill: var(--muted-deep); }
 .tk-ychip { font-family: var(--font-mono); font-size: 9px; font-weight: 700; fill: #04130b; }
 
