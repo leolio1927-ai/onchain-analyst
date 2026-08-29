@@ -30,7 +30,7 @@ app = TerminalAlpha()  # dipakai pytest-textual-snapshot
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--ascii", action="store_true",
-                        help="glyph standar (tanpa Nerd Font)")
+                        help="standard glyphs (no Nerd Font)")
     args = parser.parse_args()
     if args.ascii:
         use_ascii()

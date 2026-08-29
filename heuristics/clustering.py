@@ -1,30 +1,30 @@
-"""Clustering v0 — burst timing + amount uniformity (catatan kerja §6).
+"""Clustering v0 — burst timing + amount uniformity (work notes §6).
 
-Deterministik, threshold kelihatan, input = trade ternormalisasi dari
-providers.geckoterminal.fetch_trades. Sampel < MIN_WALLETS wallet → TIDAK
-diskor (jujur, §2.6). Fair-launch/airdrop/KOL call bisa mirror pola ini —
-heuristik bantu keputusan, bukan vonis.
+Deterministic, visible thresholds, input = normalized trades from
+providers.geckoterminal.fetch_trades. Samples under MIN_WALLETS wallets are
+NOT scored (honest, §2.6). Fair-launch/airdrop/KOL-call patterns can mirror
+this — a decision-support heuristic, not a verdict.
 """
 from __future__ import annotations
 
 from datetime import datetime
 from statistics import mean, pstdev
 
-MIN_WALLETS = 8        # di bawah ini → tidak diskor (catatan kerja §6)
-MIN_BUYS = 5           # CV nominal butuh sampel minimal
-BURST_WINDOW_S = 60    # window rolling untuk deteksi burst
-MIN_BURST_ABS = 6      # burst hanya bermakna kalau ≥6 beli dalam window (data sparse ≠ burst)
+MIN_WALLETS = 8        # below this → not scored (work notes §6)
+MIN_BUYS = 5           # a nominal CV needs a minimum sample
+BURST_WINDOW_S = 60    # rolling window for burst detection
+MIN_BURST_ABS = 6      # a burst only means something at ≥6 buys in the window (sparse data ≠ burst)
 
 
 def _epoch(ts: str) -> float | None:
     try:
-        return datetime.fromisoformat(str(ts)).timestamp()  # py>=3.11: "Z" didukung langsung
+        return datetime.fromisoformat(str(ts)).timestamp()  # py>=3.11 parses "Z" directly
     except (ValueError, TypeError):
         return None
 
 
 def _burst(times: list[float]) -> tuple[float | None, int]:
-    """(rasio trade maks dalam window 60 dtk vs rata-rata window, maks window)."""
+    """(max trades in a 60s window vs the per-window average, max window)."""
     times.sort()
     n = len(times)
     span = times[-1] - times[0]
@@ -44,7 +44,7 @@ def _burst(times: list[float]) -> tuple[float | None, int]:
 
 
 def _cv(amounts: list[float]) -> float | None:
-    """Koefisien variasi nominal beli — makin kecil makin seragam (scripted)."""
+    """Coefficient of variation of buy amounts — the smaller, the more uniform (scripted)."""
     if len(amounts) < MIN_BUYS:
         return None
     m = mean(amounts)
@@ -54,9 +54,9 @@ def _cv(amounts: list[float]) -> float | None:
 
 
 def analyze(trades: list[dict]) -> dict:
-    """→ {"wallets", "buys", "severity", "evidence"} — kompatibel sinyal rug_check.
+    """→ {"wallets", "buys", "severity", "evidence"} — rug_check-signal compatible.
 
-    severity: 0.0 = pola sehat, None = tidak diskor (sampel kurang / tak terparse).
+    severity: 0.0 = healthy pattern, None = not scored (insufficient / unparseable sample).
     """
     buys = [t for t in trades if t.get("kind") == "buy"]
     wallets = {t.get("wallet") for t in trades if t.get("wallet")}

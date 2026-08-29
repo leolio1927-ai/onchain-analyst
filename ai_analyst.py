@@ -1,9 +1,9 @@
-"""AI Analyst — evidence-first, multi-provider (catatan kerja §7).
+"""AI Analyst — evidence-first, multi-provider (work notes §7).
 
-Registry: claude (Anthropic SDK), glm & kimi (endpoint OpenAI-compatible).
-Semua provider menerima KONTEKS IDENTIK (<evidence>) — beda otak, sama bukti.
-Setiap panggilan dicatat di grounding log lengkap dengan nama provider →
-bisa dibandingkan lintas model & di-replay buat regression-test.
+Registry: claude (Anthropic SDK), glm & kimi (OpenAI-compatible endpoints).
+Every provider receives the IDENTICAL CONTEXT (<evidence>) — different brains,
+the same evidence. Every call is written to the grounding log with its provider
+name → comparable across models and replayable for regression tests.
 """
 from __future__ import annotations
 
@@ -45,8 +45,8 @@ class Provider:
     default_base: str | None
 
 
-# default_model/base = tebakan awal dari user — VERIFIKASI dari dashboard
-# provider masing-masing; koreksi cukup lewat .env, tanpa sentuh kode.
+# default_model/base = the user's initial best guess — VERIFY against each
+# provider's dashboard; corrections only need .env, no code edits.
 PROVIDERS = {
     "claude": Provider("claude", "anthropic", "ANTHROPIC_API_KEY", None,
                        "ALPHA_MODEL", MODEL_DEFAULT, None),
@@ -62,8 +62,8 @@ class NoKeyError(RuntimeError):
 
 
 def _evidence(pair: dict, assessment: dict) -> dict:
-    """Subset data yang BOLEH dilihat AI — bukan raw dump. AI tidak bisa
-    mengutip field yang tidak pernah dikasih."""
+    """The data subset the AI is ALLOWED to see — not a raw dump. The model
+    cannot cite a field it was never given."""
     return {
         "token": pair.get("baseToken"),
         "dex": pair.get("dexId"),
@@ -90,7 +90,7 @@ def _evidence(pair: dict, assessment: dict) -> dict:
 def _call(provider: Provider, system: str, user: str, max_tokens: int):
     api_key = os.environ.get(provider.env_key)
     if not api_key:
-        raise NoKeyError(f"{provider.env_key} belum diset (lihat .env.example)")
+        raise NoKeyError(f"{provider.env_key} not set (see .env.example)")
 
     if provider.kind == "anthropic":
         client = llm.make_llm_client(provider.key, api_key)

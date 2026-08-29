@@ -1,6 +1,6 @@
 """Terminal Alpha web — FastAPI backend serving the React frontend + read-only JSON API.
 
-Boundary (catatan kerja §4): this layer only orchestrates providers → heuristics →
+Boundary (work notes §4): this layer only orchestrates providers → heuristics →
 ai_analyst → access. It never touches ui/ (TUI) and never exposes raw provider
 freedom to the client: /api/explain re-fetches and re-assesses SERVER-SIDE so a
 client can never forge evidence. All network provider calls are blocking urllib —

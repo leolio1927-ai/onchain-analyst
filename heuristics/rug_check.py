@@ -1,8 +1,8 @@
-"""Heuristik risiko deterministik — bukan AI, bukan audit.
+"""Deterministic risk heuristics — not AI, not an audit.
 
-Catatan kerja §2.6: verdict TIDAK pernah biner dari satu sinyal —
-selalu gabungan berbobot; kalau data kurang → jujur "DATA KURANG".
-Semua threshold & bobot di bawah KELIHATAN dan bisa diaudit siapa pun.
+Work notes §2.6: a verdict is NEVER binary from one signal —
+always a weighted combination; when data is lacking → an honest "INSUFFICIENT DATA".
+Every threshold & weight below is VISIBLE and auditable by anyone.
 """
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ LEVEL_LABELS = {"low": "LOW", "medium": "CAUTION", "high": "HIGH RISK", "nodata"
 
 WEIGHTS = {"liquidity": 0.30, "fdv_liq": 0.25, "vol_liq": 0.15, "buy_ratio": 0.15, "age": 0.15,
            "clustering": 0.20}
-MIN_SIGNALS = 3  # di bawah ini → nodata, bukan nebak
+MIN_SIGNALS = 3  # below this → nodata, never a guess
 
 
 def _now_ms() -> int:
@@ -99,11 +99,12 @@ def _age(created_ms):
 
 
 def assess(pair: dict, clustering_result: dict | None = None) -> dict:
-    """Skor 0-100 (makin tinggi makin berisiko) + evidence per sinyal.
+    """Score 0-100 (the higher, the riskier) + evidence per signal.
 
-    clustering_result: hasil heuristics.clustering.analyze (atau dict degrade
-    dari UI). None = clustering tidak dicoba → 5 sinyal seperti biasa.
-    severity None di dalamnya = dicoba tapi tidak diskor → tampil jujur.
+    clustering_result: the output of heuristics.clustering.analyze (or the
+    honest-degrade dict from the UI). None = clustering not attempted → the 5
+    signals as usual. A None severity inside it = attempted but not scored →
+    displayed honestly.
     """
     liq = (pair.get("liquidity") or {}).get("usd")
     fdv = pair.get("fdv") or pair.get("marketCap")
