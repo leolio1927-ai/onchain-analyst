@@ -319,7 +319,10 @@ def _enrich_socials(chain: str, items: list[dict]) -> None:
     fetched: dict[str, dict] = {}
     for i in range(0, len(missing), 30):
         batch = missing[i:i + 30]
+        # EVM: DexScreener re-checksums addresses, so exact match fails —
+        # 0x-prefixed ids match case-insensitively (solana base58 stays exact)
         wanted = {a for a, _ in batch}
+        wanted_l = {a.lower(): a for a, _ in batch if a.startswith("0x")}
         try:
             data = _ds_get(f"/tokens/v1/{chain_id}/{','.join(a for a, _ in batch)}")
         except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError,
@@ -327,7 +330,9 @@ def _enrich_socials(chain: str, items: list[dict]) -> None:
             break  # DS down → socials stay absent, un-cached
         for entry in data or []:
             addr = (entry.get("baseToken") or {}).get("address")
-            if addr not in wanted or addr in fetched:
+            if addr and addr not in wanted and addr.startswith("0x"):
+                addr = wanted_l.get(addr.lower())  # DS checksum → our exact form
+            if not addr or addr not in wanted or addr in fetched:
                 continue
             info = entry.get("info") or {}
             socials: dict = {"twitter": None, "website": None}
