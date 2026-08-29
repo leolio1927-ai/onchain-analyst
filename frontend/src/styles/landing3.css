@@ -856,3 +856,6 @@ a { color: inherit; text-decoration: none; }
   .lv-mstrip > div { border-bottom: 1px dashed var(--line2); }
   .lv-mstrip > div:nth-child(n+5) { border-bottom: none; }
 }
+
+.lv-sev .ok { display: grid; place-items: center; height: 100%; color: var(--g2);
+  font-size: 8px; font-weight: 700; }
