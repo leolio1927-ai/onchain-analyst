@@ -6,8 +6,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { LIVE_CHAINS, LIVE_CHAIN_LABEL, LiveFeedError, fetchLiveFeed } from '../lib/liveApi'
 import type { LiveChain, LiveFeed, LiveItem } from '../lib/liveApi'
-import { fmtPct, fmtPrice, fmtUsdCompact, truncAddr } from '../lib/liveFormat'
-import { EmptyBox, ErrBox, Skel, StatusChips, TokenLogo } from './liveParts'
+import { fmtPrice, fmtUsdCompact, truncAddr } from '../lib/liveFormat'
+import { ChgBadge, EmptyBox, ErrBox, Skel, StatusChips, TokenLogo, TradeComingModal, accentStyle } from './liveParts'
 
 type CardState =
   | { st: 'loading' }
@@ -20,11 +20,13 @@ function distinctLaunchpads(items: LiveItem[]): number {
   return new Set(items.map((i) => i.launchpad).filter((v): v is string => v !== null)).size
 }
 
-function MiniRow({ item }: { item: LiveItem }) {
-  const chg = item.change_24h === null ? null : Number(item.change_24h)
-  const cls = chg === null ? 'flat' : chg > 0 ? 'up' : chg < 0 ? 'down' : 'flat'
+function MiniRow({ item, onOpen }: { item: LiveItem; onOpen: (it: LiveItem) => void }) {
   return (
-    <div className="lx-trow">
+    <div className="lx-trow" role="button" tabIndex={0} title="Trade — coming soon"
+      onClick={() => onOpen(item)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(item) }
+      }}>
       <TokenLogo src={item.logo} symbol={item.token_symbol} />
       <div className="lx-idc">
         <span className="lx-sym">{item.token_symbol ?? '–'}</span>
@@ -32,7 +34,7 @@ function MiniRow({ item }: { item: LiveItem }) {
       </div>
       <div className="lx-pric">
         <span className="lx-px">{fmtPrice(item.price_usd)}</span>
-        <span className={`lx-chg ${cls}`}>{fmtPct(item.change_24h)}</span>
+        <ChgBadge value={item.change_24h} />
       </div>
       <div className="lx-meta">
         {item.launchpad ? <span className="badge lp">{item.launchpad}</span> : null}
@@ -47,6 +49,7 @@ function MiniRow({ item }: { item: LiveItem }) {
 export function LiveBoard() {
   const [states, setStates] = useState<Partial<Record<LiveChain, CardState>>>({})
   const [cooldown, setCooldown] = useState<Partial<Record<LiveChain, number>>>({})
+  const [tradeItem, setTradeItem] = useState<LiveItem | null>(null)
   const alive = useRef(true)
 
   const load = useCallback((chain: LiveChain) => {
@@ -111,7 +114,7 @@ export function LiveBoard() {
             const st = states[chain] ?? { st: 'loading' as const }
             const feed = st.st === 'ok' ? st.feed : null
             return (
-              <article className="lx-card" data-chain={chain} key={chain}>
+              <article className="lx-card" data-chain={chain} key={chain} style={accentStyle(chain)}>
                 <div className="lx-card-hd">
                   <span className="lx-cbadge">{chain.toUpperCase()}</span>
                   <div className="lx-card-id">
@@ -134,7 +137,9 @@ export function LiveBoard() {
                       ? <EmptyBox what={feed.live ? 'No trending pools returned right now.' : 'Not live yet — coming soon.'} />
                       : (
                         <div className="lx-rows">
-                          {feed!.items.map((it, i) => <MiniRow key={it.pool_address ?? i} item={it} />)}
+                          {feed!.items.map((it, i) => (
+                            <MiniRow key={it.pool_address ?? i} item={it} onOpen={setTradeItem} />
+                          ))}
                         </div>
                       )}
                 <div className="lx-card-ft">
@@ -148,6 +153,7 @@ export function LiveBoard() {
           })}
         </div>
         <p className="lx-note">FREE LIVE DATA VIA <b>GECKOTERMINAL</b> · SERVER CACHE 180s · ABSENT DATA STAYS “–”</p>
+        <TradeComingModal item={tradeItem} onClose={() => setTradeItem(null)} />
       </main>
     </div>
   )
