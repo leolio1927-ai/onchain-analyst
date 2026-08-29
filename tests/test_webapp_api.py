@@ -157,3 +157,60 @@ def test_pages_serve_built_dist(client, monkeypatch, tmp_path):
     assert "TERMINAL-OK" in client.get("/terminal").text
     assert client.get("/assets/app.js").status_code == 200
     assert client.get("/assets/../../etc/passwd").status_code in (404, 400)  # traversal guard
+
+
+def _gt_pool_payload():
+    return {"data": [{"id": "solana_POOL1", "type": "pool",
+                      "attributes": {"name": "A / SOL", "base_token_price_usd": "0.001",
+                                     "volume_usd": {"h24": "42"}, "fdv_usd": "9000"},
+                      "relationships": {"dex": {"data": {"id": "pump-fun"}}}}]}
+
+
+def test_discovery_trending_and_new(client, monkeypatch):
+    from providers import geckoterminal as gt
+    calls: list[str] = []
+
+    def fake_get(path):
+        calls.append(path)
+        return _gt_pool_payload()
+
+    monkeypatch.setattr(gt, "_get", fake_get)
+    r = client.get("/api/v1/discovery", params={"chain": "sol", "mode": "trending", "limit": 5})
+    assert r.status_code == 200
+    j = r.json()
+    assert j["chain"] == "sol" and j["mode"] == "trending" and j["count"] == 1
+    item = j["items"][0]
+    assert item["pool_address"] == "POOL1" and item["dex"] == "pump-fun"
+    assert item["volume_24h"] == "42" and item["change_24h"] is None  # absent stays absent
+    assert calls == ["/networks/solana/trending_pools"]
+
+    r2 = client.get("/api/v1/discovery", params={"chain": "base", "mode": "new"})
+    assert r2.status_code == 200
+    assert calls[-1] == "/networks/base/new_pools"
+
+
+def test_discovery_bad_chain_and_mode(client):
+    # hood is a valid scan chain but GeckoTerminal does not serve it
+    r = client.get("/api/v1/discovery", params={"chain": "hood"})
+    assert r.status_code == 400 and "not served" in r.json()["detail"]
+    assert client.get("/api/v1/discovery", params={"chain": "hype"}).status_code == 400
+    assert client.get("/api/v1/discovery", params={"mode": "hot"}).status_code == 400
+
+
+def test_discovery_upstream_fail_is_502(client, monkeypatch):
+    import urllib.error
+
+    from providers import geckoterminal as gt
+
+    def boom(path):
+        raise urllib.error.HTTPError("u", 429, "rate", None, None)
+
+    monkeypatch.setattr(gt, "_get", boom)
+    r = client.get("/api/v1/discovery", params={"chain": "sol"})
+    assert r.status_code == 502 and "429" in r.json()["detail"]
+
+    def unreach(path):
+        raise urllib.error.URLError("conn refused")
+
+    monkeypatch.setattr(gt, "_get", unreach)
+    assert client.get("/api/v1/discovery", params={"chain": "sol"}).status_code == 502
