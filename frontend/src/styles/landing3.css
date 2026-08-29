@@ -672,3 +672,75 @@ a { color: inherit; text-decoration: none; }
 /* ── tape band under the hero ── */
 .lv-tapeband { display: grid; justify-items: center; padding: 4px 28px 46px; position: relative; z-index: 2; }
 .lv-hero:not(.center) .lv-statrow { justify-content: flex-start; }
+
+/* ═══════════════════════════════════════════════════════════════
+   LANDING L3 — the product story (PROMPT-L3): full feature blueprint,
+   audience + agent access, roadmap teaser, FAQ, honest disabled CTA.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* disabled-but-proud CTA — the terminal ships in phases */
+.lv-cta.off { opacity: .45; pointer-events: none; filter: grayscale(.35); cursor: not-allowed; }
+.lv-cta.off::before { display: none; }
+
+/* ── product blueprint — the full feature story ── */
+.lv-bp-group { margin-bottom: 26px; }
+.lv-bp-group > .g { display: flex; align-items: center; gap: 10px; font-family: var(--fm);
+  font-size: 10px; font-weight: 700; letter-spacing: .26em; color: var(--g); margin-bottom: 12px; }
+.lv-bp-group > .g::after { content: ''; flex: 1; height: 1px;
+  background: repeating-linear-gradient(90deg, rgba(0,255,163,.35) 0 6px, transparent 6px 12px); }
+.lv-bp { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.lv-bp-item { position: relative; border: 1px solid var(--line2); border-radius: 14px; padding: 16px 18px;
+  background: linear-gradient(180deg, rgba(14,26,20,.7), rgba(8,11,14,.9));
+  transition: border-color .2s, transform .2s, box-shadow .2s; }
+.lv-bp-item:hover { border-color: rgba(0,255,163,.45); transform: translateY(-3px);
+  box-shadow: 0 14px 40px rgba(0,0,0,.45), 0 0 22px rgba(0,255,163,.07); }
+.lv-bp-item .nm { display: flex; align-items: center; gap: 8px; justify-content: space-between;
+  font-family: var(--fd); font-weight: 700; font-size: 13.5px; margin-bottom: 6px; }
+.lv-bp-item .ds { font-size: 11.5px; line-height: 1.6; color: var(--mut); }
+@media (max-width: 760px) { .lv-bp { grid-template-columns: 1fr; } }
+
+/* ── audience cards ── */
+.lv-aud { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.lv-aud .aud { border: 1px solid var(--line2); border-radius: 16px; padding: 24px 22px; text-align: left;
+  background: linear-gradient(180deg, rgba(14,26,20,.75), rgba(8,11,14,.9));
+  transition: border-color .2s, transform .2s; }
+.lv-aud .aud:hover { border-color: rgba(0,255,163,.5); transform: translateY(-4px); }
+.lv-aud .aud b { font-family: var(--fd); font-size: 15.5px; display: block; margin: 12px 0 8px; }
+.lv-aud .aud p { font-size: 12.5px; line-height: 1.7; color: var(--mut); }
+.lv-aud .aud .lnk { display: inline-block; margin-top: 12px; font-family: var(--fm); font-size: 10px;
+  letter-spacing: .14em; color: var(--g); }
+@media (max-width: 900px) { .lv-aud { grid-template-columns: 1fr; } }
+
+/* ── agent access cards ── */
+.lv-agent { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.lv-agent .ag { border: 2px dashed rgba(0,255,163,.3); border-radius: 14px; padding: 18px 20px;
+  background: rgba(4,16,10,.6); font-family: var(--fm); transition: border-color .2s, box-shadow .2s; }
+.lv-agent .ag:hover { border-color: rgba(0,255,163,.6); box-shadow: 0 0 24px rgba(0,255,163,.1); }
+.lv-agent .ag .u { color: var(--g); font-size: 12px; font-weight: 700; letter-spacing: .06em; }
+.lv-agent .ag p { margin: 7px 0 0; font-family: 'Inter', sans-serif; font-size: 11.5px; line-height: 1.65; color: var(--mut); }
+
+/* ── roadmap teaser ── */
+.lv-teaser { display: grid; gap: 10px; max-width: 860px; margin: 0 auto; }
+.lv-teaser .trow { display: grid; grid-template-columns: 92px 1fr auto; gap: 14px; align-items: center;
+  border: 1px solid var(--line2); border-radius: 12px; padding: 13px 18px; text-align: left;
+  background: rgba(7,20,16,.6); transition: border-color .2s, box-shadow .2s; }
+.lv-teaser .trow:hover { border-color: rgba(0,255,163,.5); box-shadow: 0 0 20px rgba(0,255,163,.08); }
+.lv-teaser .tid { font-family: var(--fm); font-size: 11px; font-weight: 700; letter-spacing: .12em; color: var(--g); }
+.lv-teaser .tt { font-family: var(--fd); font-weight: 700; font-size: 13.5px; }
+.lv-teaser .td { font-family: var(--fm); font-size: 9px; letter-spacing: .14em; color: var(--dim); }
+.lv-teaser .trow .st { justify-self: end; }
+@media (max-width: 640px) { .lv-teaser .trow { grid-template-columns: 1fr; gap: 4px; } .lv-teaser .trow .st { justify-self: start; } }
+
+/* ── FAQ ── */
+.lv-faq { display: grid; gap: 10px; max-width: 860px; margin: 0 auto; }
+.lv-faq details { border: 1px solid var(--line2); border-radius: 12px; background: rgba(7,20,16,.6);
+  padding: 0 18px; transition: border-color .2s; }
+.lv-faq details:hover { border-color: rgba(0,255,163,.4); }
+.lv-faq details[open] { border-color: rgba(0,255,163,.55); box-shadow: 0 0 22px rgba(0,255,163,.07); }
+.lv-faq summary { cursor: pointer; list-style: none; padding: 15px 0; font-family: var(--fd);
+  font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 10px; }
+.lv-faq summary::before { content: '▸'; color: var(--g); transition: transform .2s; }
+.lv-faq details[open] summary::before { transform: rotate(90deg); }
+.lv-faq details p { margin: 0 0 15px 24px; font-size: 12.5px; line-height: 1.75; color: var(--mut); }
+.lv-faq details p b { color: var(--text); }
+.lv-faq details p a { color: var(--g); font-family: var(--fm); font-size: 12px; }
