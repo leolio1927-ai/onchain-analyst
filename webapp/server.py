@@ -25,7 +25,7 @@ from pathlib import Path
 
 import fastapi
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from pydantic import BaseModel
 
 import ai_analyst
@@ -412,6 +412,13 @@ async def live_chain_page(chain: str):
     # unknown chains still serve the SPA — it renders an honest
     # "unknown chain" state from LIVE_CHAINS (no server-side data involved)
     return _page("live.html")
+
+
+@app.get("/swap-preview", include_in_schema=False)
+async def swap_preview():
+    """Dev preview for the Swap mockup (PROMPT-S) — one URL for the founder
+    to screenshot the panel without enabling the terminal. Easily removable."""
+    return RedirectResponse("/terminal#/swap")
 
 
 @app.get("/assets/{subpath:path}", include_in_schema=False)
