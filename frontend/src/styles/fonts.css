@@ -1,0 +1,26 @@
+/* ═══════════════════════════════════════════════════════════════
+   SELF-HOSTED FONTS — variable, latin subset, served from /assets/fonts.
+   Removes the last third-party request from every page: the site is now
+   fully self-hosted (view-source verifiable). Family names match the
+   existing CSS variables in tokens.css / landing3.css. ═════════════ */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/assets/fonts/inter-latin-var.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url('/assets/fonts/jetbrains-mono-latin-var.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('/assets/fonts/space-grotesk-latin-var.woff2') format('woff2');
+}
