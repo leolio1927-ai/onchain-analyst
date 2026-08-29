@@ -235,7 +235,7 @@ function setAmt2(set: (v: string) => void, setP: (p: number) => void, balance: n
 }
 
 export function TokenPage() {
-  document.title = 'FOMO · Swap — Terminal Alpha'
+  if (typeof document !== 'undefined') document.title = 'FOMO · Swap — Terminal Alpha'
   const [tool, setTool] = useState('cross')
   const [tab, setTab] = useState('TRADES')
   const [chain] = useState<LiveChain>('sol')
