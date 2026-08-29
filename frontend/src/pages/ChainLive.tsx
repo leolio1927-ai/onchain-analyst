@@ -9,7 +9,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { LIVE_CHAINS, LIVE_CHAIN_LABEL, LiveFeedError, fetchLiveFeed } from '../lib/liveApi'
 import type { LiveChain, LiveFeed, LiveItem, LiveMode } from '../lib/liveApi'
 import { fmtAge, fmtCount, fmtPrice, fmtUsdCompact, fmtUtcClock } from '../lib/liveFormat'
-import { ChgBadge, CopyAddr, EmptyBox, ErrBox, Skel, StatusChips, TokenLogo, TradeComingModal, accentStyle } from './liveParts'
+import { ChgBadge, CopyAddr, EmptyBox, ErrBox, Skel, SocialLinks, StatusChips, TokenLogo, TradeComingModal, accentStyle } from './liveParts'
 import { ChainLogo } from './chainLogos'
 
 const LIMIT = 20
@@ -58,6 +58,7 @@ function FullRow({ item, chain, rank, onOpen }:
         {item.launchpad
           ? <span className="badge lp">{item.launchpad}</span>
           : item.dex_id ? <span className="badge">{item.dex_id}</span> : null}
+        <SocialLinks socials={item.socials} />
         <CopyAddr address={item.pool_address} />
       </div>
     </div>
