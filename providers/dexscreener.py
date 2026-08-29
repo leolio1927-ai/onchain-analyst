@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import urllib.request
 
-CHAIN_IDS = {"sol": "solana", "bnb": "bsc", "base": "base", "avax": "avax", "hood": "robinhood"}  # verified live 2026-08-28: chainId "robinhood" (Robinhood Chain)
+CHAIN_IDS = {"sol": "solana", "bnb": "bsc", "base": "base", "avax": "avalanche", "hood": "robinhood"}  # verified live 2026-08-28/29: DS chainIds "robinhood" and "avalanche" (NOT "avax" — that slug matched nothing)
 # "hype" is deliberately held back until its chainId is verified (work notes §3 & §10).
 
 
