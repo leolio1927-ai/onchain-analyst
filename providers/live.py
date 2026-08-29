@@ -12,12 +12,13 @@ Stage-0 verified 2026-08-29 against api.geckoterminal.com/api/v2:
   image_url → absent stays absent.
 - dex ids are observed-only (LAUNCHPAD map below); unknown id → None.
 - GT free tier is ~10 calls/min and 429s are real (observed): the TTL cache
-  below is ≥120s per (chain, source); alpha re-ranks the volume feed and
-  therefore makes ZERO extra API calls.
+  below defaults to 180s per (chain, source) (env FEED_CACHE_TTL_S, clamped
+  60..600); alpha re-ranks the volume feed and makes ZERO extra API calls.
 """
 from __future__ import annotations
 
 import math
+import os
 import time
 from datetime import UTC, datetime
 
@@ -60,7 +61,25 @@ LAUNCHPAD: dict[str, str] = {
 # stable source order.
 ALPHA_WEIGHTS = {"volume": 0.40, "txns": 0.25, "liquidity": 0.20, "age": 0.15}
 
-FEED_CACHE_TTL_S = 120.0  # mandatory floor — upstream 429s observed in Stage 0
+FEED_CACHE_TTL_S = 180.0  # CTO M.0: default 180s — 18 (chain, source) combos
+                          # settle at ~6 rpm steady-state, real headroom under
+                          # the ~10/min tier (429s observed in Stage 0)
+FEED_CACHE_TTL_MIN, FEED_CACHE_TTL_MAX = 60.0, 600.0
+
+
+def _feed_ttl() -> float:
+    """FEED_CACHE_TTL_S env override (seconds), clamped to 60..600. Unset,
+    empty or non-numeric → the 180s default."""
+    raw = os.environ.get("FEED_CACHE_TTL_S", "").strip()
+    if not raw:
+        return FEED_CACHE_TTL_S
+    try:
+        v = float(raw)
+    except ValueError:
+        return FEED_CACHE_TTL_S
+    return min(max(v, FEED_CACHE_TTL_MIN), FEED_CACHE_TTL_MAX)
+
+
 FEED_CACHE_MAX = 32       # 6 chains × 3 sources = 18 keys; cap anyway
 
 FIELDS = ("pool_address", "token_symbol", "token_name", "pair", "logo",
@@ -102,7 +121,7 @@ def _cache_put(key: tuple[str, str], raw: dict) -> None:
     """Drop expired entries first, then the oldest beyond the cap — the cache
     must never grow without bound (server._cache_put pattern)."""
     now = time.monotonic()
-    expired = [k for k, (t, _) in _feed_cache.items() if now - t >= FEED_CACHE_TTL_S]
+    expired = [k for k, (t, _) in _feed_cache.items() if now - t >= _feed_ttl()]
     for k in expired:
         del _feed_cache[k]
     while len(_feed_cache) >= FEED_CACHE_MAX:
@@ -210,7 +229,7 @@ def get_feed(chain: str, mode: str, limit: int = 20) -> tuple[list[dict], dict]:
     key = (chain, _source_mode(mode))
     now = time.monotonic()
     hit = _feed_cache.get(key)
-    if hit and now - hit[0] < FEED_CACHE_TTL_S:
+    if hit and now - hit[0] < _feed_ttl():
         raw, cached, stale = hit[1], True, False
     else:
         try:
