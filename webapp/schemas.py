@@ -211,6 +211,7 @@ class TradeRow(BaseModel):
     ts: str | None = None
     usd: float | None = None
     base_token: str | None = None
+    tx_hash: str | None = None
 
 
 class TapeFrame(Envelope):
@@ -257,22 +258,29 @@ class TokenMeta(Envelope):
 
 
 class OhlcvPoint(BaseModel):
+    """Point-in-time quote mapped onto the OHLCV shape: open/high/low stay
+    None (a candle that was never observed is never synthesized), close =
+    the observed price, volume = the observed 24h volume."""
+
     ts: str | None = None
     open: float | None = None
     high: float | None = None
     low: float | None = None
     close: float | None = None
     volume: float | None = None
+    liquidity: float | None = None
+    fdv: float | None = None
 
 
-class HistoryPage(Envelope):
+class HistoryPage[T](Envelope):
     """Cursor pagination: `next_cursor` is None-terminated — None means the
     page end was reached; a cursor value means more pages exist. Absent
-    history is an empty items list, never synthesized points."""
+    history is an empty items list, never synthesized points. data_mode is
+    the union of the page's rows — a fixture page never reads as live."""
 
     data_mode: DataMode = "unwired"
 
-    items: list[OhlcvPoint] = Field(default_factory=list)
+    items: list[T] = Field(default_factory=list)
     next_cursor: str | None = None
 
 
@@ -329,6 +337,27 @@ class ApiError(Envelope):
     routes raise today; the footer fields make errors machine-diffable too."""
 
     detail: str = ""
+
+
+# ── system surface ───────────────────────────────────────────────────────
+
+class DbInfo(BaseModel):
+    """/api/version db block — measured facts about the persistence layer."""
+
+    path_kind: str | None = None       # "off" | "env" (never the raw path)
+    schema_version: int | None = None
+    rows_by_table: dict[str, int] = Field(default_factory=dict)
+    last_run_at: str | None = None
+    oldest_row_ts: str | None = None
+
+
+class VersionResponse(BaseModel):
+    name: str | None = None
+    version: str | None = None
+    python: str | None = None
+    fastapi: str | None = None
+    uptime_s: int = 0
+    db: DbInfo = Field(default_factory=DbInfo)
 
 
 # ── ai surface ───────────────────────────────────────────────────────────
