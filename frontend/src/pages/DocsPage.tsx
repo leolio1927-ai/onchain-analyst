@@ -66,6 +66,7 @@ export function DocsPage() {
   document.title = 'Docs — Terminal Alpha'
   return (
     <div className="pg-root">
+      <div className="pg-aurora" aria-hidden="true" />
       <div className="pg-wrap">
         <div style={{ display: 'flex', gap: 18, marginBottom: 30 }}>
           <a className="pg-a" href="/">← LANDING</a>
