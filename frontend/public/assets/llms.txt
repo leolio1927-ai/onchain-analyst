@@ -137,8 +137,8 @@ brackets) and was last re-verified 2026-08-29.
 
 - Read-only data plane; no route accepts an order, signature or transaction.
 - Keyless live pipeline — no secret can leak because none exists.
-- No account, no cookie, no session; no third-party script on any page (fonts are
-  the only third-party fetch, stylesheets only).
+- No account, no cookie, no session; ZERO third-party requests on any page —
+  the bundle and the fonts are self-hosted (view-source verifiable).
 - Every cache is size-capped (scan 512, feed 32, socials 128); WS client cap
   (default 64); per-IP AI rate limiting [webapp/server.py].
 - Will never: custody seed/keys, sign anything, execute trades, sell rank
