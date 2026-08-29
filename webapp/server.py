@@ -121,8 +121,8 @@ app = FastAPI(
     description=_DESCRIPTION,
     license_info={"name": "MIT", "identifier": "MIT"},
     openapi_tags=_TAGS,
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url="/api/docs",   # Swagger moved off /docs — that path is the human Docs page now
+    redoc_url="/api/redoc",
 )
 _apply_cors(app)
 
@@ -419,6 +419,11 @@ async def swap_preview():
     """Dev preview for the Swap mockup (PROMPT-S) — one URL for the founder
     to screenshot the panel without enabling the terminal. Easily removable."""
     return RedirectResponse("/terminal#/swap")
+
+
+@app.get("/docs", include_in_schema=False)
+async def docs_page():
+    return _page("docs.html")
 
 
 @app.get("/assets/{subpath:path}", include_in_schema=False)
