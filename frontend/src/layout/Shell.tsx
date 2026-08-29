@@ -2,21 +2,21 @@ import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import '../styles/app.css'
 
-const NAV: { id: string; icon: string; label: string; pill?: 'NEW' | number }[] = [
+const NAV: { id: string; icon: string; label: string; pill?: 'NEW' | number; soon?: boolean }[] = [
   { id: 'dashboard', icon: '▦', label: 'Dashboard' },
   { id: 'swap', icon: '⇅', label: 'Swap', pill: 'NEW' },
   { id: 'scanner', icon: '⌕', label: 'Token Scanner' },
-  { id: 'rugcheck', icon: '⛨', label: 'Rug Check' },
-  { id: 'whale', icon: '◍', label: 'Whale Tracker' },
-  { id: 'cluster', icon: '❋', label: 'Cluster Analysis' },
-  { id: 'ai', icon: '✦', label: 'AI Analyst', pill: 'NEW' },
-  { id: 'portfolio', icon: '▤', label: 'Portfolio Watch' },
-  { id: 'alerts', icon: '◆', label: 'Alerts', pill: 12 },
-  { id: 'holdings', icon: '▣', label: 'Holdings Check' },
-  { id: 'gate', icon: '⚿', label: 'Token Gate' },
-  { id: 'settings', icon: '⚙', label: 'Settings' },
-  { id: 'docs', icon: '❐', label: 'Documentation' },
-  { id: 'feedback', icon: '✎', label: 'Feedback' },
+  { id: 'rugcheck', icon: '⛨', label: 'Rug Check', soon: true },
+  { id: 'whale', icon: '◍', label: 'Whale Tracker', soon: true },
+  { id: 'cluster', icon: '❋', label: 'Cluster Analysis', soon: true },
+  { id: 'ai', icon: '✦', label: 'AI Analyst', soon: true },
+  { id: 'portfolio', icon: '▤', label: 'Portfolio Watch', soon: true },
+  { id: 'alerts', icon: '◆', label: 'Alerts', soon: true },
+  { id: 'holdings', icon: '▣', label: 'Holdings Check', soon: true },
+  { id: 'gate', icon: '⚿', label: 'Token Gate', soon: true },
+  { id: 'settings', icon: '⚙', label: 'Settings', soon: true },
+  { id: 'docs', icon: '❐', label: 'Documentation', soon: true },
+  { id: 'feedback', icon: '✎', label: 'Feedback', soon: true },
 ]
 
 function useHashRoute(): string {
@@ -86,6 +86,11 @@ export function Shell({ pages }: { pages: Record<string, ReactNode> }) {
               <span className="txt">{n.label}</span>
               {n.pill === 'NEW' && <span className="pill pill-new">NEW</span>}
               {typeof n.pill === 'number' && <span className="pill pill-n">{n.pill}</span>}
+              {n.soon && (
+                <span className="pill" style={{ opacity: 0.55, border: '1px solid var(--border)' }}>
+                  SOON
+                </span>
+              )}
             </a>
           ))}
         </nav>
@@ -97,8 +102,8 @@ export function Shell({ pages }: { pages: Record<string, ReactNode> }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', margin: '5px 0 12px', fontSize: 10.5, color: 'var(--dim)' }}>
             <span>Cycle usage</span><span>89%</span>
           </div>
-          <button className="btn-analyze" style={{ width: '100%', height: 38, fontSize: 12.5 }} onClick={() => setUpgrade(true)}>
-            UPGRADE PLAN
+          <button className="btn-analyze" style={{ width: '100%', height: 38, fontSize: 12.5, opacity: 0.5, cursor: 'not-allowed' }} disabled>
+            UPGRADE PLAN · SOON
           </button>
         </div>
       </aside>
