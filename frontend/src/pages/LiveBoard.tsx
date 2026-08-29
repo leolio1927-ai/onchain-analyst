@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { LIVE_CHAINS, LIVE_CHAIN_LABEL, LiveFeedError, fetchLiveFeed } from '../lib/liveApi'
 import type { LiveChain, LiveFeed, LiveItem } from '../lib/liveApi'
 import { fmtPrice, fmtUsdCompact, truncAddr } from '../lib/liveFormat'
-import { ChgBadge, EmptyBox, ErrBox, Skel, StatusChips, TokenLogo, TradeComingModal, accentStyle } from './liveParts'
+import { ChgBadge, EmptyBox, ErrBox, Skel, SocialLinks, StatusChips, TokenLogo, TradeComingModal, accentStyle } from './liveParts'
 import { ChainLogo } from './chainLogos'
 
 type CardState =
@@ -41,6 +41,7 @@ function MiniRow({ item, onOpen }: { item: LiveItem; onOpen: (it: LiveItem) => v
         {item.launchpad ? <span className="badge lp">{item.launchpad}</span> : null}
         <span><span className="k">VOL </span>{fmtUsdCompact(item.volume_24h)}</span>
         <span><span className="k">LIQ </span>{fmtUsdCompact(item.liquidity_usd)}</span>
+        <SocialLinks socials={item.socials} />
         <span>{truncAddr(item.pool_address)}</span>
       </div>
     </div>
