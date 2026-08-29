@@ -426,6 +426,11 @@ async def docs_page():
     return _page("docs.html")
 
 
+@app.get("/roadmap", include_in_schema=False)
+async def roadmap_page():
+    return _page("roadmap.html")
+
+
 @app.get("/assets/{subpath:path}", include_in_schema=False)
 async def assets(subpath: str):
     base = (_dist_dir() / "assets").resolve()
