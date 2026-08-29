@@ -1,8 +1,8 @@
 /* TOKEN PAGE (S2) — full-bleed, dense, shipped-product token detail + swap.
-   Reference: printr token page. FE-only mock: every number is STATIC and the
-   page hero says so; one MOCK chip per panel, never per number. Deterministic
-   seeded candles/trades (same input → same page). DNA: 2px bordir, dashed
-   hairlines, glow, mono density, zero purple.
+   Reference: printr token page. FE-only simulated surface: every number is
+   STATIC and the page hero says so; one SIMULATED chip per panel, never per
+   number. Deterministic seeded candles/trades (same input → same page). DNA:
+   2px bordir, dashed hairlines, glow, mono density, zero purple.
    LAYOUT (founder-locked): main row = LEFT column stacks chart → bonding →
    trades directly (zero gaps); RIGHT column (380px) is the compact swap rail
    (sticky). No canvas — crash-proof pure CSS background. */
@@ -15,7 +15,7 @@ import { accentStyle } from './liveParts'
 import { ChainLogo } from './chainLogos'
 import '../styles/swap.css'
 
-/* ── deterministic mock data ──────────────────────────────────── */
+/* ── deterministic simulated data set ─────────────────────────── */
 function mulberry32(seed: number) {
   return () => {
     seed |= 0; seed = (seed + 0x6D2B79F5) | 0
@@ -107,7 +107,7 @@ function ChartSvg() {
   const last = BARS[BARS.length - 1]
   const grid = [0, 1, 2, 3, 4].map((i) => lo + ((hi - lo) * i) / 4)
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="MOCK candlestick chart, static data">
+    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Simulated candlestick chart, static data">
       {grid.map((p, i) => (
         <g key={i}>
           <line x1={0} x2={W - PADR} y1={y(p)} y2={y(p)} stroke="var(--border-soft)"
@@ -172,7 +172,7 @@ function SwapRail() {
   const getAmt = payAmt * price > 0 ? payAmt / price : 0
   return (
     <section className="tk-panel" data-chain={chain} style={accentStyle(chain)}>
-      <div className="tk-phd">SWAP <span className="tk-mock">MOCK</span></div>
+      <div className="tk-phd">SWAP <span className="tk-mock">SIMULATED</span></div>
       <div className="tk-swap">
         <div className="sw-tabs2" role="tablist" aria-label="direction">
           <button type="button" role="tab" aria-selected={dir === 'buy'}
@@ -224,14 +224,14 @@ function SwapRail() {
         </button>
         {adv && (
           <div className="sw2-adv-body">
-            <label>SLIPPAGE TOLERANCE <span className="tk-mock">MOCK</span><input placeholder="1.0 %" readOnly tabIndex={-1} /></label>
-            <label>DEADLINE <span className="tk-mock">MOCK</span><input placeholder="30 min" readOnly tabIndex={-1} /></label>
+            <label>SLIPPAGE TOLERANCE <span className="tk-mock">SIMULATED</span><input placeholder="1.0 %" readOnly tabIndex={-1} /></label>
+            <label>DEADLINE <span className="tk-mock">SIMULATED</span><input placeholder="30 min" readOnly tabIndex={-1} /></label>
           </div>
         )}
         <button type="button" className="sw2-cta" onClick={() => {}}>
           {payAmt > 0 ? 'SWAP' : 'CONNECT WALLET'}
         </button>
-        <p className="sw2-note">MOCKUP — static data, no wallet, no chain calls.</p>
+        <p className="sw2-note">SIMULATED · PRE-RELEASE — deterministic data set, no wallet, no chain calls.</p>
       </div>
     </section>
   )
@@ -272,7 +272,7 @@ export function TokenPage() {
                 <div className="l">Market Cap</div>
                 <div className="v">{TOKEN.mc}</div>
               </div>
-              <span className="tk-mock" style={{ position: 'absolute', top: 12, right: 14 }}>MOCK</span>
+              <span className="tk-mock" style={{ position: 'absolute', top: 12, right: 14 }}>SIMULATED</span>
             </div>
           </section>
 
@@ -327,7 +327,7 @@ export function TokenPage() {
                 <div className="rail"><i /></div>
                 <span className="pct">0.0%</span>
                 <span className="st">STATUS · ACTIVE</span>
-                <span className="tk-mock">MOCK</span>
+                <span className="tk-mock">SIMULATED</span>
               </section>
 
               <section className="tk-panel">
@@ -375,7 +375,7 @@ export function TokenPage() {
             <aside className="tk-rail-r">
               <SwapRail />
               <section className="tk-panel tk-info" data-chain={chain}>
-                <div className="tk-phd">INFORMATION <span className="tk-mock">MOCK</span></div>
+                <div className="tk-phd">INFORMATION <span className="tk-mock">SIMULATED</span></div>
                 <div className="tk-info">
                   <div className="tk-info-row">
                     <span className="tk-info-logo">{TOKEN.ticker.slice(0, 1)}</span>
@@ -387,11 +387,11 @@ export function TokenPage() {
                   <div className="tk-kv"><span>CREATED BY</span><b>{TOKEN.creator} <CopyCa value={TOKEN.creator} /></b></div>
                   <div className="tk-kv"><span>CREATION DATE</span><b>{TOKEN.created}</b></div>
                   <span className="tk-badge">MEMECOIN</span>
-                  <p className="sw2-note">Just few hours left to bond up hold. (mock status line)</p>
+                  <p className="sw2-note">Just few hours left to bond up hold. (simulated status line)</p>
                 </div>
               </section>
               <section className="tk-panel" data-chain={chain}>
-                <div className="tk-phd">MOVEMENT <span className="tk-mock">MOCK</span></div>
+                <div className="tk-phd">MOVEMENT <span className="tk-mock">SIMULATED</span></div>
                 <div className="tk-grid2">
                   {[['5M', '+0.4%', 'pos'], ['1H', '+1.2%', 'pos'], ['4H', '−2.1%', 'neg'], ['24H', '+5.6%', 'pos']].map(([t, v, c]) => (
                     <div className="tk-cell" key={t}>
