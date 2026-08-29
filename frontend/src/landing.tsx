@@ -2,10 +2,13 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { useEffect, useRef, useState } from 'react'
 import './styles/landing3.css'
-import { ChainGlobe, DataStream, PageBackground, RadarScanner, SystemDiagram } from './components/visuals'
+import { PageBackground, ChainGlobe, RadarScanner, SystemDiagram } from './components/visuals'
 import { NET_CHAINS } from './lib/netChains'
-import { stream, type FeedEvent } from './lib/liveStream'
-import { fetchChainTickers, type LiveRow } from './services/dexscreener'
+import { fetchLiveFeed, LIVE_CHAINS, LIVE_CHAIN_LABEL, LIVE_MODES } from './lib/liveApi'
+import type { LiveChain, LiveItem } from './lib/liveApi'
+import { fmtPct, fmtPrice, fmtUtcClock } from './lib/liveFormat'
+import { ChainLogo } from './pages/chainLogos'
+import { BRAND_NAME, BRAND_LEGAL, BRAND_DATA, BRAND_POSTURE } from './lib/brand'
 
 /* ═══════════ helpers ═══════════ */
 
@@ -89,41 +92,13 @@ function Magnetic({ children, className = '', href }: { children: React.ReactNod
   )
 }
 
-/* count-up on first view */
-function CountUp({ to, decimals = 0, suffix = '', prefix = '', dur = 1600 }: {
-  to: number; decimals?: number; suffix?: string; prefix?: string; dur?: number
-}) {
-  const ref = useRef<HTMLSpanElement>(null)
-  const [v, setV] = useState(0)
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    let raf = 0
-    const io = new IntersectionObserver((es) => {
-      if (!es[0].isIntersecting) return
-      io.disconnect()
-      const t0 = performance.now()
-      const step = (t: number) => {
-        const k = Math.min(1, (t - t0) / dur)
-        const eased = 1 - Math.pow(1 - k, 3)
-        setV(to * eased)
-        if (k < 1) raf = requestAnimationFrame(step)
-      }
-      raf = requestAnimationFrame(step)
-    }, { threshold: 0.4 })
-    io.observe(el)
-    return () => { io.disconnect(); cancelAnimationFrame(raf) }
-  }, [to, dur])
-  return <span ref={ref} className="odometer">{prefix}{v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}{suffix}</span>
-}
-
 /* kinetic decode — terminal scramble per character */
 const GLYPHS = '!<>-_\\/[]{}=+*^?#@$%&'
 
 function Decode({ text, delay = 0, className = '' }: { text: string; delay?: number; className?: string }) {
   const [out, setOut] = useState(text)
   useEffect(() => {
-    // initial state is already `text` — reduced-motion just skips the animation
+    // initial state is already `text` — reduced motion just skips the animation
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     let raf = 0
     const start = performance.now() + delay
@@ -164,12 +139,12 @@ function Spotlight() {
   return <div className="lv-spotlight" ref={ref} aria-hidden="true" />
 }
 
-/* boot sequence preloader */
+/* boot sequence preloader — engineering truth only */
 const BOOT = [
-  'INITIALIZING INTELLIGENCE LAYER',
-  'LINKING DATA PROVIDERS ······ OK',
-  'CALIBRATING RISK HEURISTICS ·· OK',
-  'ARMING SCANNER ARRAY ········ OK',
+  'INITIALIZING TERMINAL ALPHA',
+  'DATA · GECKOTERMINAL + DEXSCREENER · KEYLESS',
+  'HEURISTICS · PUBLIC AND AUDITABLE',
+  'POSTURE · READ-ONLY · NO CUSTODY',
 ]
 
 function Preloader({ onDone }: { onDone: () => void }) {
@@ -185,7 +160,7 @@ function Preloader({ onDone }: { onDone: () => void }) {
   return (
     <div className="lv-boot" aria-hidden="true">
       <div className="lv-boot-in">
-        <div className="lv-boot-logo">◤ TERMINAL ALPHA</div>
+        <div className="lv-boot-logo">◤ {BRAND_NAME}</div>
         {BOOT.slice(0, n).map((b) => <div className="lv-boot-line" key={b}>{b}</div>)}
         <div className="lv-boot-bar"><span style={{ width: `${pct}%` }} /></div>
         <div className="lv-boot-pct">{pct}%</div>
@@ -248,12 +223,6 @@ export function Icon({ name, size = 22, className = '' }: { name: string; size?:
         <path d="M6 6l12 12" />
       </g>
     ),
-    key: (
-      <g>
-        <circle cx="8" cy="8.5" r="3.7" />
-        <path d="M10.8 11.3L20 20.5M17.2 17.7l2.2-2.2M13.8 20l2-2" />
-      </g>
-    ),
     check: (
       <g>
         <circle cx="12" cy="12" r="8.5" />
@@ -272,8 +241,6 @@ export function Icon({ name, size = 22, className = '' }: { name: string; size?:
         <path d="M7 12h10" />
       </g>
     ),
-    x: <path d="M4.5 4.5l6.3 8.2-6.6 6.8h2.6l5.2-5.5 4 5.5h5.5l-6.7-8.8 6.2-6.2h-2.6l-4.8 5-3.6-5z" fill="currentColor" stroke="none" />,
-    telegram: <path d="M21 4.5L2.8 11.4l5.6 2 2 5.9 3.2-3.7 4.6 3.4z M21 4.5L8.4 13.4" />,
     activity: <path d="M3 12h3.5l3-7.5 4.5 15 3-7.5H21" />,
   }
   return (
@@ -283,67 +250,88 @@ export function Icon({ name, size = 22, className = '' }: { name: string; size?:
   )
 }
 
-/* ═══════════ live engine consumers ═══════════ */
+/* ═══════════ the real tape — REST /api/v1/live, staggered ═══════════
+   Decision (documented in the task report): /ws/snap's tick list mirrors the
+   /api/scan cache — empty on a fresh server, so a landing tape fed by it
+   would be an empty tape. The honest live wire for visitors is the shipped
+   keyless REST feed: top trending pool per chain, refreshed every 60s in a
+   stagger, server-cached 180s. The chip says exactly that — no "realtime"
+   theater. */
 
-function Ticker() {
-  const [rows, setRows] = useState<LiveRow[] | null>(null)
+interface TapeRow { chain: LiveChain; item: LiveItem | null }
+
+function Tape() {
+  const [rows, setRows] = useState<TapeRow[]>([])
+  const [down, setDown] = useState(false)
+  const [sync, setSync] = useState('·····')
   useEffect(() => {
-    let dead = false
-    const pull = () => fetchChainTickers().then((r) => { if (!dead && r) setRows(r) })
+    let alive = true
+    const timers: number[] = []
+    const pull = () => {
+      LIVE_CHAINS.forEach((c, i) => {
+        timers.push(window.setTimeout(() => {
+          fetchLiveFeed(c, 'trending', 1)
+            .then((f) => {
+              if (!alive) return
+              setRows((rs) => {
+                const next = rs.filter((r) => r.chain !== c)
+                next.push({ chain: c, item: f.items[0] ?? null })
+                return LIVE_CHAINS
+                  .map((ch) => next.find((r) => r.chain === ch))
+                  .filter((r): r is TapeRow => Boolean(r))
+              })
+              setDown(false)
+              setSync(fmtUtcClock(f.generated_at))
+            })
+            .catch(() => { if (alive) setDown(true) })
+        }, i * 350))
+      })
+    }
     pull()
-    const iv = setInterval(pull, 60000)
-    return () => { dead = true; clearInterval(iv) }
+    const iv = window.setInterval(pull, 60000)
+    return () => { alive = false; timers.forEach(clearTimeout); clearInterval(iv) }
   }, [])
   return (
-    <div className="lv-chains" role="list">
-      {(rows ?? []).map((r) => {
-        const ct = r.chain.toLowerCase()
-        const k = ct.startsWith('sol') ? 'sol' : ct.startsWith('bnb') || ct === 'bsc' ? 'bnb' : ct === 'base' ? 'base' : ct.startsWith('ava') ? 'avax' : 'hype'
-        return (
-          <a className="lv-chain-card" role="listitem" key={r.pair + r.chain} data-chain={k} href={r.url || '#'} target="_blank" rel="noreferrer">
-            <span className="cc-chain">{r.symbol.toUpperCase()}<i style={{ fontStyle: 'normal', marginLeft: 8, fontSize: 10.5, color: 'var(--dim)', letterSpacing: 0 }}>{r.pair}</i></span>
-            <span className="cc-price">${r.price >= 1 ? r.price.toLocaleString('en-US', { maximumFractionDigits: 2 }) : r.price.toPrecision(4)}</span>
-            <span className="cc-meta" style={{ display: 'flex' }}>
-              <span className={r.chg >= 0 ? 'up' : 'down'}>{r.chg >= 0 ? '+' : ''}{r.chg.toFixed(1)}%</span>
-              <span style={{ marginLeft: 'auto', color: 'var(--dim)' }}>VOL {r.vol >= 1e6 ? `$${(r.vol / 1e6).toFixed(1)}M` : r.vol >= 1e3 ? `$${(r.vol / 1e3).toFixed(0)}K` : '—'}</span>
-            </span>
+    <div className="lv-tapewrap" aria-label="Live trending pools, one per chain">
+      <div className="lv-tapehd">
+        <span className="live-dot" /> LIVE FEED · TOP TRENDING PER CHAIN
+        <span className={`st${down ? ' down' : ''}`}>
+          <span className="dot" />{down ? 'RECONNECTING' : `SYNCED ${sync}`}
+        </span>
+      </div>
+      {rows.length === 0
+        ? <div className="lv-taperow"><span className="sym">connecting to the keyless feed…</span></div>
+        : rows.map((r) => (
+          <a className="lv-taperow" key={r.chain} href={`/live/${r.chain}`}>
+            <ChainLogo chain={r.chain} size={26} />
+            <span className="sym">{r.item?.token_symbol ?? '–'}<small>{LIVE_CHAIN_LABEL[r.chain]} · {r.item?.pair ?? '–'}</small></span>
+            <span className="px">{fmtPrice(r.item?.price_usd ?? null)}</span>
+            <span className={`chg ${Number(r.item?.change_24h) < 0 ? 'down' : 'up'}`}>{fmtPct(r.item?.change_24h ?? null)}</span>
           </a>
-        )
-      })}
+        ))}
+      <div className="lv-tapeft">
+        <span>GECKOTERMINAL KEYLESS FREE TIER</span>
+        <span>SERVER CACHE 180s</span>
+        <a className="fill" href="/live">OPEN THE FULL BOARD →</a>
+      </div>
     </div>
   )
 }
 
-function LiveFeed() {
-  const [rows, setRows] = useState<FeedEvent[]>([])
-  useEffect(() => {
-    const off = stream.subscribe((e) => {
-      setRows((rs) => [e, ...rs].slice(0, 4))
-    })
-    return off
-  }, [])
-  const view = (e: FeedEvent): { tag: string; sym: string; val: string; tone: 'g' | 'y' | 'r' } => {
-    switch (e.kind) {
-      case 'RUG': return { tag: 'RUG', sym: `${e.sym} · ${e.chain}`, val: `RUG RISK ${e.risk}`, tone: 'r' }
-      case 'SAFE': return { tag: 'SAFE', sym: `${e.sym} · ${e.chain}`, val: `RISK ${e.risk}`, tone: 'g' }
-      case 'SCAN': return { tag: 'SCAN', sym: `${e.sym} · ${e.chain}`, val: `RISK ${e.risk}`, tone: e.risk >= 60 ? 'y' : 'g' }
-      case 'WHALE': return { tag: 'WHALE', sym: `$${(e.usd / 1000).toFixed(1)}K accumulated`, val: e.wallet, tone: 'g' }
-      case 'LOCK': return { tag: 'LOCK', sym: `LP locked · ${e.pct}%`, val: e.sym, tone: 'g' }
-    }
-  }
+/* live-verified stats — counted from the shipped client constants + product facts */
+function StatRow() {
+  const stats: { v: string; l: string; zero?: boolean }[] = [
+    { v: String(LIVE_CHAINS.length), l: 'chains live' },
+    { v: String(LIVE_MODES.length), l: 'feed modes' },
+    { v: '180s', l: 'server cache' },
+    { v: '0', l: 'api keys required', zero: true },
+    { v: '0', l: 'trades executed by us', zero: true },
+  ]
   return (
-    <div className="lv-feed" aria-hidden="true">
-      <div className="lv-feed-hd"><span className="blink" /> LIVE SCAN FEED <span className="lv-feed-src">DEXSCREENER + GECKOTERMINAL</span></div>
-      {rows.map((e, i) => {
-        const v = view(e)
-        return (
-          <div className={`lv-feed-row f-${v.tone}`} key={`${v.tag}-${v.sym}-${i}`} style={{ animationDelay: `${i * 0.05}s` }}>
-            <span className="tag">{v.tag}</span>
-            <span className="sym">{v.sym}</span>
-            <span className="v">{v.val}</span>
-          </div>
-        )
-      })}
+    <div className="lv-statrow" aria-label="Live-verified product stats">
+      {stats.map((s) => (
+        <span className={`lv-stat${s.zero ? ' zero' : ''}`} key={s.l}><b>{s.v}</b>{s.l}</span>
+      ))}
     </div>
   )
 }
@@ -351,8 +339,10 @@ function LiveFeed() {
 /* ═══════════ sections ═══════════ */
 
 const NAV = [
-  ['Features', 'features'], ['How It Works', 'how'], ['Multi-Chain', 'chains'],
-  ['AI Analyst', 'ai'], ['Token Utility', 'token'], ['Roadmap', '/roadmap'], ['Docs', '/docs'],
+  ['How It Works', 'how'], ['Multi-Chain', 'chains'], ['Security', 'security'],
+]
+const NAV_BOXED = [
+  ['Memecoin Live', '/live'], ['Docs', '/docs'], ['Roadmap', '/roadmap'],
 ]
 
 function Nav() {
@@ -369,18 +359,21 @@ function Nav() {
           <a href="#" className="lv-logo"><span className="m">◤</span>TERMINAL&nbsp;<span className="lg">ALPHA</span></a>
           <div className="lv-nav-links">
             {NAV.map(([l, id]) => (
-              <a key={id} href={id.startsWith('/') ? id : `#${id}`} className={cur === id ? 'on' : ''}>{l}</a>
+              <a key={id} href={`#${id}`} className={cur === id ? 'on' : ''}>{l}</a>
             ))}
-            <a href="/live" style={{ color: 'var(--g)', textShadow: '0 0 14px rgba(0,255,163,.45)' }}>Memecoin Live</a>
+            {NAV_BOXED.map(([l, href]) => (
+              <a key={href} className="boxed" href={href}>{l}</a>
+            ))}
             <span className="lv-clock" title="UTC">◉ {clock} UTC</span>
-            <a className="lv-cta neon" href="/terminal">Launch Terminal →</a>
+            <a className="lv-cta neon boxed" href="/terminal">Launch Terminal →</a>
           </div>
           <button className="lv-burger" aria-label="Menu" onClick={() => setOpen(!open)}><i /><i /><i /></button>
         </div>
         {open && (
           <div className="lv-nav-drop">
-            <a href="/live" onClick={() => setOpen(false)}>Memecoin Live</a>
-            {NAV.map(([l, id]) => <a key={id} href={id.startsWith('/') ? id : `#${id}`} onClick={() => setOpen(false)}>{l}</a>)}
+            {NAV_BOXED.map(([l, href]) => <a key={href} href={href} onClick={() => setOpen(false)}>{l}</a>)}
+            {NAV.map(([l, id]) => <a key={id} href={`#${id}`} onClick={() => setOpen(false)}>{l}</a>)}
+            <a href="/terminal" onClick={() => setOpen(false)}>Launch Terminal →</a>
           </div>
         )}
       </nav>
@@ -389,6 +382,7 @@ function Nav() {
 }
 
 function Hero() {
+  /* 3D tilt on the radar stage — pointer-fine devices only */
   const tilt = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const el = tilt.current
@@ -412,194 +406,171 @@ function Hero() {
     <section className="lv-hero" id="top">
       <div className="lv-hero-bg" />
       <div className="rv vis">
-        <a className="lv-announce" href="#features">
-          <span className="blink" /> NEW — WALLET CLUSTERING v2 IS LIVE <i>→</i>
+        <a className="lv-announce" href="/docs#honesty">
+          <span className="blink" /> THE HONESTY LAW — SIX CLAUSES, ENFORCED IN CODE <i>→</i>
         </a>
-        <div className="lv-kicker"><span className="live-dot" /> SYSTEM ONLINE — SCANNING ACTIVE</div>
+        <div className="lv-kicker"><span className="live-dot" /> MEMECOIN RESEARCH · 6 CHAINS · KEYLESS LIVE</div>
         <h1 className="lv-h1">
-          <span className="l1"><Decode text="See What Others" delay={900} />&nbsp;<Decode text="Miss." delay={1250} /></span>
-          <span className="l2 grad"><Decode text="Understand What Matters." delay={1500} />&nbsp;</span>
+          <span className="l1"><Decode text="See What Others Miss." delay={700} /></span>
+          <span className="l2 grad"><Decode text="VERIFY EVERYTHING." delay={1250} /></span>
         </h1>
         <p className="lv-sub">
-          Since 2024, <b>18.7 million memecoins launched — 98.6% were built to hurt you.</b> Terminal
-          Alpha scans them across five chains, scores the risk with deterministic heuristics, and
-          explains why with evidence-first AI. No signals. No hype. Just the truth, faster.
+          A read-only research terminal for memecoin markets across six chains — keyless live
+          feeds, deterministic risk heuristics with public thresholds, and evidence-first AI.
+          <b> No custody. No keys. No black boxes.</b> Everything on this site renders exactly
+          what an upstream API actually returned.
         </p>
         <div className="lv-badges">
-          <span className="lv-badge hot"><Icon name="spark" size={13} /> AI-Powered Analysis</span>
-          <span className="lv-badge"><Icon name="hex" size={13} /> Multi-Chain</span>
-          <span className="lv-badge"><Icon name="shield" size={13} /> Rug Check</span>
-          <span className="lv-badge"><Icon name="cluster" size={13} /> Wallet Intelligence</span>
+          <span className="lv-badge hot"><Icon name="scan" size={13} /> Keyless Live Feeds</span>
+          <span className="lv-badge"><Icon name="hex" size={13} /> Six Chains</span>
+          <span className="lv-badge"><Icon name="cpu" size={13} /> Public Heuristics</span>
           <span className="lv-badge"><Icon name="ban" size={13} /> No Trading Execution</span>
+          <span className="lv-badge"><Icon name="lock" size={13} /> No Custody</span>
         </div>
         <div className="lv-hero-cta">
-          <Magnetic href="/terminal" className="lv-cta neon mag">Launch Terminal →</Magnetic>
-          <a className="lv-cta ghost" href="#features">Explore Features</a>
+          <Magnetic href="/terminal" className="lv-cta neon mag boxed">Launch Terminal →</Magnetic>
+          <a className="lv-cta ghost" href="/docs">Read the Docs →</a>
         </div>
-        <LiveFeed />
+        <StatRow />
       </div>
       <div className="lv-radar" aria-hidden="true">
         <div className="tilt" ref={tilt}>
           <RadarScanner />
         </div>
+        {/* honest readout — real product facts, no invented panel numbers */}
         <div className="lv-hud">
-          <div className="cell"><b>RISK ENGINE</b><span className="v">68/100</span><small>MEDIUM RISK</small></div>
-          <div className="cell"><b>CLUSTERS</b><span className="v">3</span><small>42.3% SUPPLY</small></div>
-          <div className="cell"><b>WHALES 24H</b><span className="v">$318K</span><small>NET FLOW</small></div>
+          <div className="cell"><b>FEED</b><span className="v">LIVE · KEYLESS</span><small>GECKOTERMINAL</small></div>
+          <div className="cell"><b>CACHE</b><span className="v">180s</span><small>STALE-SAFE</small></div>
+          <div className="cell"><b>MODES</b><span className="v">4</span><small>α LENS INCLUDED</small></div>
         </div>
-        <div className="lv-scanpill"><span className="blink" /> SCANNING THE MEMECOIN UNIVERSE</div>
+        <div className="lv-scanpill"><span className="blink" /> SCANNING SIX CHAINS · SOL BNB BASE HYPE HOOD AVAX</div>
       </div>
     </section>
   )
 }
 
-const METRICS = [
-  { to: 33.5, prefix: '$', suffix: 'B', label: 'MEMECOIN MARKET CAP · LIVE', c: 'c-green', d: 1 },
-  { to: 3.8, prefix: '$', suffix: 'B', label: '24H GLOBAL VOLUME · LIVE', c: 'c-neon', d: 1 },
-  { to: 18.7, suffix: 'M', label: 'LAUNCHES SINCE 2024', c: 'c-amber', d: 1 },
-  { to: 98.6, suffix: '%', label: 'SHOW RUG-PULL BEHAVIOR', c: 'c-red', d: 1 },
-  { to: 0.8, prefix: '', suffix: '%', label: 'GRADUATION RATE · 2026', c: 'c-amber', d: 1 },
-  { to: 0, suffix: '', label: 'TRADES EXECUTED BY US', c: 'c-green', d: 0 },
+/* the real tape — full-width band directly under the hero */
+function TapeBand() {
+  return (
+    <section className="lv-tapeband">
+      <Tape />
+    </section>
+  )
+}
+
+/* S2 — the problem, qualitative only (no unverifiable fear stats) */
+function Problem() {
+  return (
+    <section className="lv-sec" id="problem">
+      <div className="lv-num">00</div>
+      <div className="lv-problem rv">
+        <div className="lv-k2">WHY TERMINAL ALPHA EXISTS</div>
+        <h2 className="lv-h2">Most memecoins are built <span className="a">to hurt you.</span></h2>
+        <p>
+          Discovery is fragmented across chain ecosystems, volume displays lie, ratings are
+          opaque, and trading interfaces quietly hold your custody risk. We built the filter
+          we wished existed — <b>deterministic, transparent, and boring about the truth.</b> The
+          numbers you will see here are the numbers the chain returned — or an honest dash.
+        </p>
+      </div>
+    </section>
+  )
+}
+
+/* S3 — the honesty law teaser → docs */
+const LAWS = [
+  { no: '2.1', t: 'Absent stays absent.', d: 'A field the upstream did not return renders “–” — never imputed, never zero-filled.', ref: 'in code: providers/live.py · _normalize()' },
+  { no: '2.2', t: 'Zero is a fact.', d: '$0 liquidity and 0 trades are real market states and stay visible.', ref: 'in code: providers/live.py · _no_neg() keeps zeros' },
+  { no: '2.3', t: 'A negative drop is data.', d: 'Minus 24h changes render in red. Never suppressed.', ref: 'in code: lib/liveFormat.ts · fmtPct()' },
+  { no: '2.4', t: 'Impossible values are bugs.', d: 'A negative price or liquidity normalizes to “–” — never clamped, never absolute-valued.', ref: 'in code: providers/live.py · _no_neg()' },
+  { no: '2.5', t: 'Pre-release is declared.', d: 'Any surface not wired to execution renders a labeled deterministic data set.', ref: 'in code: src/pages/TokenPage.tsx · SIMULATED chips' },
+  { no: '2.6', t: 'Heuristics are auditable.', d: 'Every threshold and weight is public code — a score you cannot audit, you must not follow.', ref: 'in code: providers/live.py · ALPHA_WEIGHTS' },
 ]
 
-function Metrics() {
+function Honesty() {
   return (
-    <section className="lv-metrics">
-      <div className="lv-metrics-in">
-        {METRICS.map((m) => (
-          <div key={m.label}>
-            <b className={m.c}>{m.to === 0 ? '0' : <CountUp to={m.to} decimals={m.d} suffix={m.suffix} prefix={m.prefix ?? ''} />}</b>
-            <small>{m.label}</small>
-          </div>
+    <section className="lv-sec alt" id="honesty">
+      <div className="lv-num">01</div>
+      <div className="lv-sec-head lv-center rv">
+        <div className="lv-k2">THE HONESTY LAW</div>
+        <h2 className="lv-h2">Zero Lies, <span className="a">As Code.</span></h2>
+        <p className="lv-lead">Six clauses govern every surface of this product. Each one is a function you can read — not a value we promise.</p>
+      </div>
+      <div className="lv-lawgrid">
+        {LAWS.map((l) => (
+          <a className="lv-law rv" key={l.no} href="/docs#honesty">
+            <span className="no">CLAUSE {l.no}</span>
+            <b>{l.t}</b>
+            <span>{l.d}</span>
+            <span className="ref">{l.ref}</span>
+          </a>
         ))}
       </div>
-      <div className="lv-metrics-src">LIVE MARKET DATA · COINGECKO (AUG 2026) · PUMP.FUN ON-CHAIN · SOLIDUS LABS · “TRADES EXECUTED” IS A PRODUCT FACT, NOT A FORECAST</div>
     </section>
   )
 }
 
-/* the honest hook — real 2026 numbers, our reason to exist */
-function RugReality() {
-  return (
-    <section className="lv-sec" id="reality">
-      <div className="lv-num">00</div>
-      <div className="lv-reality rv">
-        <div className="rv-big">98.6%</div>
-        <div className="rv-copy">
-          <div className="lv-k2">WHY TERMINAL ALPHA EXISTS</div>
-          <h2 className="lv-h2">Most memecoins are built <span className="a">to hurt you.</span></h2>
-          <p>
-            Of <b>18.67M tokens launched on pump.fun since January 2024</b>, <b>98.6% showed rug-pull
-            or manipulative behavior</b> — and 68.7% (12.8M) stopped trading the same day they launched.
-            The graduation rate recently fell to <b>0.7–0.8%</b>. Fewer than one in a hundred survives.
-          </p>
-          <p style={{ marginTop: 10 }}>
-            You don't need more signals. You need better filters — deterministic, transparent,
-            and boring about the truth.
-          </p>
-          <div className="rv-src">
-            SOURCES: SOLIDUS LABS · PUMP.FUN ON-CHAIN (18.67M TOKENS) · CRYPTORANK · COINGECKO LIVE AUG 2026
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-const TRUST = ['Multi-Chain Intelligence', 'AI Reasoning', 'Risk Detection', 'Wallet Intelligence', 'Evidence-Based Analysis']
-
-function Trust() {
-  return (
-    <section className="lv-trust">
-      <div className="lv-trust-in">
-        {TRUST.map((t) => <span key={t}>{t}</span>)}
-      </div>
-    </section>
-  )
-}
-
+/* S4 — how it works, purified to the docs truth */
 const STAGES = [
-  { n: 'STAGE 01', t: 'DATA LAYER', icon: 'hex', badge: false, desc: 'Market, trade and on-chain data aggregated into a unified intelligence layer.', chips: ['DexScreener', 'GeckoTerminal', 'Helius', 'Birdeye', 'Bitquery'] },
-  { n: 'STAGE 02', t: 'ENGINE', icon: 'cpu', badge: true, desc: 'Deterministic algorithms detect suspicious patterns before AI reasoning begins.', chips: ['Rug Check', 'Wallet Clustering', 'Liquidity', 'Holders', 'Volume', 'Patterns'] },
-  { n: 'STAGE 03', t: 'AI ANALYST', icon: 'spark', badge: false, desc: 'AI interprets verified evidence instead of inventing facts.', chips: ['Evidence-Based', 'Risk Explanation', 'Pattern Summary', 'Deep Analysis'] },
-  { n: 'STAGE 04', t: 'TERMINAL', icon: 'grid', badge: false, desc: 'All intelligence delivered through one powerful terminal experience.', chips: ['Dashboard', 'Alerts', 'AI Chat', 'Watchlist', 'Reports'] },
+  {
+    n: 'STAGE 01', t: 'DATA LAYER', icon: 'hex', live: true,
+    desc: 'Keyless ingestion → normalize + integrity guard → per-token dedupe → TTL cache. One pipeline through, every stage documented.',
+    chips: ['GeckoTerminal · keyless', 'DexScreener · socials', 'Helius · in build', '180s cache', 'junk guard → “–”'],
+  },
+  {
+    n: 'STAGE 02', t: 'ENGINE', icon: 'cpu', live: true,
+    desc: 'Public heuristics: the deterministic α lens and weighted risk checks. Every threshold and weight lives in public code.',
+    chips: ['α lens · published weights', 'rug check', 'wallet clustering', 'no hidden models'],
+  },
+  {
+    n: 'STAGE 03', t: 'AI ANALYST', icon: 'spark', live: false,
+    desc: 'Evidence-first narratives: the model cites its evidence or says “data not available”. Provider-agnostic, never trades.',
+    chips: ['deterministic local tier', 'cites evidence', 'rate-limited', 'no fabrication'],
+  },
+  {
+    n: 'STAGE 04', t: 'TERMINAL', icon: 'grid', live: true,
+    desc: 'One read-only surface: the live board, chain pages, the terminal shell, and the docs you are reading.',
+    chips: ['read-only', 'no custody', 'no accounts', 'no third-party scripts'],
+  },
 ]
 
 function How() {
   return (
-    <section className="lv-sec alt" id="how">
-      <div className="lv-num">01</div>
+    <section className="lv-sec" id="how">
+      <div className="lv-num">02</div>
       <div className="lv-sec-head lv-center rv">
         <div className="lv-k2">HOW IT WORKS</div>
-        <h2 className="lv-h2">AI-Powered On-Chain <span className="a">Intelligence</span></h2>
-        <p className="lv-lead">Real data. Deterministic analysis. AI reasoning.</p>
+        <h2 className="lv-h2">One Pipeline. <span className="a">Zero Magic.</span></h2>
+        <p className="lv-lead">Keyless data, public heuristics, evidence-first analysis — the whole system fits one mental model, by design.</p>
       </div>
       <div className="lv-pipe">
         {STAGES.map((s, i) => (
           <div className={`lv-stage rv d${i}`} key={s.t}>
-            <DataStream className="stream" />
             <div className="n">{s.n}</div>
+            <div style={{ position: 'absolute', top: 26, right: 22 }}>
+              <span className={`lv-status ${s.live ? 'live' : 'design'}`}>{s.live ? 'live' : 'design'}</span>
+            </div>
             <div className="lv-holo"><span className="ring" /><span className="ring r2" /><span className="core"><Icon name={s.icon} size={26} /></span></div>
-            <h3>{s.t}{s.badge && <span className="lv-live-badge" aria-hidden="true" />}</h3>
+            <h3>{s.t}</h3>
             <p className="desc">{s.desc}</p>
             <div className="lv-chips">{s.chips.map((c) => <span className="lv-chip" key={c}>{c}</span>)}</div>
           </div>
         ))}
       </div>
-    </section>
-  )
-}
-
-function Chains() {
-  const [hover, setHover] = useState<string | null>(null)
-  const info = NET_CHAINS.find((c) => c.id === hover)
-  return (
-    <section className="lv-sec" id="chains">
-      <div className="lv-num">02</div>
-      <div className="lv-sec-head lv-center rv">
-        <div className="lv-k2">MULTI-CHAIN</div>
-        <h2 className="lv-h2">One Terminal. <span className="a">All Chains.</span></h2>
-        <p className="lv-lead">Scan, analyze and compare memecoins across multiple ecosystems from one unified intelligence layer.</p>
-      </div>
-      <div className="lv-net-wrap rv">
-        <ChainGlobe hovered={hover} onHover={setHover} />
-        {info && (
-          <div className="lv-net-tip" style={{ borderColor: info.color + '66' }}>
-            <div className="t" style={{ color: info.color }}>{info.label}</div>
-            <div className="s">{info.stats}</div>
-            <span className="b" style={info.live
-              ? { color: '#34d399', border: '1px solid rgba(52,211,153,.4)' }
-              : { color: '#8a91b4', border: '1px dashed rgba(139,145,180,.4)' }}>
-              {info.live ? '● LIVE' : '◇ VERIFICATION PENDING'}
-            </span>
-          </div>
-        )}
-        <div className="lv-net-hint">HOVER A CHAIN NODE</div>
-      </div>
-    </section>
-  )
-}
-
-const FEATS = [
-  { i: 'shield', t: 'Rug Check Engine', d: 'Detect suspicious liquidity, ownership, mint authority and other risk signals.' },
-  { i: 'cluster', t: 'Wallet Clustering', d: 'Detect coordinated wallets, trading patterns and hidden relationships.' },
-  { i: 'spark', t: 'AI Analyst', d: 'Ask questions and receive evidence-based analysis — never invented facts.' },
-  { i: 'eye', t: 'Whale Tracker', d: 'Monitor whale movements, large transactions and smart-money activity.' },
-  { i: 'bell', t: 'Alerts & Watchlist', d: 'Track important tokens and receive intelligent alerts when signals change.' },
-  { i: 'wallet', t: 'Portfolio Intelligence', d: 'Monitor holdings, exposure and risk insights — read-only, no custody.' },
-]
-
-function Features() {
-  return (
-    <section className="lv-sec alt" id="features">
-      <div className="lv-num">03</div>
-      <div className="lv-sec-head lv-center rv">
-        <div className="lv-k2">FEATURES</div>
-        <h2 className="lv-h2">Everything You Need to <span className="a">Stay Ahead</span></h2>
-      </div>
-      <div className="lv-feats">
-        {FEATS.map((f, i) => (
+      {/* engine surface — every tile carries its true status */}
+      <div className="lv-feats" style={{ marginTop: 26 }}>
+        {[
+          { i: 'shield', t: 'Rug Check Engine', chip: 'live', d: 'Weighted liquidity, volume and age signals with public thresholds — shipped in the scan pipeline.' },
+          { i: 'grid', t: 'Multi-Chain Board', chip: 'live', d: 'Six chains, four feed modes, honest flags — the /live board and chain pages.' },
+          { i: 'cluster', t: 'Wallet Clustering', chip: 'build', d: 'Coordination heuristic over the GeckoTerminal trade feed — engine shipped, web surface queued.' },
+          { i: 'eye', t: 'Whale Tracker', chip: 'build', d: 'Wallet balances via Helius — framework in place, wiring next.' },
+          { i: 'spark', t: 'AI Analyst', chip: 'design', d: 'Evidence-first narratives over live data — the /api/explain contract already ships the deterministic tier.' },
+          { i: 'bell', t: 'Alerts & Watchlist', chip: 'design', d: 'Track tokens across the six chains — account-less first, local storage.' },
+        ].map((f, i) => (
           <div className={`lv-feat rv d${i % 3}`} key={f.t}>
+            <span style={{ position: 'absolute', top: 18, right: 18 }}>
+              <span className={`lv-status ${f.chip}`}>{f.chip === 'build' ? 'in build' : f.chip}</span>
+            </span>
             <div className="holo-s"><Icon name={f.i} size={24} /></div>
             <h3>{f.t}</h3>
             <p>{f.d}</p>
@@ -610,24 +581,82 @@ function Features() {
   )
 }
 
-const PHIL = [
-  { i: 'ban', t: 'No Trading Execution', d: 'Zero transaction paths exist in the product — by design.' },
-  { i: 'key', t: 'No Custody', d: 'We never hold funds or ask for private keys. Ever.' },
-  { i: 'check', t: 'Evidence-Based AI', d: 'The model cites its evidence or admits "data not available".' },
-  { i: 'lock', t: 'Privacy First', d: 'Public data in, insight out. No tracking, no accounts required.' },
-]
-
-function Philosophy() {
+/* S5 — surfaces index */
+function Surfaces() {
   return (
-    <section className="lv-sec" id="philosophy">
+    <section className="lv-sec alt" id="surfaces">
+      <div className="lv-num">03</div>
+      <div className="lv-sec-head lv-center rv">
+        <div className="lv-k2">SURFACES</div>
+        <h2 className="lv-h2">Every Part, <span className="a">Labeled.</span></h2>
+        <p className="lv-lead">The status grammar is site-wide — the same chips, the same meanings, everywhere.</p>
+      </div>
+      <div className="lv-surfgrid">
+        {[
+          { t: 'Memecoin Live Board', s: 'Six chain cards, four feed modes, honest flags and retry cool-downs.', u: '/live', chip: ['live'] },
+          { t: 'Chain Pages ×6', s: 'Three staggered columns per chain with α-ranks and copy-address.', u: '/live/sol', chip: ['live'] },
+          { t: 'Terminal + Swap Desk', s: 'The beta shell with a swap desk on a deterministic data set — no session, no wallet, no chain calls.', u: '/terminal', chip: ['live', 'sim'] },
+          { t: 'Documentation', s: 'The honesty law, the pipeline, the API contract, the security posture.', u: '/docs', chip: ['live'] },
+          { t: 'Roadmap', s: 'The weekly hub of proof — shipped ledger with git-verifiable dates.', u: '/roadmap', chip: ['live'] },
+        ].map((c, i) => (
+          <a className={`lv-surf rv d${i % 3}`} href={c.u} key={c.t}>
+            <span style={{ display: 'flex', gap: 6 }}>
+              {c.chip.map((k) => <span className={`lv-status ${k}`} key={k}>{k === 'sim' ? 'simulated' : k}</span>)}
+            </span>
+            <span className="t">{c.t}</span>
+            <span className="s">{c.s}</span>
+            <span className="u">{c.u} →</span>
+          </a>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+/* S6 — multi-chain globe, six marks */
+function Chains() {
+  const [hover, setHover] = useState<string | null>(null)
+  const info = NET_CHAINS.find((c) => c.id === hover)
+  return (
+    <section className="lv-sec" id="chains">
       <div className="lv-num">04</div>
       <div className="lv-sec-head lv-center rv">
-        <div className="lv-k2">PRODUCT PHILOSOPHY</div>
+        <div className="lv-k2">MULTI-CHAIN</div>
+        <h2 className="lv-h2">One Terminal. <span className="a">All Six Chains.</span></h2>
+        <p className="lv-lead">Solana, BNB Chain, Base, HyperEVM, Robinhood Chain, Avalanche — every one live on the keyless feed today.</p>
+      </div>
+      <div className="lv-net-wrap rv">
+        <ChainGlobe hovered={hover} onHover={setHover} />
+        {info && (
+          <div className="lv-net-tip" style={{ borderColor: info.color + '66' }}>
+            <div className="t" style={{ color: info.color }}>{info.label}</div>
+            <div className="s">{info.stats}</div>
+            <span className="b" style={{ color: '#34d399', border: '1px solid rgba(52,211,153,.4)' }}>● LIVE</span>
+          </div>
+        )}
+        <div className="lv-net-hint">HOVER A CHAIN NODE</div>
+      </div>
+    </section>
+  )
+}
+
+/* S7 — security posture + the only such zero */
+function Security() {
+  return (
+    <section className="lv-sec alt" id="security">
+      <div className="lv-num">05</div>
+      <div className="lv-sec-head lv-center rv">
+        <div className="lv-k2">SECURITY POSTURE</div>
         <h2 className="lv-h2">Built for Analysis. <span className="a">Not for Gambling.</span></h2>
-        <p className="lv-lead">Terminal Alpha is an intelligence and research terminal — not a trading bot.</p>
+        <p className="lv-lead">A terminal that cannot reach your funds cannot betray them.</p>
       </div>
       <div className="lv-phil">
-        {PHIL.map((p, i) => (
+        {[
+          { i: 'ban', t: 'No Trading Execution', d: 'Zero transaction paths exist in the product — by design.' },
+          { i: 'lock', t: 'No Custody', d: 'We never hold funds or ask for private keys. Ever.' },
+          { i: 'check', t: 'No Accounts', d: 'No login, no cookie, no session. Public data in, insight out.' },
+          { i: 'scan', t: 'No Third-Party Scripts', d: 'Verify in view-source — the bundle is self-hosted, fonts aside.' },
+        ].map((p, i) => (
           <div className={`lv-pr rv d${i}`} key={p.t}>
             <div className="ico"><Icon name={p.i} size={26} /></div>
             <b>{p.t}</b>
@@ -635,21 +664,36 @@ function Philosophy() {
           </div>
         ))}
       </div>
+      <div className="lv-zerobox rv">
+        <div className="big">0</div>
+        <div>
+          <div className="tt">TRADES EXECUTED BY US — EVER.</div>
+          <p>
+            Terminal Alpha is research infrastructure. It does not route orders, hold keys, sign
+            messages, or take fees for placement. Ranks are computed by the published α formula —
+            they cannot be bought. That zero is a product fact you can verify in the repo.
+          </p>
+          <a className="lnk" href="/docs#security">READ THE FULL POSTURE — DOCS §10 →</a>
+        </div>
+      </div>
     </section>
   )
 }
 
+/* S8 — AI teaser: deterministic illustrative trace, labeled SIMULATED */
 function AiSection() {
   return (
-    <section className="lv-sec alt" id="ai">
-      <div className="lv-num">05</div>
+    <section className="lv-sec" id="ai">
+      <div className="lv-num">06</div>
       <div className="lv-ai">
         <div className="lv-core rv" aria-hidden="true"><SystemDiagram /></div>
         <div className="rv d1">
           <div className="lv-k2">AI ANALYST</div>
           <h2 className="lv-h2" style={{ marginBottom: 18 }}>Ask Why. <span className="a">Get Evidence.</span></h2>
           <div className="lv-chat">
-            <div className="hd"><span className="d" /><b>TERMINAL ALPHA AI — MOCK CONVERSATION</b></div>
+            <div className="hd"><span className="d" /><b>TERMINAL ALPHA AI — ILLUSTRATIVE TRACE</b>
+              <span className="lv-status sim" style={{ marginLeft: 'auto' }}>simulated</span>
+            </div>
             <div className="lv-msg user">
               <div className="who">YOU</div>
               <div className="lv-bub">“Why is this token considered medium risk?”</div>
@@ -668,10 +712,10 @@ function AiSection() {
               </div>
             </div>
             <div className="btns">
-              <button className="lv-cta ghost" style={{ height: 38, fontSize: 12 }}>Explain Score</button>
-              <button className="lv-cta ghost" style={{ height: 38, fontSize: 12 }}>Deeper Analysis</button>
+              <button className="lv-cta ghost off" style={{ height: 38, fontSize: 12 }} aria-disabled="true" tabIndex={-1}>Explain Score</button>
+              <button className="lv-cta ghost off" style={{ height: 38, fontSize: 12 }} aria-disabled="true" tabIndex={-1}>Deeper Analysis</button>
             </div>
-            <div className="note">// VISUAL MOCKUP — EVIDENCE-FIRST AI, NO REAL CONNECTION YET</div>
+            <div className="note">DETERMINISTIC ILLUSTRATIVE TRACE — THE PANEL ABOVE IS NOT WIRED YET. AI ANALYST — <a href="/roadmap#ta-104" style={{ color: 'var(--g)' }}>IN BUILD · ROADMAP TA-104 →</a></div>
           </div>
         </div>
       </div>
@@ -679,131 +723,19 @@ function AiSection() {
   )
 }
 
-const TIERS = [
-  { i: 'scan', t: 'Free Analysis', d: 'Full data correctness, standard depth — the truth is never paywalled.' },
-  { i: 'activity', t: 'Deep Analysis', d: 'Longer AI reasoning, cluster traces, whale intent — depth, not different facts.' },
-  { i: 'eye', t: 'Premium Intelligence', d: 'Advanced research tooling for desks. USDC path always available.' },
-]
-
-/* soulbound key card — drag to rotate, hologram sheen */
-function KeyCard() {
-  const ref = useRef<HTMLDivElement>(null)
-  const state = useRef({ rx: 12, ry: -14, vx: 0, vy: 0, drag: false, px: 0, py: 0 })
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    let raf = 0
-    const loop = () => {
-      const s = state.current
-      if (!s.drag) {
-        s.ry += (s.vy *= 0.92)
-        s.rx += (s.vx *= 0.92)
-        s.ry += (-14 - s.ry) * 0.015
-        s.rx += (12 - s.rx) * 0.015
-      }
-      el.style.transform = `rotateX(${s.rx}deg) rotateY(${s.ry}deg)`
-      raf = requestAnimationFrame(loop)
-    }
-    raf = requestAnimationFrame(loop)
-    const down = (e: PointerEvent) => {
-      const s = state.current
-      s.drag = true; s.px = e.clientX; s.py = e.clientY
-    }
-    const move = (e: PointerEvent) => {
-      const s = state.current
-      if (!s.drag) return
-      s.vy = (e.clientX - s.px) * 0.5
-      s.vx = -(e.clientY - s.py) * 0.5
-      s.ry += s.vy; s.rx += s.vx
-      s.px = e.clientX; s.py = e.clientY
-    }
-    const up = () => { state.current.drag = false }
-    el.addEventListener('pointerdown', down)
-    window.addEventListener('pointermove', move)
-    window.addEventListener('pointerup', up)
-    return () => {
-      cancelAnimationFrame(raf)
-      el.removeEventListener('pointerdown', down)
-      window.removeEventListener('pointermove', move)
-      window.removeEventListener('pointerup', up)
-    }
-  }, [])
-  return (
-    <div className="lv-key rv" aria-hidden="true">
-      <span className="orb" />
-      <div className="key3d"><div className="card3d" ref={ref}><span className="gl"><Icon name="key" size={44} /></span><span className="tt">SOULBOUND · TIME-BOUND</span><span className="sheen" /></div></div>
-      <div className="lv-key-hint">DRAG THE KEY</div>
-    </div>
-  )
-}
-
-function Token() {
-  return (
-    <section className="lv-sec" id="token">
-      <div className="lv-num">06</div>
-      <div className="lv-sec-head lv-center rv">
-        <div className="lv-k2">TOKEN UTILITY</div>
-        <h2 className="lv-h2">Access Intelligence. <span className="a">Not Speculation.</span></h2>
-        <p className="lv-lead">The access layer is designed around feature depth — never trading, custody, or profit promises.</p>
-      </div>
-      <div className="lv-key-wrap">
-        <KeyCard />
-        <div className="lv-tiers rv d1">
-          {TIERS.map((t) => (
-            <div className="lv-tier" key={t.t}>
-              <span className="ic"><Icon name={t.i} size={19} /></span>
-              <div><b>{t.t}</b><span>{t.d}</span></div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-/* Roadmap + Docs moved to their own full pages (/roadmap, /docs) — the
-   landing stays slim: hero + live + CTA, no duplicated sections. */
-
-/* social proof — live product stats + community */
-function SocialProof() {
-  const [stats, setStats] = useState({ scanned: 12847, caught: 98.2 })
-  useEffect(() => {
-    const off = stream.subscribe(() => setStats({ scanned: stream.stats().scanned, caught: stream.stats().caught }))
-    return off
-  }, [])
-  return (
-    <section className="lv-social">
-      <div className="lv-social-in rv">
-        <div className="lv-social-stats">
-          <div><b className="c-neon"><CountUp to={stats.scanned} dur={1400} /></b><small>TOKENS SCANNED THIS SESSION</small></div>
-          <div><b className="c-red">{stats.caught}%</b><small>FLAGGED HIGH-RISK</small></div>
-          <div><b className="c-amber">5</b><small>CHAINS COVERED</small></div>
-          <div><b className="c-green">24/7</b><small>SCANNER UPTIME</small></div>
-        </div>
-        <div className="lv-social-cta">
-          <span className="lv-k2">JOIN THE DESK</span>
-          <div className="lv-social-btns">
-            <a className="lv-cta ghost sm" href="https://x.com/terminalalpha" target="_blank" rel="noreferrer"><Icon name="x" size={15} /> FOLLOW ON X</a>
-            <a className="lv-cta ghost sm" href="https://t.me/terminalalpha" target="_blank" rel="noreferrer"><Icon name="telegram" size={15} /> TELEGRAM</a>
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
+/* S9 — final CTA + footer, links only (no socials until real accounts exist) */
 function Final() {
   return (
     <section className="lv-final">
       <span className="ring3d" aria-hidden="true" /><span className="ring3d r" aria-hidden="true" />
       <div className="rv">
-        <h2>Ready to See the Alpha <span style={{ color: 'var(--p2)' }}>Others Miss?</span></h2>
-        <p>Enter the next generation of AI-powered on-chain intelligence.</p>
-        <Magnetic href="/terminal" className="lv-cta neon mag" >
+        <h2>Stop Trusting. <span style={{ color: 'var(--p2)' }}>Start Verifying.</span></h2>
+        <p>The board is live. The law is public. The ledger is dated.</p>
+        <Magnetic href="/terminal" className="lv-cta neon mag boxed">
           <span className="lv-final-cta">Launch Terminal →</span>
         </Magnetic>
         <p style={{ marginTop: 30, fontSize: 12.5, fontFamily: 'var(--fm)', color: 'var(--dim)' }}>
-          DOCS · <a href="/docs" style={{ color: 'var(--g)' }}>/docs</a> &nbsp;·&nbsp; ROADMAP · <a href="/roadmap" style={{ color: 'var(--g)' }}>/roadmap</a> &nbsp;·&nbsp; STATUS · <span style={{ color: 'var(--g)' }}>ALL SYSTEMS OPERATIONAL</span>
+          LIVE BOARD · <a href="/live" style={{ color: 'var(--g)' }}>/live</a> &nbsp;·&nbsp; DOCS · <a href="/docs" style={{ color: 'var(--g)' }}>/docs</a> &nbsp;·&nbsp; ROADMAP · <a href="/roadmap" style={{ color: 'var(--g)' }}>/roadmap</a>
         </p>
       </div>
     </section>
@@ -816,25 +748,25 @@ function Foot() {
       <div className="lv-foot-grid">
         <div>
           <div className="lv-logo" style={{ marginBottom: 12 }}><span className="m">◤</span>TERMINAL&nbsp;<span className="lg">ALPHA</span></div>
-          <p className="disc">AI memecoin intelligence terminal. Analysis & education only — AI output is not financial advice, risk scores are heuristics not audits. DYOR.</p>
+          <p className="disc">Read-only memecoin research across six chains. Analysis &amp; education only — risk scores are heuristics, not audits. DYOR.</p>
         </div>
         <div className="lv-foot-col">
-          <b>PRODUCT</b>
-          <a href="#features">Features</a><a href="#how">How It Works</a><a href="#chains">Multi-Chain</a><a href="/terminal">Terminal</a>
+          <b>SURFACES</b>
+          <a href="/live">Memecoin Live</a><a href="/terminal">Terminal</a><a href="/docs">Docs</a><a href="/roadmap">Roadmap</a>
         </div>
         <div className="lv-foot-col">
-          <b>INTELLIGENCE</b>
-          <a href="#ai">AI Analyst</a><a href="#token">Token Utility</a><a href="/roadmap">Roadmap</a><a href="/docs">Docs</a>
+          <b>REGISTER</b>
+          <a href="/docs#honesty">The Honesty Law</a><a href="/docs#status">Status Legend</a><a href="/roadmap#non-goals">Non-Goals</a><a href="/assets/llms.txt">Machine Index</a>
         </div>
         <div className="lv-foot-col">
-          <b>STATUS</b>
-          <span className="ok">● All systems operational</span>
-          <span className="dim">Scanner array: ACTIVE</span>
-          <span className="dim">Grounding log: ENABLED</span>
+          <b>PRODUCT FACTS</b>
+          <span className="ok">● 0 TRADES EXECUTED BY US</span>
+          <span className="stat">KEYLESS FEED — GT + DEXSCREENER</span>
+          <span className="stat">READ-ONLY — NO CUSTODY</span>
         </div>
       </div>
-      <div className="lv-wordmark" aria-hidden="true">TERMINAL ALPHA</div>
-      <div className="lv-foot-legal">© 2026 TERMINAL ALPHA — READ-ONLY INTELLIGENCE. NO TRADING. NO CUSTODY. EVIDENCE FIRST.</div>
+      <div className="lv-wordmark" aria-hidden="true">{BRAND_NAME}</div>
+      <div className="lv-foot-legal">{BRAND_LEGAL} · {BRAND_DATA} · {BRAND_POSTURE}</div>
     </footer>
   )
 }
@@ -852,17 +784,14 @@ export default function Landing() {
       <Spotlight />
       <Nav />
       <Hero />
-      <Metrics />
-      <Trust />
-      <RugReality />
-      <Ticker />
+      <TapeBand />
+      <Problem />
+      <Honesty />
       <How />
+      <Surfaces />
       <Chains />
-      <Features />
-      <Philosophy />
+      <Security />
       <AiSection />
-      <Token />
-      <SocialProof />
       <Final />
       <Foot />
     </div>
