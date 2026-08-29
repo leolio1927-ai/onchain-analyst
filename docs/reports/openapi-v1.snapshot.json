@@ -57,6 +57,64 @@
     "title": "ClusteringBlock",
     "type": "object"
    },
+   "DbInfo": {
+    "description": "/api/version db block \u2014 measured facts about the persistence layer.",
+    "properties": {
+     "last_run_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Run At"
+     },
+     "oldest_row_ts": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Oldest Row Ts"
+     },
+     "path_kind": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Path Kind"
+     },
+     "rows_by_table": {
+      "additionalProperties": {
+       "type": "integer"
+      },
+      "title": "Rows By Table",
+      "type": "object"
+     },
+     "schema_version": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Schema Version"
+     }
+    },
+    "title": "DbInfo",
+    "type": "object"
+   },
    "DiscoveryItem": {
     "description": "providers/discovery.py FIELDS key set, exact.",
     "properties": {
@@ -264,6 +322,96 @@
      "address"
     ],
     "title": "ExplainBody",
+    "type": "object"
+   },
+   "ExplainResponse": {
+    "description": "Evidence-first narrative (LLM provider or the deterministic local tier).\n`limitations` keeps the wire's string type \u2014 typing it as a list would\n500 every explain call; widening it is a deliberate contract change.",
+    "properties": {
+     "data_mode": {
+      "default": "live",
+      "enum": [
+       "live",
+       "fixture",
+       "unwired"
+      ],
+      "title": "Data Mode",
+      "type": "string"
+     },
+     "key_signals": {
+      "items": {
+       "$ref": "#/components/schemas/KeySignal"
+      },
+      "title": "Key Signals",
+      "type": "array"
+     },
+     "limitations": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Limitations"
+     },
+     "parse_ok": {
+      "default": false,
+      "title": "Parse Ok",
+      "type": "boolean"
+     },
+     "provider": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Provider"
+     },
+     "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+     },
+     "sources": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Sources",
+      "type": "array"
+     },
+     "summary": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Summary"
+     },
+     "tier": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tier"
+     },
+     "ts": {
+      "title": "Ts",
+      "type": "string"
+     }
+    },
+    "title": "ExplainResponse",
     "type": "object"
    },
    "FeedItem": {
@@ -491,6 +639,137 @@
     "title": "HTTPValidationError",
     "type": "object"
    },
+   "HistoryPage_OhlcvPoint_": {
+    "properties": {
+     "data_mode": {
+      "default": "unwired",
+      "enum": [
+       "live",
+       "fixture",
+       "unwired"
+      ],
+      "title": "Data Mode",
+      "type": "string"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/OhlcvPoint"
+      },
+      "title": "Items",
+      "type": "array"
+     },
+     "next_cursor": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Next Cursor"
+     },
+     "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+     },
+     "sources": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Sources",
+      "type": "array"
+     },
+     "ts": {
+      "title": "Ts",
+      "type": "string"
+     }
+    },
+    "title": "HistoryPage[OhlcvPoint]",
+    "type": "object"
+   },
+   "HistoryPage_TradeRow_": {
+    "properties": {
+     "data_mode": {
+      "default": "unwired",
+      "enum": [
+       "live",
+       "fixture",
+       "unwired"
+      ],
+      "title": "Data Mode",
+      "type": "string"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/TradeRow"
+      },
+      "title": "Items",
+      "type": "array"
+     },
+     "next_cursor": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Next Cursor"
+     },
+     "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+     },
+     "sources": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Sources",
+      "type": "array"
+     },
+     "ts": {
+      "title": "Ts",
+      "type": "string"
+     }
+    },
+    "title": "HistoryPage[TradeRow]",
+    "type": "object"
+   },
+   "KeySignal": {
+    "description": "One quoted signal inside an explain narrative ({label, evidence}).",
+    "properties": {
+     "evidence": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Evidence"
+     },
+     "label": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Label"
+     }
+    },
+    "title": "KeySignal",
+    "type": "object"
+   },
    "LiveResponse": {
     "properties": {
      "cached": {
@@ -589,6 +868,101 @@
      }
     },
     "title": "LiveResponse",
+    "type": "object"
+   },
+   "OhlcvPoint": {
+    "description": "Point-in-time quote mapped onto the OHLCV shape: open/high/low stay\nNone (a candle that was never observed is never synthesized), close =\nthe observed price, volume = the observed 24h volume.",
+    "properties": {
+     "close": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Close"
+     },
+     "fdv": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Fdv"
+     },
+     "high": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "High"
+     },
+     "liquidity": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Liquidity"
+     },
+     "low": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Low"
+     },
+     "open": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Open"
+     },
+     "ts": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ts"
+     },
+     "volume": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Volume"
+     }
+    },
+    "title": "OhlcvPoint",
     "type": "object"
    },
    "Pair": {
@@ -1017,6 +1391,79 @@
     "title": "SocialLinks",
     "type": "object"
    },
+   "TradeRow": {
+    "description": "Normalized GeckoTerminal trade (providers.geckoterminal.fetch_trades).",
+    "properties": {
+     "base_token": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Base Token"
+     },
+     "kind": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Kind"
+     },
+     "ts": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ts"
+     },
+     "tx_hash": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tx Hash"
+     },
+     "usd": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Usd"
+     },
+     "wallet": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Wallet"
+     }
+    },
+    "title": "TradeRow",
+    "type": "object"
+   },
    "ValidationError": {
     "properties": {
      "ctx": {
@@ -1055,6 +1502,64 @@
      "type"
     ],
     "title": "ValidationError",
+    "type": "object"
+   },
+   "VersionResponse": {
+    "properties": {
+     "db": {
+      "$ref": "#/components/schemas/DbInfo"
+     },
+     "fastapi": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Fastapi"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "python": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Python"
+     },
+     "uptime_s": {
+      "default": 0,
+      "title": "Uptime S",
+      "type": "integer"
+     },
+     "version": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Version"
+     }
+    },
+    "title": "VersionResponse",
     "type": "object"
    },
    "WhaleBody": {
@@ -1194,9 +1699,7 @@
       "content": {
        "application/json": {
         "schema": {
-         "additionalProperties": true,
-         "title": "Response Api Explain Api Explain Post",
-         "type": "object"
+         "$ref": "#/components/schemas/ExplainResponse"
         }
        }
       },
@@ -1393,9 +1896,7 @@
       "content": {
        "application/json": {
         "schema": {
-         "additionalProperties": true,
-         "title": "Response Api Explain Api V1 Explain Post",
-         "type": "object"
+         "$ref": "#/components/schemas/ExplainResponse"
         }
        }
       },
@@ -1415,6 +1916,226 @@
     "summary": "Api Explain",
     "tags": [
      "ai"
+    ]
+   }
+  },
+  "/api/v1/history/prices/{chain}/{ident}": {
+   "get": {
+    "description": "Point-in-time price history from the local persistence layer (BE-F2).\n\nlimit clamped to 1..500 \u00b7 opaque cursor is None-terminated \u00b7 window\nfilters since/until take timezone-aware ISO-8601. data_mode = the union\nof the page's rows (fixture|live), never hardcoded. Rows are point\nobservations: open/high/low stay None, close = the observed price \u2014\ncandles are never synthesized.",
+    "operationId": "api_history_prices_api_v1_history_prices__chain___ident__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "chain",
+      "required": true,
+      "schema": {
+       "title": "Chain",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "ident",
+      "required": true,
+      "schema": {
+       "title": "Ident",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 100,
+       "title": "Limit",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "cursor",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Cursor"
+      }
+     },
+     {
+      "in": "query",
+      "name": "since",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Since"
+      }
+     },
+     {
+      "in": "query",
+      "name": "until",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Until"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HistoryPage_OhlcvPoint_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Api History Prices",
+    "tags": [
+     "market"
+    ]
+   }
+  },
+  "/api/v1/history/trades/{chain}/{ident}": {
+   "get": {
+    "description": "Trade history from the local persistence layer (BE-F2) \u2014 same cursor,\nwindow and data_mode contract as the prices page.",
+    "operationId": "api_history_trades_api_v1_history_trades__chain___ident__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "chain",
+      "required": true,
+      "schema": {
+       "title": "Chain",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "ident",
+      "required": true,
+      "schema": {
+       "title": "Ident",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 100,
+       "title": "Limit",
+       "type": "integer"
+      }
+     },
+     {
+      "in": "query",
+      "name": "cursor",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Cursor"
+      }
+     },
+     {
+      "in": "query",
+      "name": "since",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Since"
+      }
+     },
+     {
+      "in": "query",
+      "name": "until",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Until"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HistoryPage_TradeRow_"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Api History Trades",
+    "tags": [
+     "market"
     ]
    }
   },
@@ -1567,16 +2288,14 @@
   },
   "/api/version": {
    "get": {
-    "description": "Build identity \u2014 real toolchain versions, nothing invented.",
+    "description": "Build identity \u2014 real toolchain versions, nothing invented. The db\nblock reports measured persistence facts (path_kind, schema version,\nrows per table, last run, oldest row) \u2014 never the raw filesystem path.",
     "operationId": "version_api_version_get",
     "responses": {
      "200": {
       "content": {
        "application/json": {
         "schema": {
-         "additionalProperties": true,
-         "title": "Response Version Api Version Get",
-         "type": "object"
+         "$ref": "#/components/schemas/VersionResponse"
         }
        }
       },
@@ -1637,6 +2356,10 @@
   {
    "description": "Token scanning, discovery radar and market evidence.",
    "name": "market"
+  },
+  {
+   "description": "Persisted point-in-time history from the local database (BE-F2). Cursor-paginated; every page carries the provenance of its rows.",
+   "name": "history"
   },
   {
    "description": "Live per-chain memecoin feed \u2014 keyless GeckoTerminal, \u2265120s TTL cache, honest live:false for networks GT does not serve.",
