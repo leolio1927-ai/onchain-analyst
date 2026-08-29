@@ -164,9 +164,9 @@ export function DocsPage() {
         <main>
           <div className="dd-topnav">
             <a className="dd-a" href="/">← LANDING</a>
-            <a className="dd-a" href="/live">MEMECOIN LIVE</a>
-            <a className="dd-a" href="/terminal">TERMINAL (BETA)</a>
-            <a className="dd-a" href="/roadmap">ROADMAP</a>
+            <a className="dd-a boxed" href="/live">MEMECOIN LIVE</a>
+            <a className="dd-a boxed" href="/roadmap">ROADMAP</a>
+            <a className="dd-a boxed" href="/terminal">TERMINAL (BETA)</a>
           </div>
 
           {/* ── HERO ─────────────────────────────────────────── */}
