@@ -1,0 +1,30 @@
+{
+  "kind": "be-f2 fixture — deterministic offline ingest set",
+  "notes": "Read by webapp/ingest.py --once only. Every row produced from this file is stamped data_mode='fixture'. ts values are timezone-aware UTC ISO-8601 so cursor/window comparisons are plain lexicographic string compares. Numeric values deliberately include nulls: absent stays absent, never 0.",
+  "chain": "sol",
+  "ident": "fixturepair1111111111111111111111111111111",
+  "price_points": [
+    { "ts": "2026-08-20T00:00:00+00:00", "price": 0.0011, "liquidity": 48000.0, "fdv": 1900000.0, "vol24": 95000.0 },
+    { "ts": "2026-08-21T00:00:00+00:00", "price": 0.0012, "liquidity": 52000.0, "fdv": 2050000.0, "vol24": 110000.0 },
+    { "ts": "2026-08-22T00:00:00+00:00", "price": 0.0009, "liquidity": 51000.0, "fdv": null, "vol24": 80000.0 },
+    { "ts": "2026-08-23T00:00:00+00:00", "price": 0.0010, "liquidity": 49500.0, "fdv": 1980000.0, "vol24": 101000.0 },
+    { "ts": "2026-08-24T00:00:00+00:00", "price": 0.0014, "liquidity": 60000.0, "fdv": 2400000.0, "vol24": 150000.0 },
+    { "ts": "2026-08-25T00:00:00+00:00", "price": 0.0013, "liquidity": 58500.0, "fdv": 2350000.0, "vol24": 140000.0 },
+    { "ts": "2026-08-26T00:00:00+00:00", "price": 0.0015, "liquidity": 64000.0, "fdv": null, "vol24": 162000.0 }
+  ],
+  "trades": [
+    { "ts": "2026-08-24T00:00:01+00:00", "side": "buy",  "amount": 250.0, "wallet": "F1XTUREWa11et0000000000000000000000000001", "tx_hash": null },
+    { "ts": "2026-08-24T00:00:02+00:00", "side": "sell", "amount": 90.0,  "wallet": "F1XTUREWa11et0000000000000000000000000002", "tx_hash": null },
+    { "ts": "2026-08-24T00:00:03+00:00", "side": "buy",  "amount": 1250.0, "wallet": "F1XTUREWa11et0000000000000000000000000003", "tx_hash": null },
+    { "ts": "2026-08-24T00:00:04+00:00", "side": "buy",  "amount": 300.0, "wallet": "F1XTUREWa11et0000000000000000000000000001", "tx_hash": null },
+    { "ts": "2026-08-24T00:00:05+00:00", "side": "buy",  "amount": null,  "wallet": null, "tx_hash": "F1XTUREtx000000000000000000000000000000001" },
+    { "ts": "2026-08-24T00:00:06+00:00", "side": "sell", "amount": 210.0, "wallet": "F1XTUREWa11et0000000000000000000000000004", "tx_hash": null },
+    { "ts": "2026-08-24T00:00:07+00:00", "side": "buy",  "amount": 480.0, "wallet": "F1XTUREWa11et0000000000000000000000000005", "tx_hash": null }
+  ],
+  "scan_snapshot": {
+    "ts": "2026-08-24T00:00:07+00:00",
+    "score": 23.4,
+    "denominator": 6,
+    "payload": { "level": "low", "level_label": "LOW", "signals_computed": 6 }
+  }
+}
