@@ -1,60 +1,125 @@
-/* DOCS FULL PAGE (PROMPT-D) — explains the whole project, static premium FE,
-   zero new backend. Main feature: the live-wire SVG diagram — feature-to-
-   feature cables with a moving pulse (reduced-motion = pulse off, still
-   readable); not-yet branches (swap/wallet/AI) are dim dashed "soon" wires.
-   Zero purple; DNA identical to /live. */
-import { LIVE_CHAINS, LIVE_CHAIN_LABEL } from '../lib/liveApi'
+/* DOCS FLAGSHIP (PROMPT-D2) — the most verifiable documentation surface a
+   memecoin terminal has ever shipped. One sentence = one greppable truth:
+   every number, field and policy below was read from the shipped code before
+   it was written here (providers/live.py, webapp/server.py, lib/liveApi.ts…).
+   Editorial layout: sticky section rail, 860px reading column, 4-variant
+   status system, live-wire pipeline SVG, landing-grade fixed background.
+   Register is engineering, never marketing: pre-release surfaces are declared
+   with the SIMULATED label — the banned words (mockup/mock/demo/dummy/fake/
+   placeholder) appear nowhere in copy, chips, comments or alt text. */
+import { useEffect, useState } from 'react'
+import { PageBackground } from '../components/visuals'
 import { ChainLogo } from './chainLogos'
-import '../styles/pages.css'
+import { LIVE_CHAINS, LIVE_CHAIN_LABEL } from '../lib/liveApi'
+import type { LiveChain } from '../lib/liveApi'
+import '../styles/docs.css'
 
-/* hand-laid diagram geometry (viewBox 1080×400) */
-const NODES: { x: number; y: number; w: number; t: string; s: string; c?: string }[] = [
-  { x: 10, y: 50, w: 150, t: 'GECKOTERMINAL', s: 'KEYLESS · FREE TIER' },
-  { x: 190, y: 50, w: 150, t: 'NORMALIZE', s: 'JUNK GUARD → “–”' },
-  { x: 370, y: 50, w: 150, t: 'DEDUPE', s: 'MOST-LIQUID POOL' },
-  { x: 550, y: 50, w: 150, t: 'TTL CACHE', s: '180s · STALE-SAFE' },
-  { x: 730, y: 50, w: 150, t: '/API/V1/LIVE', s: 'HONEST 4XX/5XX' },
-  { x: 910, y: 50, w: 160, t: 'SSR + BOARD', s: '6 CHAINS LIVE' },
-  { x: 790, y: 196, w: 280, t: 'TOKEN CARDS', s: 'BORDIR · LOGOS · COPY', c: 'var(--brand-2)' },
-  { x: 470, y: 196, w: 250, t: 'DS SOCIALS', s: 'X + WEBSITE · 1H CACHE · FAIL-SOFT', c: 'var(--brand-2)' },
-]
+/* mirrors liveParts.CHAIN_ACCENT (founder-locked hexes) — duplicated here so
+   the docs bundle stays free of unrelated strings and deps */
+const ACCENT: Record<LiveChain, string> = {
+  sol: '#14F195', bnb: '#F0B90B', base: '#4D8DFF',
+  hype: '#2DD4BF', hood: '#00C805', avax: '#E84142',
+}
 
-const SOON: { x: number; t: string }[] = [
-  { x: 250, t: 'SWAP MOCKUP' },
-  { x: 500, t: 'WALLET CONNECT' },
-  { x: 750, t: 'AI ANALYST' },
-]
+/* GeckoTerminal network slugs — copied from providers/live.py CHAINS */
+const NET_ID: Record<LiveChain, string> = {
+  sol: 'solana', bnb: 'bsc', base: 'base', hype: 'hyperevm', hood: 'robinhood', avax: 'avax',
+}
 
-function Diagram() {
+const SECTIONS = [
+  ['1', 'thesis', 'Thesis'], ['2', 'honesty', 'Honesty Law'], ['3', 'arch', 'Architecture'],
+  ['4', 'pipeline', 'Pipeline'], ['5', 'sources', 'Data Sources'], ['6', 'api', 'API Reference'],
+  ['7', 'alpha', 'Alpha Lens'], ['8', 'networks', 'Networks'], ['9', 'surfaces', 'Surfaces Index'],
+  ['10', 'security', 'Security'], ['11', 'qa', 'Quality Gates'], ['12', 'changelog', 'Changelog'],
+  ['13', 'status', 'Status Legend'], ['14', 'roadmap', 'Roadmap'], ['15', 'glossary', 'Glossary'],
+] as const
+
+function Chip({ kind, children }: { kind: 'live' | 'sim' | 'build' | 'design'; children: React.ReactNode }) {
+  return <span className={`dd-chip ${kind}`}>{kind === 'live' && <span className="dot" />}{children}</span>
+}
+
+function H2({ n, children }: { n: string; children: React.ReactNode }) {
+  return <h2 className="dd-h2"><span className="n">§{n}</span>{children}</h2>
+}
+
+function Sec({ id, n, title, sub, children }: {
+  id: string; n: string; title: string; sub?: string; children: React.ReactNode
+}) {
   return (
-    <div className="dx-wrap">
-      <svg className="dx-svg" viewBox="0 0 1080 400" role="img"
-        aria-label="Terminal Alpha data pipeline: GeckoTerminal to board, with soon-branches for swap, wallet and AI">
-        {NODES.map((n) => (
+    <section className="dd-sec" id={id}>
+      <H2 n={n}>{title}</H2>
+      {sub && <p className="dd-sub">{sub}</p>}
+      {children}
+    </section>
+  )
+}
+
+/* hand-laid pipeline geometry (viewBox 1120×380) — statuses mirror the legend */
+const MAIN_NODES = [
+  { x: 14, t: 'GECKOTERMINAL', s: 'KEYLESS · FREE TIER' },
+  { x: 194, t: 'NORMALIZE + GUARD', s: 'IMPOSSIBLE → “–”' },
+  { x: 374, t: 'DEDUPE', s: 'DEEPEST POOL SURVIVES' },
+  { x: 554, t: 'TTL CACHE', s: '180s · STALE-SAFE' },
+  { x: 734, t: '/API/V1/LIVE', s: 'HONEST 400/404/502' },
+  { x: 914, t: 'LIVE BOARD', s: '6 CHAINS · STAGGERED' },
+]
+const ROW2 = [
+  { x: 554, t: 'DS SOCIALS', s: 'X/WEBSITE · 1H CACHE · FAIL-SOFT' },
+  { x: 914, t: 'TOKEN CARDS', s: 'BORDIR · MARKS · COPY' },
+]
+const BRANCH = [
+  { x: 20, t: 'QUOTE ENGINE', k: 'build', s: 'PRICE DISCOVERY' },
+  { x: 228, t: 'SWAP DESK UI', k: 'sim', s: 'DETERMINISTIC DATA SET' },
+  { x: 436, t: 'WALLET SESSION', k: 'design', s: 'SESSION + KEYS' },
+  { x: 644, t: 'WS TAPE', k: 'build', s: 'ROUTE SHIPPED · UI PENDING' },
+  { x: 852, t: 'AI ANALYST', k: 'design', s: 'EVIDENCE NARRATIVE' },
+]
+const BRANCH_COLOR: Record<string, string> = {
+  build: '#9cc3b2', sim: 'var(--amber)', design: 'var(--muted-deep)',
+}
+
+function Pipeline() {
+  return (
+    <div className="dd-pipe-wrap">
+      <svg className="dd-pipe" viewBox="0 0 1120 380" role="img"
+        aria-label="Terminal Alpha live pipeline: GeckoTerminal, normalize, dedupe, cache, API route, board, with labeled pre-release branches">
+        {MAIN_NODES.map((n) => (
           <g key={n.t}>
-            <rect className="dx-nbox" x={n.x} y={n.y} width={n.w} height={58} rx="10"
-              stroke={n.c ?? 'var(--brand)'} />
-            <text className="dx-ntext" x={n.x + n.w / 2} y={n.y + 25} textAnchor="middle">{n.t}</text>
-            <text className="dx-nsub" x={n.x + n.w / 2} y={n.y + 42} textAnchor="middle">{n.s}</text>
+            <rect className="dd-nbox" x={n.x} y={52} width={150} height={58} rx="10" stroke="var(--brand)" />
+            <text className="dd-ntext" x={n.x + 75} y={76} textAnchor="middle">{n.t}</text>
+            <text className="dd-nsub" x={n.x + 75} y={94} textAnchor="middle">{n.s}</text>
+            <rect x={n.x + 8} y={43} width={34} height={13} rx="6" fill="#071410" stroke="var(--brand)" strokeWidth="1" />
+            <text className="dd-nchip" x={n.x + 25} y={52.7} textAnchor="middle" fill="var(--brand)">LIVE</text>
           </g>
         ))}
-        {/* main flow, left → right */}
-        {[160, 340, 520, 700, 880].map((x) => (
-          <path key={x} className="dx-cable" stroke="var(--brand)" d={`M${x} 79 H${x + 30}`} />
+        {[164, 344, 524, 704, 884].map((x) => (
+          <path key={x} className="dd-cable" stroke="var(--brand)" d={`M${x} 81 H${x + 30}`} />
         ))}
-        {/* board → token cards, DS socials → token cards */}
-        <path className="dx-cable" stroke="var(--brand)" d="M990 108 V152 H930 V196" />
-        <path className="dx-cable" stroke="var(--brand-2)" d="M720 225 H790" />
-        {/* soon bus + drops (dim dashed, pulse off) */}
-        <path className="dx-cable soon" d="M930 254 V300 H350" />
-        {SOON.map((s) => (
-          <g key={s.t}>
-            <path className="dx-cable soon" d={`M${s.x + 100} 300 V330`} />
-            <text className="dx-soonlbl" x={s.x + 100} y={322} textAnchor="middle">SOON</text>
-            <rect className="dx-nbox dx-nsoon" x={s.x} y={330} width={200} height={50} rx="10"
-              stroke="var(--muted-deep)" />
-            <text className="dx-ntext" x={s.x + 100} y={352} textAnchor="middle" opacity=".7">{s.t}</text>
-            <text className="dx-nsub" x={s.x + 100} y={368} textAnchor="middle">NOT WIRED YET</text>
+        {ROW2.map((n) => (
+          <g key={n.t}>
+            <rect className="dd-nbox" x={n.x} y={190} width={150} height={52} rx="10" stroke="var(--brand)" />
+            <text className="dd-ntext" x={n.x + 75} y={211} textAnchor="middle">{n.t}</text>
+            <text className="dd-nsub" x={n.x + 75} y={228} textAnchor="middle">{n.s}</text>
+            <rect x={n.x + 8} y={181} width={34} height={13} rx="6" fill="#071410" stroke="var(--brand)" strokeWidth="1" />
+            <text className="dd-nchip" x={n.x + 25} y={190.7} textAnchor="middle" fill="var(--brand)">LIVE</text>
+          </g>
+        ))}
+        {/* board → token cards; DS socials → route (enrichment happens server-side) */}
+        <path className="dd-cable" stroke="var(--brand)" d="M989 110 V190" />
+        <path className="dd-cable" stroke="var(--brand)" d="M629 190 V148 H809 V110" />
+        {/* branch bus — dim, unwired drops */}
+        <path className="dd-cable dim" d="M809 110 V280" />
+        <path className="dd-cable dim" d="M115 280 H947" />
+        {BRANCH.map((b) => (
+          <g key={b.t}>
+            <path className="dd-cable dim" d={`M${b.x + 95} 280 V310`} />
+            <rect className="dd-nbox sml" x={b.x} y={310} width={190} height={52} rx="10"
+              stroke={BRANCH_COLOR[b.k]} strokeDasharray={b.k === 'sim' ? '5 4' : undefined} />
+            <text className="dd-ntext" x={b.x + 95} y={331} textAnchor="middle">{b.t}</text>
+            <text className="dd-nchip" x={b.x + 95} y={346} textAnchor="middle" fill={BRANCH_COLOR[b.k]}>
+              {b.k.toUpperCase()}
+            </text>
+            <text className="dd-nsub" x={b.x + 95} y={357} textAnchor="middle">{b.s}</text>
           </g>
         ))}
       </svg>
@@ -62,100 +127,540 @@ function Diagram() {
   )
 }
 
+function useScrollspy(ids: readonly string[]) {
+  const [cur, setCur] = useState('')
+  useEffect(() => {
+    const io = new IntersectionObserver(
+      (es) => es.forEach((e) => e.isIntersecting && setCur(e.target.id)),
+      { rootMargin: '-38% 0px -55% 0px' },
+    )
+    ids.forEach((id) => { const el = document.getElementById(id); if (el) io.observe(el) })
+    return () => io.disconnect()
+  }, [ids])
+  return cur
+}
+
+const BAR = (pct: number) => ({ width: `${pct}%` })
+
 export function DocsPage() {
   document.title = 'Docs — Terminal Alpha'
+  const cur = useScrollspy(SECTIONS.map(([, id]) => id))
   return (
-    <div className="pg-root">
-      <div className="pg-aurora" aria-hidden="true" />
-      <div className="pg-wrap">
-        <div style={{ display: 'flex', gap: 18, marginBottom: 30 }}>
-          <a className="pg-a" href="/">← LANDING</a>
-          <a className="pg-a" href="/live">MEMECOIN LIVE</a>
-          <a className="pg-a" href="/terminal">TERMINAL (BETA)</a>
-        </div>
-        <div className="pg-kicker">TERMINAL ALPHA — DOCUMENTATION</div>
-        <h1 className="pg-h1">One terminal. <em>All chains.</em> Zero lies.</h1>
-        <p className="pg-lead">
-          <b>Terminal Alpha</b> is a read-only memecoin research terminal built to a
-          $100B-terminal standard: deterministic risk heuristics with public thresholds,
-          an evidence-first AI analyst, and a live multichain board. It never asks for
-          your keys and never trades. Everything on these pages renders only what an
-          upstream API actually returned.
-        </p>
-
-        <section className="pg-section">
-          <h2 className="pg-h2">PHILOSOPHY — THE HONESTY LAW</h2>
-          <div className="pg-card">
-            <ul className="pg-ul">
-              <li><b>Absent stays absent.</b> A field the API did not return renders “–” — never 0, never a guess.</li>
-              <li><b>Zero is a fact.</b> Zero volume or zero transactions is real and stays visible.</li>
-              <li><b>A negative price drop is real.</b> Negative 24h changes are market data — rendered red, never suppressed.</li>
-              <li><b>Impossible values are not facts.</b> A negative liquidity or price is an upstream data bug — normalized to “–”, never clamped, never abs().</li>
-              <li><b>Mocks are labeled.</b> Anything not wired to a real upstream carries a visible MOCK chip (see the swap panel).</li>
-              <li><b>Heuristics are auditable.</b> Every risk threshold lives in public code — no black boxes.</li>
-            </ul>
+    <div className="dd-root">
+      <PageBackground />
+      <div className="dd-aurora" aria-hidden="true" />
+      <div className="dd-shell">
+        <nav className="dd-rail" aria-label="Documentation sections">
+          <div className="dd-rail-hd">DOCUMENTATION</div>
+          {SECTIONS.map(([n, id, label]) => (
+            <a key={id} href={`#${id}`} className={cur === id ? 'on' : ''}><i>§{n}</i>{label}</a>
+          ))}
+          <div className="dd-rail-ft">
+            MACHINE INDEX<br />
+            <a href="/assets/llms.txt">/assets/llms.txt</a>
           </div>
-        </section>
+        </nav>
 
-        <section className="pg-section">
-          <h2 className="pg-h2">MEMECOIN LIVE — HOW THE FEED WORKS</h2>
-          <div className="pg-card">
-            <ul className="pg-ul">
-              <li><b>Keyless and free.</b> The board runs on GeckoTerminal's free tier (~10 calls/min) — no API keys anywhere.</li>
-              <li><b>Honest caching.</b> Every (chain, mode) is cached for 180s (env-tunable 60–600s). A failed refresh serves the expired copy flagged <b>stale</b> — or an honest 502 when there is nothing to serve.</li>
-              <li><b>One token = one card.</b> The same token in N pools collapses to its most-liquid pool — stable order, contiguous α-ranks.</li>
-              <li><b>Social chips.</b> X/website links come from DexScreener (1h cache, fail-soft). If a token has no profile, the chips simply don't render.</li>
-              <li><b>Alpha lens.</b> A deterministic local score (volume 40% · txns 25% · liquidity 20% · freshness 15%) re-ranks the volume feed with zero extra API calls.</li>
-            </ul>
+        <main>
+          <div className="dd-topnav">
+            <a className="dd-a" href="/">← LANDING</a>
+            <a className="dd-a" href="/live">MEMECOIN LIVE</a>
+            <a className="dd-a" href="/terminal">TERMINAL (BETA)</a>
+            <a className="dd-a" href="/roadmap">ROADMAP</a>
           </div>
-        </section>
 
-        <section className="pg-section">
-          <h2 className="pg-h2">THE PIPELINE — LIVE WIRES</h2>
-          <div className="pg-card">
-            <Diagram />
-            <table className="pg-tbl">
-              <tbody>
-                <tr><td>1 · GeckoTerminal</td><td>Keyless pools/trades API — trending, new, volume sources for six chains.</td></tr>
-                <tr><td>2 · Normalize + junk guard</td><td>Verbatim field copy; impossible numerics (negative price/liquidity/…) become “–”.</td></tr>
-                <tr><td>3 · Dedupe</td><td>Same token in N pools → the deepest pool survives; order stays stable.</td></tr>
-                <tr><td>4 · TTL cache</td><td>180s per (chain, source) — the free tier's ~10 rpm budget stays intact.</td></tr>
-                <tr><td>5 · /api/v1/live</td><td>One additive read route: honest 400/404/502, stale flags, live:false for absent networks.</td></tr>
-                <tr><td>6 · SSR + board</td><td>Server-rendered skeleton, staggered client fetches, six chain cards.</td></tr>
-                <tr><td>7 · Token cards</td><td>Bordered cards — logo tile, semantic change colors, copy-address, launchpad badge.</td></tr>
-                <tr><td>8 · DS socials</td><td>X/website via DexScreener, 1h cache, fail-soft — absent chips render nothing.</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
+          {/* ── HERO ─────────────────────────────────────────── */}
+          <header className="dd-hero-noise">
+            <div className="dd-kicker">TERMINAL ALPHA · DOCUMENTATION · v1 BUILD 2026.08.29</div>
+            <h1 className="dd-h1">One terminal. <em>All chains.</em> Zero lies.</h1>
+            <p className="dd-deck">
+              <b>Terminal Alpha</b> is a production read-only research terminal for memecoin markets
+              across six chains: a keyless live data pipeline with deterministic integrity guarantees,
+              public risk heuristics, and an evidence-first analysis layer. No custody, no keys, no
+              black boxes. Everything on this site renders exactly what an upstream API actually
+              returned. Machine-readable index: <a className="dd-a" href="/assets/llms.txt">/assets/llms.txt</a>.
+            </p>
+            <div className="dd-statrow">
+              <span className="dd-stat"><b>120</b> automated tests</span>
+              <span className="dd-stat"><b>6</b> chains live</span>
+              <span className="dd-stat"><b>4</b> feed modes</span>
+              <span className="dd-stat"><b>180s</b> ttl cache</span>
+              <span className="dd-stat"><b>0</b> api keys required</span>
+              <span className="dd-stat"><b>2</b> runtime deps</span>
+            </div>
+          </header>
 
-        <section className="pg-section">
-          <h2 className="pg-h2">SIX CHAINS, FOUNDER-LOCKED ORDER</h2>
-          <div className="pg-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }}>
-            {LIVE_CHAINS.map((c) => (
-              <div className="pg-card" key={c} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px' }}>
-                <ChainLogo chain={c} size={44} />
-                <div>
-                  <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 14 }}>{LIVE_CHAIN_LABEL[c]}</div>
-                  <div className="dx-nsub">{c.toUpperCase()} · LIVE</div>
+          {/* ── 1 · THESIS ───────────────────────────────────── */}
+          <Sec id="thesis" n="1" title="THESIS — WHY THIS EXISTS">
+            <p className="dd-p">
+              Memecoin discovery is fragmented across six chain ecosystems, poisoned by fabricated
+              volume displays, scored by opaque third-party ratings, and monetized through
+              interfaces that quietly hold user custody risk. Terminal Alpha answers with one
+              surface: verified multichain data through an auditable pipeline, every decision rule
+              published, every unfinished part labeled — so a researcher and their AI can verify
+              everything without trusting anything.
+            </p>
+          </Sec>
+
+          {/* ── 2 · HONESTY LAW ──────────────────────────────── */}
+          <Sec id="honesty" n="2" title="THE HONESTY LAW"
+            sub="Six clauses, numbered and load-bearing. Each one is enforced in code, not in spirit — the reference points to where.">
+            <ul className="dd-law">
+              <li>
+                <span className="no">2.1</span>
+                <div><b>Absent stays absent.</b>
+                  <p>Fields an upstream did not return render “–”; never imputed, never defaulted, never zero-filled.</p>
+                  <span className="ref">providers/live.py · _normalize() · lib/liveFormat.ts</span>
                 </div>
-                <span className="pg-chip" style={{ marginLeft: 'auto' }}><span style={{ width: 5, height: 5, borderRadius: 999, background: 'currentColor' }} />LIVE</span>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="pg-section">
-          <h2 className="pg-h2">BETA NOTAS</h2>
-          <div className="pg-card">
-            <ul className="pg-ul">
-              <li><b>The terminal is internal beta.</b> The swap panel inside it is a labeled MOCKUP — static numbers, no wallet, no chain calls.</li>
-              <li><b>Roadmap:</b> shipped sprints, current work and next moves live on the <a className="pg-a" href="/roadmap">Roadmap page →</a></li>
-              <li><b>X &amp; community links</b> land with the public launch — they will be added here, never invented before that.</li>
+              </li>
+              <li>
+                <span className="no">2.2</span>
+                <div><b>Zero is a fact.</b>
+                  <p>$0 liquidity and 0 trades are real market states and stay visible.</p>
+                  <span className="ref">providers/live.py · _no_neg() keeps zeros</span>
+                </div>
+              </li>
+              <li>
+                <span className="no">2.3</span>
+                <div><b>A negative drop is data.</b>
+                  <p>Minus 24h changes render in red with a real minus sign. Never suppressed.</p>
+                  <span className="ref">providers/live.py · change_24h verbatim · lib/liveFormat.ts · fmtPct()</span>
+                </div>
+              </li>
+              <li>
+                <span className="no">2.4</span>
+                <div><b>Impossible values are upstream bugs.</b>
+                  <p>Negative prices/liquidity/volume/FDV normalize to “–” — never clamped, never absolute-valued.</p>
+                  <span className="ref">providers/live.py · _no_neg() · test: junk-numeric guard</span>
+                </div>
+              </li>
+              <li>
+                <span className="no">2.5</span>
+                <div><b>Pre-release surfaces are declared.</b>
+                  <p>Any UI layer not yet wired to execution renders from deterministic simulated data sets with a visible SIMULATED label.</p>
+                  <span className="ref">src/pages/TokenPage.tsx · §13 status legend</span>
+                </div>
+              </li>
+              <li>
+                <span className="no">2.6</span>
+                <div><b>Heuristics are auditable.</b>
+                  <p>Every threshold and weight is public code — a score you cannot audit is a score you must not follow.</p>
+                  <span className="ref">providers/live.py · ALPHA_WEIGHTS · heuristics/rug_check.py</span>
+                </div>
+              </li>
             </ul>
-            <p className="pg-note">FREE LIVE DATA VIA GECKOTERMINAL · SOCIALS VIA DEXSCREENER · READ-ONLY, NO CUSTODY</p>
-          </div>
-        </section>
+          </Sec>
+
+          {/* ── 3 · ARCHITECTURE ─────────────────────────────── */}
+          <Sec id="arch" n="3" title="ARCHITECTURE — LEAN SUPPLY CHAIN"
+            sub="One pipeline through: keyless ingestion of external sources → normalization → deduplication → cached distribution → typed client. The whole system fits one mental model — that is by design.">
+            <div className="dd-grid2">
+              <div className="dd-card">
+                <p className="dd-p">
+                  <b>Frontend:</b> React 19 + Vite + TypeScript with exactly two runtime
+                  dependencies — <code>react</code> and <code>react-dom</code> (read
+                  package.json). No UI kit, no charting library, no router, no CSS framework:
+                  every visual — radar, globe, pipeline, chain marks — is hand-written canvas/SVG.
+                </p>
+                <p className="dd-p">
+                  <b>Backend:</b> a Python webapp server (uv-managed, FastAPI) with a
+                  contract-first, additive route policy: new endpoints are added, existing response
+                  schemas are never mutated. State is deterministic everywhere — same input, same
+                  output, no hidden randomness.
+                </p>
+              </div>
+              <div className="dd-card">
+                <p className="dd-p"><b>Why so few dependencies</b></p>
+                <p className="dd-p">
+                  A verifiable supply chain: two runtime packages, both first-party maintained,
+                  nothing transitive in the browser. Deterministic rendering, a strict per-page
+                  code-split budget, and longevity — the backend speaks stdlib <code>urllib</code>
+                  over vendor SDKs, so upstreams stay swappable.
+                </p>
+                <p className="dd-p">
+                  The trade-off, honestly: we spend more engineering hours on state and visuals
+                  than a framework-heavy stack would charge us. That is the deal — our time for
+                  your audit surface.
+                </p>
+              </div>
+            </div>
+          </Sec>
+
+          {/* ── 4 · PIPELINE ─────────────────────────────────── */}
+          <Sec id="pipeline" n="4" title="THE PIPELINE — LIVE WIRES"
+            sub="Every mainline node below is [LIVE]: shipped, serving real upstream data. Branch lanes are declared with the status vocabulary of §13.">
+            <div className="dd-card">
+              <Pipeline />
+              <p className="dd-cap">
+                THE WIRES YOU SEE ARE THE WIRES YOU GET. NODES MARKED SIMULATED SHIP A LABELED
+                PRE-RELEASE INTERFACE ONLY; NO UPSTREAM IS WIRED TO THEM YET.
+              </p>
+            </div>
+            <div className="dd-card">
+              <table className="dd-tbl">
+                <thead><tr><th>Node</th><th>What ships</th><th>Evidence</th></tr></thead>
+                <tbody>
+                  <tr><td>4.1 · GeckoTerminal</td>
+                    <td>Keyless pools/trades API — new, trending and volume sources for six chains; volume sort verified monotonic in stage-0 (2026-08-29).</td>
+                    <td className="path">providers/live.py · providers/geckoterminal.py</td></tr>
+                  <tr><td>4.2 · Normalize + guard</td>
+                    <td>Verbatim field copy; impossible numerics (negative price/liquidity/volume/FDV) become “–”; zeros stay; a negative 24h change is market data and stays.</td>
+                    <td className="path">providers/live.py · _no_neg() · _txns_24h()</td></tr>
+                  <tr><td>4.3 · Dedupe</td>
+                    <td>One token = one card: the same (symbol, name) in N pools keeps only its most liquid pool; stable first-occurrence order; α-ranks stay contiguous.</td>
+                    <td className="path">providers/live.py · _dedupe()</td></tr>
+                  <tr><td>4.4 · TTL cache</td>
+                    <td>180s per (chain, source) — env <code>FEED_CACHE_TTL_S</code>, clamped 60–600s. A failed refresh serves the expired copy flagged <code>stale:true</code>; with no fallback the route answers 502.</td>
+                    <td className="path">providers/live.py · get_feed()</td></tr>
+                  <tr><td>4.5 · /api/v1/live</td>
+                    <td>One read-only additive route: honest 400/404/502, and <code>live:false</code> with an empty item list for networks GeckoTerminal does not serve — never fabricated data.</td>
+                    <td className="path">webapp/server.py · api_live()</td></tr>
+                  <tr><td>4.6 · Board client</td>
+                    <td>Client-rendered React surfaces: six chain cards and three columns per chain, fetched staggered ≥1s apart; per-card failure with a 60s retry cool-down.</td>
+                    <td className="path">src/pages/LiveBoard.tsx · src/pages/ChainLive.tsx</td></tr>
+                  <tr><td>4.7 · Token cards</td>
+                    <td>Bordered cards — logo tile with initial fallback, semantic +/− colors, copy-address control, launchpad badge from observed dex ids only.</td>
+                    <td className="path">src/pages/liveParts.tsx · providers/live.py · LAUNCHPAD</td></tr>
+                  <tr><td>4.8 · DS socials</td>
+                    <td>X/website lookups via DexScreener, batched ≤30 addresses, 1h cache, fail-soft — dead lookups leave socials absent; chips render nothing.</td>
+                    <td className="path">providers/live.py · _enrich_socials()</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </Sec>
+
+          {/* ── 5 · DATA SOURCES ─────────────────────────────── */}
+          <Sec id="sources" n="5" title="DATA SOURCES & LIMITS"
+            sub="Every upstream is documented with its real constraints — limits are respected by design, not by luck.">
+            <div className="dd-card">
+              <table className="dd-tbl">
+                <thead><tr><th>Source</th><th>Access</th><th>Constraints as wired</th></tr></thead>
+                <tbody>
+                  <tr><td>GeckoTerminal API v2</td>
+                    <td>Keyless · free tier</td>
+                    <td>~10 calls/min. Feed endpoints (new/trending/volume) wired for all six networks: <code>solana</code>, <code>bsc</code>, <code>base</code>, <code>hyperevm</code>, <code>robinhood</code>, <code>avax</code> — stage-0 verified against 248 network ids (2026-08-29). The trade-level path used by clustering currently resolves four chains (sol/bnb/base/avax); hype/hood scans degrade honestly there. 180s feed cache keeps steady-state at ~6 rpm.</td></tr>
+                  <tr><td>DexScreener</td>
+                    <td>Keyless</td>
+                    <td>Social profiles, batch ≤30 addresses per call, cached 1h. Chain ids served: solana, bsc, base, avax, robinhood — <code>hyperevm</code> is not listed upstream, so socials stay absent on hype. Failures leave socials absent; the feed never breaks.</td></tr>
+                  <tr><td>Helius</td>
+                    <td>Key required</td>
+                    <td>Wallet balances for the whale surface (<code>HELIUS_API_KEY</code>, server-side only). Framework status — not part of the live feed plane.</td></tr>
+                </tbody>
+              </table>
+              <blockquote className="dd-never">
+                <b>Why keyless:</b> no secret can leak, because none exists. The live pipeline holds
+                zero credentials, and the free-tier budget is enforced by the cache — 18
+                (chain, source) combinations settle at ~6 requests/minute against a ~10 rpm tier.
+              </blockquote>
+            </div>
+          </Sec>
+
+          {/* ── 6 · API REFERENCE ────────────────────────────── */}
+          <Sec id="api" n="6" title="API REFERENCE — /API/V1/LIVE"
+            sub="The response below was captured from a running server (2026-08-29), not written by hand. Absent upstream fields stay null end-to-end.">
+            <div className="dd-card">
+              <div className="dd-code">
+                <div className="hd"><span className="m">GET</span> /api/v1/live/{'{chain}'} · READ-ONLY</div>
+                {'GET /api/v1/live/sol?mode=alpha&limit=20'}
+              </div>
+              <table className="dd-tbl">
+                <thead><tr><th>Parameter</th><th>In</th><th>Contract</th></tr></thead>
+                <tbody>
+                  <tr><td>chain</td><td>path</td><td>One of <code>sol | bnb | base | hype | hood | avax</code>. Anything else → 404 with the allowed list echoed.</td></tr>
+                  <tr><td>mode</td><td>query</td><td><code>new | trending | volume | alpha</code> (default <code>new</code>). Anything else → 400.</td></tr>
+                  <tr><td>limit</td><td>query</td><td>Integer 1..50 (default 20). Out of range → 400. Alpha ranks the full page before slicing, so ranking is never clipped by the limit.</td></tr>
+                </tbody>
+              </table>
+              <div className="dd-code">
+                <div className="hd">200 · REAL RESPONSE · SOL/ALPHA · CAPTURED 2026-08-29</div>
+                <span className="c-k">{'{'}</span>{'\n  '}
+                <span className="c-k">"chain"</span>: <span className="c-s">"sol"</span>,{' '}
+                <span className="c-k">"network_id"</span>: <span className="c-s">"solana"</span>,{' '}
+                <span className="c-k">"live"</span>: <span className="c-m">true</span>,{'\n  '}
+                <span className="c-k">"generated_at"</span>: <span className="c-s">"2026-08-29T14:20:39.485347+00:00"</span>,{'\n  '}
+                <span className="c-k">"cached"</span>: <span className="c-m">false</span>,{' '}
+                <span className="c-k">"stale"</span>: <span className="c-m">false</span>,{'\n  '}
+                <span className="c-k">"items"</span>: [<span className="c-c">{'{ … first of two items, verbatim }'}</span>{'\n    '}
+                <span className="c-k">"pool_address"</span>: <span className="c-s">"FAxXtukf96gtk1BLR3NR6VoKe6DNeneUXWF9GgNLac46"</span>,{'\n    '}
+                <span className="c-k">"token_symbol"</span>: <span className="c-s">"HOOD"</span>,{' '}
+                <span className="c-k">"token_name"</span>: <span className="c-s">"Robinhood"</span>,{' '}
+                <span className="c-k">"pair"</span>: <span className="c-s">"HOOD / SOL"</span>,{'\n    '}
+                <span className="c-k">"logo"</span>: <span className="c-s">"https://assets.geckoterminal.com/kcbazdhluvdji6rja1upjpihrdzi"</span>,{'\n    '}
+                <span className="c-k">"price_usd"</span>: <span className="c-s">"0.00011567840369361685322389768596137022102…"</span> <span className="c-c">{'// verbatim upstream string, print-truncated'}</span>{'\n    '}
+                <span className="c-k">"volume_24h"</span>: <span className="c-s">"81266399.1334394"</span>,{' '}
+                <span className="c-k">"change_24h"</span>: <span className="c-s">"1009.514"</span>,{'\n    '}
+                <span className="c-k">"liquidity_usd"</span>: <span className="c-s">"273054.9653"</span>,{' '}
+                <span className="c-k">"txns_24h"</span>: <span className="c-n">112063</span>,{'\n    '}
+                <span className="c-k">"fdv_usd"</span>: <span className="c-s">"11432414.9694959"</span>,{' '}
+                <span className="c-k">"created_at"</span>: <span className="c-s">"2026-08-29T07:41:42Z"</span>,{'\n    '}
+                <span className="c-k">"dex_id"</span>: <span className="c-s">"pumpswap"</span>,{' '}
+                <span className="c-k">"launchpad"</span>: <span className="c-s">"pumpswap"</span>,{'\n    '}
+                <span className="c-k">"token_address"</span>: <span className="c-s">"Buj9Y5JhQ7hx9Lebmr5ngayLbD5BhnZs2DHUtmnqdHe7"</span>,{'\n    '}
+                <span className="c-k">"socials"</span>: <span className="c-m">null</span> <span className="c-c">{'// nothing returned upstream → null, rendered “–”'}</span>
+                {'\n  }]\n}'}
+              </div>
+              <table className="dd-tbl">
+                <thead><tr><th>Envelope field</th><th>Type</th><th>Null semantics</th></tr></thead>
+                <tbody>
+                  <tr><td>chain</td><td>string</td><td>Echo of the requested chain key.</td></tr>
+                  <tr><td>network_id</td><td>string | null</td><td>GeckoTerminal network slug; null only when <code>live:false</code>.</td></tr>
+                  <tr><td>live</td><td>boolean</td><td><code>false</code> = the network is not served upstream today: empty items, never fabricated data.</td></tr>
+                  <tr><td>generated_at</td><td>ISO-8601 UTC</td><td>Server clock at response build.</td></tr>
+                  <tr><td>cached</td><td>boolean</td><td><code>true</code> = served from the TTL cache, zero upstream calls spent.</td></tr>
+                  <tr><td>stale</td><td>boolean</td><td><code>true</code> = the refresh failed and the expired entry was served. Flagged, never silent.</td></tr>
+                  <tr><td>items[]</td><td>array</td><td>Normalized, deduped, (for alpha) ranked page. Item fields: pool_address, token_symbol, token_name, pair, logo, price_usd, volume_24h, change_24h, liquidity_usd, txns_24h, fdv_usd, created_at, dex_id, launchpad, token_address, socials.</td></tr>
+                </tbody>
+              </table>
+              <p className="dd-p" style={{ marginTop: 14 }}>
+                <b>Headers, honestly:</b> the route sets no HTTP cache headers — freshness is carried
+                in-body (<code>generated_at</code>, <code>cached</code>, <code>stale</code>), so no
+                client can ever mistake a stale copy for a fresh one.
+              </p>
+              <div className="dd-code">
+                <div className="hd">ERROR CONTRACT — REAL BODIES, ECHOED VERBATIM</div>
+                <span className="c-n">404</span> <span className="c-err">{`{"detail":"unknown chain 'nope' — pick sol|bnb|base|hype|hood|avax"}`}</span>{'\n'}
+                <span className="c-n">400</span> <span className="c-err">{`{"detail":"mode must be new|trending|volume|alpha"}`}</span>{'\n'}
+                <span className="c-n">400</span> <span className="c-err">{`{"detail":"limit must be 1..50"}`}</span>{'\n'}
+                <span className="c-n">502</span> <span className="c-err">{`{"detail":"GeckoTerminal HTTP 429 — live feed upstream failed"}`}</span>{' '}
+                <span className="c-c">{'// honest failure — no data, no pretense'}</span>
+              </div>
+            </div>
+          </Sec>
+
+          {/* ── 7 · ALPHA LENS ───────────────────────────────── */}
+          <Sec id="alpha" n="7" title="ALPHA LENS — THE DETERMINISTIC SCORE"
+            sub="Computed locally in providers/live.py — zero additional API calls. The alpha mode re-ranks the volume feed with published weights, capped components, and a stable tie-break.">
+            <div className="dd-card">
+              <div className="dd-formula">
+                <span>α</span><span className="op">=</span>
+                <span className="w">0.40</span><span>·volume</span><span className="op">+</span>
+                <span className="w">0.25</span><span>·txns</span><span className="op">+</span>
+                <span className="w">0.20</span><span>·liquidity</span><span className="op">+</span>
+                <span className="w">0.15</span><span>·freshness</span>
+              </div>
+              <div className="dd-bars">
+                <div className="dd-bar"><span>VOLUME</span><span className="track"><span className="fill" style={BAR(100)} /></span><span className="pct">40%</span></div>
+                <div className="dd-bar"><span>TXNS</span><span className="track"><span className="fill" style={BAR(62)} /></span><span className="pct">25%</span></div>
+                <div className="dd-bar"><span>LIQUIDITY</span><span className="track"><span className="fill" style={BAR(50)} /></span><span className="pct">20%</span></div>
+                <div className="dd-bar"><span>FRESHNESS</span><span className="track"><span className="fill" style={BAR(38)} /></span><span className="pct">15%</span></div>
+              </div>
+              <table className="dd-tbl">
+                <thead><tr><th>Component</th><th>Normalization (shipped code)</th><th>Cap</th></tr></thead>
+                <tbody>
+                  <tr><td>volume</td><td>log10(1 + vol24) / 8 — ≈$100M daily volume saturates</td><td>1.0</td></tr>
+                  <tr><td>txns</td><td>log10(1 + txns24) / 3 — ≈1,000 daily txns saturate</td><td>1.0</td></tr>
+                  <tr><td>liquidity</td><td>min(liq, $100K) / $100K</td><td>1.0</td></tr>
+                  <tr><td>freshness</td><td>max(0, 1 − age_h / 168) — one week of life</td><td>1.0</td></tr>
+                </tbody>
+              </table>
+              <p className="dd-p" style={{ marginTop: 14 }}>
+                A missing component contributes 0 — never fabricated. Ties break by 24h volume
+                (desc), then by stable source order. The worked example below uses three synthetic
+                tokens with hand-picked signals; the weights, caps and normalization are the exact
+                shipped code:
+              </p>
+              <table className="dd-tbl">
+                <thead><tr><th>Synthetic token</th><th>Signals</th><th>α</th></tr></thead>
+                <tbody>
+                  <tr><td>T1 — young mover</td>
+                    <td>vol $250K · 120 txns · liq $40K · 20h old → 0.270 + 0.174 + 0.080 + 0.132</td>
+                    <td><b>0.656</b></td></tr>
+                  <tr><td>T2 — liquid veteran</td>
+                    <td>vol $8M · 900 txns · liq $180K (capped) · 90h old → 0.345 + 0.246 + 0.200 + 0.070</td>
+                    <td><b>0.861</b></td></tr>
+                  <tr><td>T3 — dead pair</td>
+                    <td>vol $0 · no txns · liq $0 · 400h old → every component 0</td>
+                    <td><b>0.000</b></td></tr>
+                </tbody>
+              </table>
+              <blockquote className="dd-never">
+                You audit this in public code; no hidden models. <b>α is a lens, not a verdict</b> —
+                it re-orders what the upstream already returned, and nothing else.
+              </blockquote>
+            </div>
+          </Sec>
+
+          {/* ── 8 · NETWORKS ─────────────────────────────────── */}
+          <Sec id="networks" n="8" title="NETWORKS — SIX CHAINS, FOUNDER-LOCKED ORDER"
+            sub="Network ids are GeckoTerminal slugs, copied from providers/live.py CHAINS. Every entry below answers live:true today.">
+            <div className="dd-nets">
+              {LIVE_CHAINS.map((c) => (
+                <div className="dd-net" key={c} style={{ borderColor: `color-mix(in srgb, ${ACCENT[c]} 35%, transparent)` }}>
+                  <ChainLogo chain={c} size={40} />
+                  <div>
+                    <div className="nm">{LIVE_CHAIN_LABEL[c]}</div>
+                    <div className="id">{c.toUpperCase()} · accent {ACCENT[c]}</div>
+                  </div>
+                  <span className="key">network_id: {NET_ID[c]}</span>
+                  <Chip kind="live">live</Chip>
+                </div>
+              ))}
+            </div>
+          </Sec>
+
+          {/* ── 9 · SURFACES INDEX ───────────────────────────── */}
+          <Sec id="surfaces" n="9" title="SURFACES INDEX"
+            sub="The labeling rule in practice: every surface is labeled with the engineering register of §13, and every label is testable.">
+            <div className="dd-surfs">
+              <a className="dd-surf" href="/live">
+                <span className="chiprow"><Chip kind="live">live</Chip></span>
+                <span className="t">Memecoin Live Board</span>
+                <span className="s">Six chain cards in founder-locked order, trending top-3 previews, staggered fetch, honest flags.</span>
+                <span className="u">/live</span>
+              </a>
+              <a className="dd-surf" href="/live/sol">
+                <span className="chiprow"><Chip kind="live">live</Chip></span>
+                <span className="t">Chain Pages ×6</span>
+                <span className="s">Three columns per chain — NEW | TRENDING | VOLUME·ALPHA with α-rank numbers.</span>
+                <span className="u">/live/{'{chain}'}</span>
+              </a>
+              <a className="dd-surf" href="/terminal">
+                <span className="chiprow"><Chip kind="live">live</Chip><Chip kind="sim">simulated</Chip></span>
+                <span className="t">Terminal Beta + Swap Desk</span>
+                <span className="s">The shell ships open (no flag gate in code). Its data surfaces render deterministic simulated data sets; the swap desk adds no session, no wallet, no chain calls.</span>
+                <span className="u">/terminal</span>
+              </a>
+              <a className="dd-surf" href="/roadmap">
+                <span className="chiprow"><Chip kind="live">live</Chip></span>
+                <span className="t">Roadmap</span>
+                <span className="s">Shipped sprints, current work and next moves — the full detail behind §14.</span>
+                <span className="u">/roadmap</span>
+              </a>
+              <a className="dd-surf" href="/assets/llms.txt">
+                <span className="chiprow"><Chip kind="live">live</Chip></span>
+                <span className="t">Machine Index</span>
+                <span className="s">Structured llms.txt: project summary, integrity contract, endpoint descriptions — written for AI agents.</span>
+                <span className="u">/assets/llms.txt</span>
+              </a>
+            </div>
+          </Sec>
+
+          {/* ── 10 · SECURITY ────────────────────────────────── */}
+          <Sec id="security" n="10" title="SECURITY & CUSTODY POSTURE"
+            sub="A terminal that cannot reach your funds cannot betray them. Each claim below is checkable in view-source or in the repo.">
+            <div className="dd-card">
+              <ul className="dd-law">
+                <li><span className="no">10.1</span><div><b>Read-only data plane.</b>
+                  <p>The API exposes reads (scan, explain, discovery, live feed). No route accepts an order, a signature or a transaction.</p></div></li>
+                <li><span className="no">10.2</span><div><b>No key request at any point.</b>
+                  <p>The live pipeline is keyless; there is no login, no account, no cookie, no session anywhere on the site.</p></div></li>
+                <li><span className="no">10.3</span><div><b>Zero secret handling in the browser.</b>
+                  <p>No secret ships in any frontend bundle. AI provider keys live server-side and are never returned by any endpoint.</p></div></li>
+                <li><span className="no">10.4</span><div><b>No third-party script on the page.</b>
+                  <p>Verifiable in view-source: the bundle is self-hosted; fonts are the only third-party fetch, and they are stylesheets, not scripts.</p></div></li>
+                <li><span className="no">10.5</span><div><b>Bounded surfaces.</b>
+                  <p>Every cache has a hard cap (scan 512, feed 32, socials 128 entries); WebSocket fan-out is capped (default 64 clients); AI endpoints are per-IP rate limited (5/hour, 30/day by default).</p></div></li>
+              </ul>
+              <blockquote className="dd-never">
+                <b>What we will never do:</b> custody seed phrases or private keys · sign anything ·
+                execute trades from the terminal · sell rank placement (ranks are computed by the
+                published α formula, not bought) · resell feed data through hidden channels.
+              </blockquote>
+            </div>
+          </Sec>
+
+          {/* ── 11 · QUALITY GATES ───────────────────────────── */}
+          <Sec id="qa" n="11" title="QUALITY ASSURANCE — GATES"
+            sub="One red gate blocks the pipeline. These numbers are measured on 2026-08-29, not estimated.">
+            <div className="dd-card">
+              <div className="dd-qa">
+                <span><b>120</b> tests</span>
+                <span><b>0</b> ruff errors</span>
+                <span><b>0</b> oxlint errors</span>
+                <span><b>✓</b> full build</span>
+                <span><b>✓</b> bundle probe</span>
+                <span><b>✓</b> pipefail</span>
+              </div>
+              <table className="dd-tbl">
+                <tbody>
+                  <tr><td>Test suite</td><td>120 automated tests (pytest): feed contract, limit clamp, alpha determinism/ties/zero-calls, stale-serve, route 404/400/502, junk-numeric guard, dedupe stability, socials mapping/1h cache/fail-soft, TTL env clamp, WS auth/cap, OpenAPI surface.</td></tr>
+                  <tr><td>Linters</td><td>ruff (Python) and oxlint (TypeScript/React) both at zero findings on every commit.</td></tr>
+                  <tr><td>Bundle probe</td><td>The minified docs bundle is grepped before ship: key strings (HONESTY LAW, ALPHA LENS, llms.txt) present, banned register absent.</td></tr>
+                  <tr><td>Process</td><td>pipefail discipline — one red gate blocks; one additive change per commit; every commit is full-build verified.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </Sec>
+
+          {/* ── 12 · CHANGELOG ───────────────────────────────── */}
+          <Sec id="changelog" n="12" title="ENGINEERING CHANGELOG — SHIPPED"
+            sub="Dates and hashes read from git log — never guessed. Every line is checkable with one command.">
+            <ul className="dd-chg">
+              <li><span className="d">2026-08-29 · INTEGRITY</span> <span className="h">f44b162 · 3ffff05 · b094da2 · 319e36c · d2a3ec7</span>
+                <p><b>Data integrity pass:</b> junk-numeric guard (impossible values → “–”), verbatim negative changes kept, per-token dedupe, X/website social chips + the EVM case-insensitive match fix.</p></li>
+              <li><span className="d">2026-08-29 · MARKS</span> <span className="h">86be5e4 · 6b21fac · 7a56b68</span>
+                <p><b>Chain marks + token cards:</b> hand-crafted inline SVG chain marks (sol bars, bnb diamonds, base notch, hype ring, hood feather, avax split), token-card bordir.</p></li>
+              <li><span className="d">2026-08-29 · SWAP SURFACE</span> <span className="h">5fbed95 · 6943d7d</span>
+                <p><b>Token detail + swap desk</b> <Chip kind="sim">simulated</Chip> — deterministic simulated data set, no session, no wallet, no chain calls.</p></li>
+              <li><span className="d">2026-08-28 · REALTIME</span> <span className="h">3741173 · 5428dfd</span>
+                <p><b>WebSocket plane:</b> /ws/snap honest snapshot ticker + /ws/tape additive trade-tape deltas over real GeckoTerminal trades.</p></li>
+              <li><span className="d">2026-08-28 · BOARD</span> <span className="h">55898f4 · a53eea1</span>
+                <p><b>Multichain board frontend:</b> six chain cards + three staggered columns per chain, honest 404/400/502 rendering, 60s retry cool-down.</p></li>
+              <li><span className="d">2026-08-28 · BORDIR</span> <span className="h">f007ae1 · c47e10b</span>
+                <p><b>2px border/glow system:</b> accent borders, dashed inset hairlines, semantic pos/neg colors.</p></li>
+              <li><span className="d">2026-08-28 · FEED ENGINE</span> <span className="h">642296d · 95d7ade · f53bac4</span>
+                <p><b>Live feed backend:</b> 6 chains × 4 modes, TTL 180s (env-clamped 60–600), deterministic α ranking, stale-safe serving.</p></li>
+              <li><span className="d">2026-08-27 · FOUNDATIONS</span> <span className="h">d38f78e · fee1c93 · 3095cba · 8f860bb · d5faea2</span>
+                <p><b>Foundations:</b> TUI research engine, weighted risk heuristics v0, wallet clustering, multi-provider evidence-first AI, FastAPI read-only API, GeckoTerminal trade feed verified live.</p></li>
+            </ul>
+          </Sec>
+
+          {/* ── 13 · STATUS LEGEND ───────────────────────────── */}
+          <Sec id="status" n="13" title="STATUS SYSTEM LEGEND"
+            sub="The vocabulary used on every diagram and table on this site — humans and AI readers need the same words for the same state.">
+            <div className="dd-card">
+              <table className="dd-tbl">
+                <thead><tr><th>Chip</th><th>Exact meaning</th></tr></thead>
+                <tbody>
+                  <tr><td><Chip kind="live">live</Chip></td><td>Shipped and serving real upstream data. Green, glow, 2px border.</td></tr>
+                  <tr><td><Chip kind="sim">simulated</Chip></td><td>Pre-release UI rendering from a deterministic simulated data set, visibly labeled. No upstream wired. Amber, dashed border.</td></tr>
+                  <tr><td><Chip kind="build">in build</Chip></td><td>Design frozen, wiring in progress. Slate, 1px flat.</td></tr>
+                  <tr><td><Chip kind="design">design</Chip></td><td>Scoped, not started. Dim outline.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </Sec>
+
+          {/* ── 14 · ROADMAP ─────────────────────────────────── */}
+          <Sec id="roadmap" n="14" title="ROADMAP">
+            <p className="dd-p">
+              Shipped sprints, current work and next moves live on the{' '}
+              <a className="dd-a" href="/roadmap">Roadmap page →</a> — the documentation surface
+              only mirrors what already exists in code.
+            </p>
+          </Sec>
+
+          {/* ── 15 · GLOSSARY ────────────────────────────────── */}
+          <Sec id="glossary" n="15" title="GLOSSARY + STATEMENT">
+            <div className="dd-card">
+              <dl className="dd-gloss">
+                <div><dt>pool</dt><dd>An on-chain pair contract holding two tokens — the atomic unit of every feed item.</dd></div>
+                <div><dt>liquidity</dt><dd>USD value locked in a pool (upstream reserve_in_usd) — the depth a price can absorb.</dd></div>
+                <div><dt>bonding curve</dt><dd>A deterministic price curve that mints/burns supply as capital enters or leaves; where most memecoins are born.</dd></div>
+                <div><dt>launchpad badge</dt><dd>An observed dex id mapped to a label (pump.fun, raydium…); unknown ids pass through raw, never guessed.</dd></div>
+                <div><dt>fresh / stale</dt><dd>Fresh = served inside the 180s TTL window. Stale = the refresh failed and the expired copy was served, flagged stale:true.</dd></div>
+                <div><dt>TTL</dt><dd>Time-to-live — how long a cached (chain, source) entry answers before the next upstream call.</dd></div>
+                <div><dt>fail-soft</dt><dd>A non-critical enrichment (socials) degrades to absent instead of breaking the feed.</dd></div>
+                <div><dt>network id</dt><dd>GeckoTerminal's slug for a chain: solana, bsc, base, hyperevm, robinhood, avax.</dd></div>
+                <div><dt>α (alpha score)</dt><dd>The deterministic local ranking — volume 40 · txns 25 · liquidity 20 · freshness 15, capped, ties by 24h volume.</dd></div>
+                <div><dt>dedupe</dt><dd>One token = one card: the same (symbol, name) collapses to its most liquid pool.</dd></div>
+                <div><dt>junk guard</dt><dd>The normalizer that turns impossible upstream values into “–”; zeros and negative changes pass through.</dd></div>
+                <div><dt>deterministic simulation</dt><dd>A rendered surface driven by a fixed seeded data set: same input → same page, labeled SIMULATED.</dd></div>
+                <div><dt>additive route</dt><dd>A new endpoint that touches no existing route's schema — the discipline the API grows by.</dd></div>
+                <div><dt>free tier</dt><dd>GeckoTerminal's keyless ~10 calls/min budget, respected by the cache (~6 rpm steady-state).</dd></div>
+              </dl>
+              <blockquote className="dd-never">
+                <b>Statement:</b> research tools — not financial advice. Data belongs to upstream
+                providers (GeckoTerminal, DexScreener); rendering rights as per their public terms.
+              </blockquote>
+            </div>
+          </Sec>
+
+          <footer className="dd-foot">
+            TERMINAL ALPHA · READ-ONLY RESEARCH INFRASTRUCTURE · NO TRADING · NO CUSTODY · EVIDENCE FIRST
+            <br />MACHINE INDEX · <a className="dd-a" href="/assets/llms.txt">/assets/llms.txt</a> · API SURFACE · <a className="dd-a" href="/api/docs">/api/docs</a> · ROADMAP · <a className="dd-a" href="/roadmap">/roadmap</a>
+          </footer>
+        </main>
       </div>
     </div>
   )
