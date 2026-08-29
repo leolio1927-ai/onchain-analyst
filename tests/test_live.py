@@ -101,6 +101,38 @@ def test_absent_stays_absent(monkeypatch):
     assert items[0]["txns_24h"] is None
 
 
+def test_impossible_values_suppressed_zeros_kept(monkeypatch):
+    # X.1 honesty extension: negative numerics are upstream DATA BUGS → None
+    # (the UI renders "–"); zero is a real fact and must survive.
+    e, _ = _pool(3, vol="-500", liq="-42")
+    a = e["attributes"]
+    a["base_token_price_usd"] = "-0.001"
+    a["fdv_usd"] = "-9000"
+    a["price_change_percentage"] = {"h24": "-12.5"}  # a real negative change is FINE
+    live._feed_cache.clear()
+    _patch(monkeypatch, {"data": [e], "included": []})
+    items, _ = live.get_feed("sol", "new", 20)
+    it = items[0]
+    assert it["volume_24h"] is None and it["liquidity_usd"] is None
+    assert it["price_usd"] is None and it["fdv_usd"] is None
+    assert it["change_24h"] == "-12.5"  # negative CHANGE is legitimate data
+    assert it["txns_24h"] == 15
+
+    zero, _ = _pool(4, vol="0", liq="0", buys=0, sells=0)
+    live._feed_cache.clear()
+    _patch(monkeypatch, {"data": [zero], "included": []})
+    it0, _ = live.get_feed("sol", "new", 20)
+    assert it0[0]["volume_24h"] == "0" and it0[0]["liquidity_usd"] == "0"
+    assert it0[0]["txns_24h"] == 0  # zeros are facts, never suppressed
+
+    junk, _ = _pool(5)
+    junk["attributes"]["fdv_usd"] = "not-a-number"
+    live._feed_cache.clear()
+    _patch(monkeypatch, {"data": [junk], "included": []})
+    itj, _ = live.get_feed("sol", "new", 20)
+    assert itj[0]["fdv_usd"] is None  # unparseable junk is not displayed either
+
+
 def test_limit_clamped_both_sides(monkeypatch):
     _patch(monkeypatch)
     assert len(live.get_feed("sol", "new", 0)[0]) == 1
