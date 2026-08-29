@@ -402,6 +402,18 @@ async def terminal():
     return _page("terminal.html")
 
 
+@app.get("/live", include_in_schema=False)
+async def live_page():
+    return _page("live.html")
+
+
+@app.get("/live/{chain}", include_in_schema=False)
+async def live_chain_page(chain: str):
+    # unknown chains still serve the SPA — it renders an honest
+    # "unknown chain" state from LIVE_CHAINS (no server-side data involved)
+    return _page("live.html")
+
+
 @app.get("/assets/{subpath:path}", include_in_schema=False)
 async def assets(subpath: str):
     base = (_dist_dir() / "assets").resolve()
