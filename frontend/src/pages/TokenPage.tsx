@@ -289,7 +289,8 @@ export function TokenPage() {
                     {t.sep && <span className="tk-tsep" />}
                   </span>
                 ))}
-              </div>              <div className="tk-chart-main">
+              </div>
+              <div className="tk-chart-main">
                 <div className="tk-cb">
                   <span className="tg">15s</span>
                   <span className="g">▮▮</span>
@@ -317,44 +318,6 @@ export function TokenPage() {
               </div>
             </section>
 
-            <div className="tk-rail-r">
-              <SwapRail />
-              <section className="tk-panel tk-info" data-chain={chain}>
-                <div className="tk-phd">INFORMATION <span className="tk-mock">MOCK</span></div>
-                <div className="tk-info">
-                  <div className="tk-info-row">
-                    <span className="tk-info-logo">{TOKEN.ticker.slice(0, 1)}</span>
-                    <div className="tk-info-id">
-                      <b>{TOKEN.name}</b>
-                      <span>${TOKEN.ticker}</span>
-                    </div>
-                  </div>
-                  <div className="tk-kv"><span>CREATED BY</span><b>{TOKEN.creator} <CopyCa value={TOKEN.creator} /></b></div>
-                  <div className="tk-kv"><span>CREATION DATE</span><b>{TOKEN.created}</b></div>
-                  <span className="tk-badge">MEMECOIN</span>
-                  <p className="sw2-note">Just few hours left to bond up hold. (mock status line)</p>
-                </div>
-              </section>
-              <section className="tk-panel" data-chain={chain}>
-                <div className="tk-phd">MOVEMENT <span className="tk-mock">MOCK</span></div>
-                <div className="tk-grid2">
-                  {[['5M', '+0.4%', 'pos'], ['1H', '+1.2%', 'pos'], ['4H', '−2.1%', 'neg'], ['24H', '+5.6%', 'pos']].map(([t, v, c]) => (
-                    <div className="tk-cell" key={t}>
-                      <span className="t">{t}</span>
-                      <span className={`v ${c}`}>{v}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="tk-split">
-                  <div className="tk-split-row"><span className="t">TXNS</span>
-                    <span className="b up">BUY 1,204</span><span className="b dn">SELL 986</span></div>
-                  <div className="tk-split-bar"><i className="up" style={{ width: '55%' }} /><i className="dn" style={{ width: '45%' }} /></div>
-                  <div className="tk-split-row"><span className="t">VOL</span>
-                    <span className="b up">BUY $482K</span><span className="b dn">SELL $301K</span></div>
-                  <div className="tk-split-bar"><i className="up" style={{ width: '62%' }} /><i className="dn" style={{ width: '38%' }} /></div>
-                </div>
-              </section>
-            </div>
           </div>
 
           {/* ── [C2] bonding + trades ── */}
@@ -408,6 +371,44 @@ export function TokenPage() {
               </div>
             </section>
           </div>
+            <div className="tk-rail-r">
+              <SwapRail />
+              <section className="tk-panel tk-info" data-chain={chain}>
+                <div className="tk-phd">INFORMATION <span className="tk-mock">MOCK</span></div>
+                <div className="tk-info">
+                  <div className="tk-info-row">
+                    <span className="tk-info-logo">{TOKEN.ticker.slice(0, 1)}</span>
+                    <div className="tk-info-id">
+                      <b>{TOKEN.name}</b>
+                      <span>${TOKEN.ticker}</span>
+                    </div>
+                  </div>
+                  <div className="tk-kv"><span>CREATED BY</span><b>{TOKEN.creator} <CopyCa value={TOKEN.creator} /></b></div>
+                  <div className="tk-kv"><span>CREATION DATE</span><b>{TOKEN.created}</b></div>
+                  <span className="tk-badge">MEMECOIN</span>
+                  <p className="sw2-note">Just few hours left to bond up hold. (mock status line)</p>
+                </div>
+              </section>
+              <section className="tk-panel" data-chain={chain}>
+                <div className="tk-phd">MOVEMENT <span className="tk-mock">MOCK</span></div>
+                <div className="tk-grid2">
+                  {[['5M', '+0.4%', 'pos'], ['1H', '+1.2%', 'pos'], ['4H', '−2.1%', 'neg'], ['24H', '+5.6%', 'pos']].map(([t, v, c]) => (
+                    <div className="tk-cell" key={t}>
+                      <span className="t">{t}</span>
+                      <span className={`v ${c}`}>{v}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="tk-split">
+                  <div className="tk-split-row"><span className="t">TXNS</span>
+                    <span className="b up">BUY 1,204</span><span className="b dn">SELL 986</span></div>
+                  <div className="tk-split-bar"><i className="up" style={{ width: '55%' }} /><i className="dn" style={{ width: '45%' }} /></div>
+                  <div className="tk-split-row"><span className="t">VOL</span>
+                    <span className="b up">BUY $482K</span><span className="b dn">SELL $301K</span></div>
+                  <div className="tk-split-bar"><i className="up" style={{ width: '62%' }} /><i className="dn" style={{ width: '38%' }} /></div>
+                </div>
+              </section>
+            </div>
         </div>
       </div>
     </div>
