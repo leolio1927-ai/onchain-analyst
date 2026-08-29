@@ -535,6 +535,7 @@ function LiveScan() {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [hint, setHint] = useState<{ msg: string; bad: boolean } | null>(null)
+  const [probe, setProbe] = useState<string | null>(null)
   const [res, setRes] = useState<ScanResult | null>(null)
   const accent = SCAN_CHAINS.find((c) => c.id === chain)!.accent
 
@@ -543,28 +544,64 @@ function LiveScan() {
     if (!a || busy) return
     const isEvm = EVM_RE.test(a)
     const isSol = SO_RE.test(a)
-    if (chain === 'sol' && isEvm) {
+    if (isEvm && chain === 'sol') {
       setHint({ msg: 'THAT IS A 0X ADDRESS — PICK BNB / BASE / AVAX / HOOD FOR EVM CHAINS', bad: true })
       return
     }
-    if (chain !== 'sol' && isSol && !isEvm) {
+    if (!isEvm && !isSol) {
+      const hex = a.toLowerCase().startsWith('0x') ? a.length - 2 : a.length
+      setHint({
+        msg: chain === 'sol'
+          ? `GOT ${a.length} CHARS — A SOLANA ADDRESS IS 32–44 BASE58 CHARS`
+          : a.toLowerCase().startsWith('0x')
+            ? `GOT 0X + ${hex} HEX — AN EVM ADDRESS IS EXACTLY 0X + 40`
+            : `GOT ${a.length} CHARS — EXPECTED 0X + 40 HEX (EVM) OR 32–44 BASE58 (SOLANA)`,
+        bad: true,
+      })
+      return
+    }
+    if (!isEvm && isSol && chain !== 'sol') {
       setChain('sol') // a base58 address is a Solana address — switch, never guess an EVM chain
       setHint({ msg: 'BASE58 DETECTED — SWITCHED TO SOLANA', bad: false })
-    } else if ((chain === 'sol' && !isSol) || (chain !== 'sol' && !isEvm)) {
-      setHint({ msg: `${SCAN_CHAINS.find((c) => c.id === chain)!.hint} — CHECK THE ADDRESS`, bad: true })
-      return
     } else {
       setHint(null)
     }
+
+    const probeEvm = async (first: Chain) => {
+      // An honest 404 on an EVM chain is not the end: the same address may live
+      // on a sibling chain. Probe the remaining EVM chains sequentially, loudly.
+      const tried: Chain[] = [first]
+      for (const c of SCAN_CHAINS.map((x) => x.id).filter((x) => x !== 'sol' && !tried.includes(x))) {
+        setProbe(`NOT ON ${tried.map((t) => t.toUpperCase()).join(' · ')} — CHECKING ${c.toUpperCase()}…`)
+        try {
+          const r = await api.scan(c, a)
+          setChain(c)
+          setRes(r)
+          setHint({ msg: `FOUND ON ${c.toUpperCase()} — SWITCHED`, bad: false })
+          return
+        } catch (e2) {
+          if (!(e2 instanceof ApiError) || e2.status !== 404) {
+            setErr(e2 instanceof ApiError ? e2.message : 'Scan failed — try again')
+            return
+          }
+          tried.push(c)
+        }
+      }
+      setErr(`no pair on any scanned chain (${tried.map((t) => t.toUpperCase()).join(' · ')}) — DexScreener may not index this token yet; nothing invented to fill the gap`)
+    }
+
     setBusy(true)
     setErr(null)
     api.scan(chain, a)
       .then(setRes)
       .catch((e: unknown) => {
         setRes(null)
-        setErr(e instanceof ApiError ? e.message : 'Scan failed — try again')
+        const msg = e instanceof ApiError ? e.message : 'Scan failed — try again'
+        const status = e instanceof ApiError ? e.status : 0
+        if (status === 404 && chain !== 'sol') { setErr(null); return probeEvm(chain) }
+        setErr(msg)
       })
-      .finally(() => setBusy(false))
+      .finally(() => { setBusy(false); setProbe(null) })
   }
 
   const level = res?.assessment.level
@@ -610,7 +647,7 @@ function LiveScan() {
         <div className="lv-scanhint">
           SCANNER ALLOWLIST: SOL · BNB · BASE · AVAX · HOOD — HYPEREVM JOINS WHEN ITS CHAINID IS VERIFIED UPSTREAM
         </div>
-        {busy && <div className="lv-scanwait">FETCHING LIVE EVIDENCE — DEXSCREENER + GECKOTERMINAL…</div>}
+        {busy && <div className="lv-scanwait">{probe ?? 'FETCHING LIVE EVIDENCE — DEXSCREENER + GECKOTERMINAL…'}</div>}
         {!busy && err && (
           <div className="lv-scanerr" role="alert">⚠ {err} — the API answers honestly; nothing is made up to fill the gap.</div>
         )}
