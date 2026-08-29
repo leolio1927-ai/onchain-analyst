@@ -1,0 +1,144 @@
+# Terminal Alpha
+
+> Read-only memecoin research terminal across six chains: Solana, BNB Chain, Base,
+> HyperEVM, Robinhood Chain, Avalanche. A keyless live data pipeline with
+> deterministic integrity guarantees, public risk heuristics, and an evidence-first
+> analysis layer. No custody, no keys, no black boxes, no trade execution.
+> Everything the UI renders is exactly what an upstream API actually returned.
+
+This file is the machine-readable index of the project, written for AI agents and
+researchers. Every claim below is verified against the shipped code (file paths in
+brackets) and was last re-verified 2026-08-29.
+
+## What Terminal Alpha Is
+
+- Production read-only research terminal for memecoin markets (web + TUI engine).
+- Six chains served by the live feed: solana, bsc, base, hyperevm, robinhood, avax
+  [providers/live.py — CHAINS].
+- Keyless by architecture: the live pipeline holds zero API credentials, so no
+  secret can leak [providers/live.py, providers/dexscreener.py].
+- Upstreams: GeckoTerminal API v2 (free tier ~10 calls/min, keyless) and
+  DexScreener (social profiles, keyless). Helius (key required) is a framework for
+  the whale surface, not part of the live plane [providers/].
+- Frontend: React 19 + Vite + TypeScript, exactly two runtime dependencies
+  (react, react-dom), no UI kit, no charting library, no router, no CSS framework;
+  all visuals are hand-written canvas/SVG [frontend/package.json].
+- Backend: FastAPI, uv-managed, contract-first additive routes; response schemas of
+  shipped routes are never mutated [webapp/server.py].
+- Custody posture: read-only. No login, no account, no cookie, no session; no key
+  request at any point; nothing to sign; no trade execution path exists.
+- Quality gates measured 2026-08-29: 120 automated tests (pytest), ruff 0 findings,
+  oxlint 0 findings, full build verified per commit, pipefail discipline, one
+  additive change per commit.
+
+## The Honesty Law (product integrity contract)
+
+1. Absent stays absent — fields an upstream did not return render "–"; never
+   imputed, defaulted or zero-filled [providers/live.py _normalize].
+2. Zero is a fact — $0 liquidity and 0 trades are real market states and stay
+   visible [providers/live.py _no_neg keeps zeros].
+3. A negative drop is data — minus 24h changes render in red, never suppressed
+   [providers/live.py change_24h verbatim].
+4. Impossible values are upstream bugs — negative prices/liquidity/volume/FDV
+   normalize to "–"; never clamped, never absolute-valued [providers/live.py _no_neg].
+5. Pre-release surfaces are declared — any UI layer not yet wired to execution
+   renders from deterministic simulated data sets with a visible SIMULATED label.
+6. Heuristics are auditable — every threshold and weight is public code
+   [providers/live.py ALPHA_WEIGHTS, heuristics/rug_check.py].
+
+## Status Vocabulary (used on every diagram/table)
+
+- [LIVE] — shipped and serving real upstream data.
+- [SIMULATED] — pre-release UI rendering from a deterministic simulated data set,
+  visibly labeled; no upstream wired to it.
+- [IN BUILD] — design frozen, wiring in progress.
+- [DESIGN] — scoped, not started.
+
+## Live API (read-only)
+
+- GET /api/v1/live/{chain}?mode=&limit= — per-chain memecoin feed.
+  - chain: sol | bnb | base | hype | hood | avax (unknown → 404 with allowed list).
+  - mode: new | trending | volume | alpha (default new; invalid → 400).
+  - limit: 1..50 (default 20; out of range → 400).
+  - 200 envelope: { chain, network_id, live, generated_at, cached, stale, items[] }.
+  - items[] fields: pool_address, token_symbol, token_name, pair, logo, price_usd,
+    volume_24h, change_24h, liquidity_usd, txns_24h, fdv_usd, created_at, dex_id,
+    launchpad, token_address, socials (twitter/website or null) [providers/live.py FIELDS].
+  - Integrity: impossible values → null; zeros kept; negative change_24h kept;
+    txns_24h = buys + sells (both required) [providers/live.py].
+  - Dedupe: same (token_symbol, token_name) keeps its most liquid pool; stable
+    first-occurrence order; alpha ranks stay contiguous [providers/live.py _dedupe].
+  - Cache: 180s TTL per (chain, source); env override FEED_CACHE_TTL_S clamped
+    60..600; failed refresh serves the expired copy flagged stale:true; no fallback
+    → honest 502 [providers/live.py get_feed].
+  - alpha mode: deterministic local re-ranking, zero extra upstream calls:
+    alpha = 0.40·volume + 0.25·txns + 0.20·liquidity + 0.15·freshness; components
+    normalized (log10(1+vol)/8, log10(1+txns)/3, min(liq,100k)/100k,
+    max(0, 1−age_h/168)), each capped at 1.0, missing component contributes 0,
+    ties break by 24h volume desc then stable source order [providers/live.py].
+  - Socials: X/website via DexScreener, batch ≤30 addresses, 1h cache, fail-soft;
+    hyperevm is not listed by DexScreener, so socials stay absent there
+    [providers/live.py _enrich_socials].
+  - Errors (verbatim bodies): 404 {"detail":"unknown chain 'x' — pick
+    sol|bnb|base|hype|hood|avax"} · 400 {"detail":"mode must be
+    new|trending|volume|alpha"} · 400 {"detail":"limit must be 1..50"} ·
+    502 {"detail":"GeckoTerminal HTTP <code> — live feed upstream failed"}.
+- GET /api/v1/discovery?chain=&mode=trending|new&limit= — keyless pool radar
+  [webapp/server.py api_discovery].
+- POST /api/scan — DexScreener pair + GeckoTerminal trade clustering → weighted
+  risk assessment; refresh flag bypasses the 30s TTL cache [webapp/server.py].
+- POST /api/explain — evidence-first narrative; provider "local" is a deterministic
+  keyless tier; LLM providers are rate-limited per IP (5/hour, 30/day default);
+  evidence is always re-fetched and re-assessed server-side [webapp/server.py].
+- POST /api/whale — Helius wallet balances (key required) [webapp/server.py].
+- GET /api/health · /api/version · /api/metrics — liveness, build identity, real
+  process counters [webapp/server.py].
+- WS /ws/snap — full honest snapshot ticker (15s), identical state for every
+  client, no random walk [webapp/server.py].
+- WS /ws/tape — additive trade-tape deltas over real GeckoTerminal trades,
+  deduped by trade identity [webapp/server.py].
+- OpenAPI surface: /api/docs (Swagger) and /api/redoc.
+
+## Site Surfaces
+
+- /live — Memecoin Live board: six chain cards, founder-locked order, trending
+  top-3 previews, staggered fetches, per-card 60s retry [src/pages/LiveBoard.tsx].
+- /live/{chain} — three columns per chain (NEW | TRENDING | VOLUME·ALPHA) with
+  alpha ranks [src/pages/ChainLive.tsx].
+- /terminal — terminal shell (internal beta). Its data surfaces render
+  deterministic simulated data sets; the swap desk has no session, no wallet, no
+  chain calls [src/pages/TokenPage.tsx].
+- /roadmap — shipped sprints and next moves.
+- /docs — the documentation page: honesty law, pipeline, API contract, alpha lens,
+  security posture, engineering changelog (dates + commit hashes from git log).
+- /assets/llms.txt — this file.
+
+## Data Source Constraints (as wired)
+
+- GeckoTerminal API v2, https://api.geckoterminal.com/api/v2, keyless, free tier
+  ~10 calls/min. Feed endpoints wired for all six networks; volume sort verified
+  monotonic on sampled networks (stage-0, 2026-08-29). Trade-level path used by
+  clustering resolves sol/bnb/base/avax; hype/hood scans degrade honestly there
+  [providers/geckoterminal.py, providers/live.py].
+- DexScreener, https://api.dexscreener.com, keyless: social profiles, batch ≤30,
+  1h cache; chain ids solana/bsc/base/avax/robinhood [providers/dexscreener.py].
+- The 180s feed cache keeps steady-state at ~6 requests/minute against the ~10 rpm
+  free tier (18 chain×source combinations) [providers/live.py].
+
+## Security & Custody Posture
+
+- Read-only data plane; no route accepts an order, signature or transaction.
+- Keyless live pipeline — no secret can leak because none exists.
+- No account, no cookie, no session; no third-party script on any page (fonts are
+  the only third-party fetch, stylesheets only).
+- Every cache is size-capped (scan 512, feed 32, socials 128); WS client cap
+  (default 64); per-IP AI rate limiting [webapp/server.py].
+- Will never: custody seed/keys, sign anything, execute trades, sell rank
+  placement (ranks are computed by the published alpha formula, not bought), or
+  resell feed data through hidden channels.
+
+## Statement
+
+Research tools — not financial advice. Data belongs to upstream providers
+(GeckoTerminal, DexScreener); rendering rights as per their public terms.
+Risk scores are heuristics, not audits. DYOR.
