@@ -26,10 +26,9 @@
 
 .tk-mono { font-family: var(--font-mono); }
 .tk-wrap { max-width: 1560px; margin: 0 auto; display: grid; gap: 16px; }
-.tk-main { display: grid; grid-template-columns: minmax(0, 72fr) minmax(0, 28fr); gap: 16px;
+.tk-main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px;
   align-items: start; }
-.tk-left { display: grid; gap: 16px; min-width: 0; }
-.tk-rail { display: grid; gap: 16px; min-width: 0; }
+.tk-col-a { display: grid; gap: 16px; min-width: 0; }
 
 /* generic bordered panel — 2px bordir + glow + inner dashed hairline */
 .tk-panel { position: relative; background: linear-gradient(180deg, #0a1a12, #071410);
@@ -86,7 +85,7 @@
 
 /* ── [C1] chart card ──────────────────────────────────────────── */
 .tk-chart { display: grid; grid-template-columns: 44px 1fr; min-height: 440px; }
-.tk-rail { border-right: 1px dashed color-mix(in srgb, var(--acc, var(--brand)) 26%, transparent);
+.tk-tools { border-right: 1px dashed color-mix(in srgb, var(--acc, var(--brand)) 26%, transparent);
   display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0; }
 .tk-tool { width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center;
   border: 1px solid transparent; background: none; color: var(--muted); cursor: pointer; }
