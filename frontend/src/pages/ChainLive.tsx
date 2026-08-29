@@ -10,6 +10,7 @@ import { LIVE_CHAINS, LIVE_CHAIN_LABEL, LiveFeedError, fetchLiveFeed } from '../
 import type { LiveChain, LiveFeed, LiveItem, LiveMode } from '../lib/liveApi'
 import { fmtAge, fmtCount, fmtPrice, fmtUsdCompact, fmtUtcClock } from '../lib/liveFormat'
 import { ChgBadge, CopyAddr, EmptyBox, ErrBox, Skel, StatusChips, TokenLogo, TradeComingModal, accentStyle } from './liveParts'
+import { ChainLogo } from './chainLogos'
 
 const LIMIT = 20
 const RETRY_COOLDOWN_S = 60
@@ -31,7 +32,7 @@ type ColState =
 function FullRow({ item, chain, rank, onOpen }:
   { item: LiveItem; chain: LiveChain; rank?: number; onOpen: (it: LiveItem) => void }) {
   return (
-    <div className={`lx-trow${rank !== undefined ? ' ranked' : ''}`} role="button" tabIndex={0}
+    <div className={`lx-tcard${rank !== undefined ? ' ranked' : ''}`} role="button" tabIndex={0}
       title="Trade — coming soon"
       onClick={() => onOpen(item)}
       onKeyDown={(e) => {
@@ -152,7 +153,7 @@ export function ChainLive({ chain }: { chain: string }) {
       <main className="lx-wrap">
         <div className="lx-hd">
           <a className="lx-back" href="/live">← ALL CHAINS</a>
-          <span className="lx-cbadge">{typedChain.toUpperCase()}</span>
+          <ChainLogo chain={typedChain} size={64} />
           <h1 className="lx-h1">{LIVE_CHAIN_LABEL[typedChain]}</h1>
           <span className="lx-sub">{anyFeed ? anyFeed.network_id ?? '–' : '·····'}</span>
           {anyFeed
