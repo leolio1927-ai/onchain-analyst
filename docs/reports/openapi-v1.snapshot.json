@@ -57,6 +57,192 @@
     "title": "ClusteringBlock",
     "type": "object"
    },
+   "DiscoveryItem": {
+    "description": "providers/discovery.py FIELDS key set, exact.",
+    "properties": {
+     "change_24h": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "number"
+       },
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Change 24H"
+     },
+     "created_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Created At"
+     },
+     "dex": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Dex"
+     },
+     "fdv_usd": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "number"
+       },
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Fdv Usd"
+     },
+     "pair": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Pair"
+     },
+     "pool_address": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Pool Address"
+     },
+     "price_usd": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "number"
+       },
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price Usd"
+     },
+     "volume_24h": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "number"
+       },
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Volume 24H"
+     }
+    },
+    "title": "DiscoveryItem",
+    "type": "object"
+   },
+   "DiscoveryResponse": {
+    "properties": {
+     "chain": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Chain"
+     },
+     "count": {
+      "default": 0,
+      "title": "Count",
+      "type": "integer"
+     },
+     "data_mode": {
+      "default": "live",
+      "enum": [
+       "live",
+       "fixture",
+       "unwired"
+      ],
+      "title": "Data Mode",
+      "type": "string"
+     },
+     "items": {
+      "items": {
+       "$ref": "#/components/schemas/DiscoveryItem"
+      },
+      "title": "Items",
+      "type": "array"
+     },
+     "mode": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Mode"
+     },
+     "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+     },
+     "sources": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Sources",
+      "type": "array"
+     },
+     "ts": {
+      "title": "Ts",
+      "type": "string"
+     }
+    },
+    "title": "DiscoveryResponse",
+    "type": "object"
+   },
    "ExplainBody": {
     "properties": {
      "address": {
@@ -1165,9 +1351,7 @@
       "content": {
        "application/json": {
         "schema": {
-         "additionalProperties": true,
-         "title": "Response Api Discovery Api V1 Discovery Get",
-         "type": "object"
+         "$ref": "#/components/schemas/DiscoveryResponse"
         }
        }
       },
