@@ -138,8 +138,22 @@ def _txns_24h(a: dict) -> int | None:
     h = (a.get("transactions") or {}).get("h24") or {}
     b, s = h.get("buys"), h.get("sells")
     if isinstance(b, (int, float)) and isinstance(s, (int, float)):
-        return int(b + s)
+        t = int(b + s)
+        return t if t >= 0 else None  # safety: buys+sells can never be negative
     return None
+
+
+def _no_neg(v):
+    """Upstream bug guard — impossible values are not facts: a negative
+    price/liquidity/volume/FDV is an upstream data bug, so it normalizes to
+    None (renders "–"). Zero stays (zero volume/txns can be real). Never
+    clamped, never abs(), never invented — unparseable junk is None too."""
+    try:
+        if float(v) < 0:
+            return None
+    except (TypeError, ValueError):
+        return None
+    return v
 
 
 def _normalize(raw: dict, limit: int) -> list[dict]:
@@ -160,12 +174,12 @@ def _normalize(raw: dict, limit: int) -> list[dict]:
             "token_name": ta.get("name"),
             "pair": a.get("name"),
             "logo": ta.get("image_url"),
-            "price_usd": a.get("base_token_price_usd"),
-            "volume_24h": (a.get("volume_usd") or {}).get("h24"),
-            "change_24h": (a.get("price_change_percentage") or {}).get("h24"),
-            "liquidity_usd": a.get("reserve_in_usd"),
+            "price_usd": _no_neg(a.get("base_token_price_usd")),
+            "volume_24h": _no_neg((a.get("volume_usd") or {}).get("h24")),
+            "change_24h": _no_neg((a.get("price_change_percentage") or {}).get("h24")),
+            "liquidity_usd": _no_neg(a.get("reserve_in_usd")),
             "txns_24h": _txns_24h(a),
-            "fdv_usd": a.get("fdv_usd"),
+            "fdv_usd": _no_neg(a.get("fdv_usd")),
             "created_at": a.get("pool_created_at"),
             "dex_id": dex_id,
             "launchpad": LAUNCHPAD.get(dex_id) if dex_id else None,
