@@ -1,8 +1,8 @@
-"""Provider Helius — saldo wallet via PUBLIC address, read-only (catatan kerja §2.2).
+"""Provider Helius — wallet balances via PUBLIC address, read-only (work notes §2.2).
 
-KERANGKA: butuh HELIUS_API_KEY (urusan founder — jangan hardcode).
-Response shape belum diverifikasi runtime tanpa key: parse defensif,
-semua field opsional, tampilkan apa adanya.
+FRAMEWORK: needs HELIUS_API_KEY (founder's call — never hardcode it).
+Response shape not runtime-verified without a key: defensive parsing,
+every field optional, displayed as returned.
 """
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ class NoKeyError(RuntimeError):
 def fetch_balances(address: str) -> dict:
     key = os.environ.get("HELIUS_API_KEY")
     if not key:
-        raise NoKeyError("HELIUS_API_KEY belum diset — urusan founder (lihat .env.example)")
+        raise NoKeyError("HELIUS_API_KEY not set — founder's call (see .env.example)")
     # Key travels in a header, never the URL: urllib HTTPError messages embed
     # the request URL, so a query-string key would leak into error logs.
     url = f"{BASE}/v0/addresses/{address}/balances"

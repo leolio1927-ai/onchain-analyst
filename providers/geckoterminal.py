@@ -1,13 +1,13 @@
-"""Provider GeckoTerminal — trade individual per-wallet (gratis, tanpa key).
+"""Provider GeckoTerminal — per-wallet trade feed (free, keyless).
 
-TERVERIFIKASI live 2026-08-27 (network id: solana, bsc, base, avax — semua 200 OK):
+VERIFIED live 2026-08-27 (network ids: solana, bsc, base, avax — all 200 OK):
 - GET /networks/{net}/pools/{pool_address}/trades — attributes per trade:
   tx_from_address, kind ("buy"|"sell"), block_timestamp (ISO-8601 UTC),
   volume_in_usd, from_token_amount, to_token_amount,
   from_token_address, to_token_address. Buy → base token = to_token_address.
-- GET /networks/{net}/tokens/{token_address}/pools — response TIDAK terurut
-  likuiditas; sort sendiri via attributes.reserve_in_usd.
-"hype" ditahan sampai chainId resmi diverifikasi (catatan kerja §3 & §10).
+- GET /networks/{net}/tokens/{token_address}/pools — the response is NOT
+  liquidity-sorted; sort it ourselves via attributes.reserve_in_usd.
+"hype" is held back until its chainId is officially verified (work notes §3 & §10).
 """
 from __future__ import annotations
 
@@ -64,12 +64,12 @@ def _get(path: str) -> dict:
 
 
 def fetch_pools(chain_key: str, token_address: str) -> list[dict]:
-    """Pool tempat token itu diperdagangkan (raw dari GT)."""
+    """Pools where the token trades (raw from GT)."""
     return _get(f"/networks/{_net(chain_key)}/tokens/{token_address}/pools").get("data") or []
 
 
 def best_pool(pools: list[dict]) -> dict | None:
-    """Pool likuiditas terbesar — response GT tidak terurut, sort sendiri."""
+    """The largest-liquidity pool — GT's response is unordered, sort it ourselves."""
     if not pools:
         return None
 
@@ -83,9 +83,9 @@ def best_pool(pools: list[dict]) -> dict | None:
 
 
 def fetch_trades(chain_key: str, pool_address: str) -> list[dict]:
-    """Trade terbaru pool → normalisasi buat clustering:
+    """Pool's latest trades → normalized for clustering:
     {"wallet", "kind", "ts" (ISO str), "usd" (float), "base_token"}.
-    Trade dengan field wajib bolong di-skip — jangan nebak.
+    Trades missing a required field are skipped — never guessed.
     Served from the TTL trade cache when warm (callers must not mutate)."""
     key = (chain_key, pool_address)
     cached = _trade_cache_get(key)

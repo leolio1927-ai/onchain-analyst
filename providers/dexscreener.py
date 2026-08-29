@@ -1,12 +1,12 @@
-"""Provider DexScreener — agregat harga/likuiditas/volume (tanpa key).
-Terverifikasi: DexScreener TIDAK menyediakan data per-wallet (catatan kerja §5/§10)."""
+"""Provider DexScreener — aggregate price/liquidity/volume (keyless).
+Verified: DexScreener provides NO per-wallet data (work notes §5/§10)."""
 from __future__ import annotations
 
 import json
 import urllib.request
 
 CHAIN_IDS = {"sol": "solana", "bnb": "bsc", "base": "base", "avax": "avax", "hood": "robinhood"}  # verified live 2026-08-28: chainId "robinhood" (Robinhood Chain)
-# "hype" sengaja ditahan sampai chainId terverifikasi (catatan kerja §3 & §10).
+# "hype" is deliberately held back until its chainId is verified (work notes §3 & §10).
 
 
 def _chain_id(chain_key: str) -> str:
