@@ -4,12 +4,57 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark" />
-    <meta name="description" content="Terminal Alpha documentation — the honesty law, the live feed pipeline, the six chains, and what ships next." />
-    <meta property="og:title" content="Terminal Alpha — Docs" />
-    <meta property="og:description" content="How the $100B-standard memecoin research terminal works: keyless data, honest caching, auditable heuristics." />
+    <meta name="description" content="Terminal Alpha documentation — the honesty law, the keyless six-chain live pipeline, the auditable alpha score, the /api/v1/live contract, and the read-only custody posture. Every claim on this page is verified against the shipped code." />
+    <meta property="og:title" content="Terminal Alpha — Documentation" />
+    <meta property="og:description" content="One terminal. All chains. Zero lies. The honesty law, the live pipeline, the deterministic alpha score, the API contract — verified against shipped code." />
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Terminal Alpha" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Terminal Alpha — Documentation" />
+    <meta name="twitter:description" content="One terminal. All chains. Zero lies. Read-only memecoin research across six chains — every decision rule public, every unfinished part labeled." />
     <title>Docs — Terminal Alpha</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M6 4h20L6 26z' fill='%2300ffa3'/%3E%3C/svg%3E" />
+    <link rel="llms" type="text/plain" href="/assets/llms.txt" title="Machine-readable project index" />
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "SoftwareApplication",
+          "name": "Terminal Alpha",
+          "applicationCategory": "FinanceApplication",
+          "operatingSystem": "Web",
+          "isAccessibleForFree": true,
+          "softwareVersion": "0.1.0",
+          "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+          "license": "https://opensource.org/licenses/MIT",
+          "description": "Read-only memecoin research terminal across six chains (Solana, BNB Chain, Base, HyperEVM, Robinhood Chain, Avalanche). Keyless live data pipeline with deterministic integrity guarantees, public risk heuristics, and an evidence-first analysis layer. No custody, no keys, no trade execution.",
+          "featureList": [
+            "Live multichain memecoin board across six chains (GeckoTerminal, keyless)",
+            "Deterministic alpha ranking with published weights (volume 40%, txns 25%, liquidity 20%, freshness 15%)",
+            "Integrity guard: impossible upstream values normalize to an absent marker, zeros and negative changes stay",
+            "Per-token deduplication keeping the most liquid pool",
+            "Honest error contract: 404/400/502 with stale-safe 180s TTL cache",
+            "Read-only custody posture: no keys, no signing, no trade execution"
+          ]
+        },
+        {
+          "@type": "WebSite",
+          "name": "Terminal Alpha",
+          "inLanguage": "en"
+        },
+        {
+          "@type": "Dataset",
+          "name": "Terminal Alpha live feed — six-chain memecoin pools",
+          "description": "Per-chain memecoin pool feed (modes: new, trending, volume, alpha) served by GET /api/v1/live/{chain} from GeckoTerminal free-tier data, normalized, deduplicated per token, TTL-cached 180 seconds, with social profiles from DexScreener where returned.",
+          "license": "https://opensource.org/licenses/MIT",
+          "isAccessibleForFree": true,
+          "keywords": ["solana", "bnb chain", "base", "hyperevm", "robinhood chain", "avalanche", "memecoin", "dex pools", "liquidity", "bonding curve"],
+          "variableMeasured": ["price_usd", "volume_24h", "change_24h", "liquidity_usd", "txns_24h", "fdv_usd", "created_at"]
+        }
+      ]
+    }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
