@@ -231,10 +231,17 @@ async def api_scan(body: ScanBody) -> dict:
 
 @app.post("/api/explain")
 async def api_explain(body: ExplainBody, request: Request) -> dict:
-    if body.provider not in ai_analyst.PROVIDERS:
-        raise HTTPException(400, f"unknown provider '{body.provider}' — pick {'|'.join(ai_analyst.PROVIDERS)}")
+    if body.provider != "local" and body.provider not in ai_analyst.PROVIDERS:
+        raise HTTPException(400, f"unknown provider '{body.provider}' — pick {'|'.join(ai_analyst.PROVIDERS)}|local")
     # validate input first — invalid requests must not consume a rate-limit slot
     _validate(body.chain, body.address)
+    if body.provider == "local":
+        # Keyless tier (G.5): deterministic narrative from the heuristics.
+        # Same server-side re-fetch (a client can never forge evidence), but
+        # no rate-limit slot — local costs no founder money.
+        scan = await _get_scan(body.chain, body.address)
+        out = ai_analyst.local_explain(scan["pair"], scan["assessment"], scan["clustering"])
+        return {**out, "tier": "local", "provider": "local"}
     ip = request.client.host if request.client else "unknown"
     if not _throttle_hit(ip):
         hourly, daily = _ai_rate_limits()
@@ -244,7 +251,7 @@ async def api_explain(body: ExplainBody, request: Request) -> dict:
         out = await asyncio.to_thread(ai_analyst.explain, scan["pair"], scan["assessment"],
                                       token_gate.resolve_tier(), body.provider)
     except ai_analyst.NoKeyError as e:
-        raise HTTPException(503, str(e)) from e
+        raise HTTPException(503, f"{e} — or provider='local' for the keyless heuristic narrative") from e
     return {**out, "tier": token_gate.resolve_tier(), "provider": body.provider}
 
 
