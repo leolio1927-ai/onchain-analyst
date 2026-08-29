@@ -23,7 +23,7 @@ function distinctLaunchpads(items: LiveItem[]): number {
 
 function MiniRow({ item, onOpen }: { item: LiveItem; onOpen: (it: LiveItem) => void }) {
   return (
-    <div className="lx-tcard" role="button" tabIndex={0} title="Trade — coming soon"
+    <div className="lx-tcard" role="button" tabIndex={0} title="Trade — execution not wired yet"
       onClick={() => onOpen(item)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(item) }
@@ -69,12 +69,19 @@ export function LiveBoard() {
   }, [])
 
   useEffect(() => {
-    // staggered first paint: one chain card per second (M.3), StrictMode-safe
+    // staggered first paint: one chain card per second (M.3), StrictMode-safe,
+    // then one staggered auto-refresh sweep per 60s — the 180s server cache
+    // absorbs the load; the CACHED chip tells the truth about each response
     alive.current = true
-    const timers = LIVE_CHAINS.map((c, i) => window.setTimeout(() => load(c), i * 1000))
+    let timers = LIVE_CHAINS.map((c, i) => window.setTimeout(() => load(c), i * 1000))
+    const iv = window.setInterval(() => {
+      timers.forEach(clearTimeout)
+      timers = LIVE_CHAINS.map((c, i) => window.setTimeout(() => load(c), i * 1000))
+    }, 60000)
     return () => {
       alive.current = false
       timers.forEach(clearTimeout)
+      clearInterval(iv)
     }
   }, [load])
 
@@ -102,6 +109,8 @@ export function LiveBoard() {
           <span className="lx-title">MEMECOIN LIVE</span>
           <nav className="lx-top-links">
             <a className="on" href="/live">BOARD</a>
+            <a className="boxed" href="/docs">DOCS</a>
+            <a className="boxed" href="/roadmap">ROADMAP</a>
             <a href="/terminal">TERMINAL →</a>
           </nav>
         </div>
@@ -109,7 +118,7 @@ export function LiveBoard() {
       <main className="lx-wrap">
         <div className="lx-hd">
           <h1 className="lx-h1">MEMECOIN <em>LIVE</em></h1>
-          <span className="lx-sub">6 CHAINS · TRENDING PREVIEW · KEYLESS GECKOTERMINAL</span>
+          <span className="lx-sub">6 CHAINS · TRENDING PREVIEW · KEYLESS GECKOTERMINAL · AUTO-REFRESH 60s</span>
         </div>
         <div className="lx-board">
           {LIVE_CHAINS.map((chain) => {
@@ -136,7 +145,7 @@ export function LiveBoard() {
                   : st.st === 'error'
                     ? <ErrBox msg={st.msg} cooldown={cooldown[chain] ?? 0} onRetry={() => load(chain)} />
                     : feed && feed.items.length === 0
-                      ? <EmptyBox what={feed.live ? 'No trending pools returned right now.' : 'Not live yet — coming soon.'} />
+                      ? <EmptyBox what={feed.live ? 'No trending pools returned right now.' : 'Not live yet — network not served upstream.'} />
                       : (
                         <div className="lx-rows">
                           {feed!.items.map((it, i) => (
