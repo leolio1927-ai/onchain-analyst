@@ -168,17 +168,22 @@ def purge(keep_days: int, now: datetime, db_path: Path) -> dict[str, int]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    shared = argparse.ArgumentParser(add_help=False)
+    shared.add_argument("--db", default=None,
+                        help="sqlite path (default ALPHA_DB_PATH or data/terminal_alpha.db)")
+    shared.add_argument("--now", default=None, help="timezone-aware ISO override (retention tests)")
+
     parser = argparse.ArgumentParser(
-        prog="webapp.ingest", description="fixture-fed ingestion + retention CLI")
+        prog="webapp.ingest", description="fixture-fed ingestion + retention CLI",
+        parents=[shared])
     parser.add_argument("--once", action="store_true",
                         help="ingest fixture files once (idempotent per run key)")
     parser.add_argument("--source", action="append", default=None,
                         help="fixture JSON path (repeatable); default: tests/fixtures/ingest/*.json")
-    parser.add_argument("--db", default=None, help="sqlite path (default ALPHA_DB_PATH or data/terminal_alpha.db)")
-    parser.add_argument("--now", default=None, help="timezone-aware ISO override (retention tests)")
     sub = parser.add_subparsers(dest="cmd")
 
-    p_purge = sub.add_parser("purge", description="delete rows older than keep-days")
+    p_purge = sub.add_parser("purge", description="delete rows older than keep-days",
+                             parents=[shared])
     p_purge.add_argument("--keep-days", type=int,
                          default=int(__import__("os").environ.get("ALPHA_RETENTION_DAYS", DEFAULT_KEEP_DAYS)))
 
