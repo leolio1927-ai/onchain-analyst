@@ -32,7 +32,7 @@ import ai_analyst
 from access import token_gate
 from heuristics import clustering, rug_check
 from providers import dexscreener, discovery, geckoterminal, helius, live
-from webapp import schemas
+from webapp import db, schemas
 
 CACHE_TTL_S = 30.0
 SCAN_CACHE_MAX = 512  # hard cap — every /api/scan key would otherwise live forever (memory DoS)
@@ -109,6 +109,7 @@ and auditable (heuristics/)."""
 
 _TAGS = [
     {"name": "market", "description": "Token scanning, discovery radar and market evidence."},
+    {"name": "history", "description": "Persisted point-in-time history from the local database (BE-F2). Cursor-paginated; every page carries the provenance of its rows."},
     {"name": "live", "description": "Live per-chain memecoin feed — keyless GeckoTerminal, ≥120s TTL cache, honest live:false for networks GT does not serve."},
     {"name": "ai", "description": "Evidence-first narrative: LLM providers or the keyless deterministic local tier."},
     {"name": "whale", "description": "Wallet balances via Helius (needs HELIUS_API_KEY)."},
@@ -212,7 +213,24 @@ async def _get_scan(chain_key: str, address: str, refresh: bool = False) -> dict
     if result is None:
         raise HTTPException(404, f"no pair found for {address} on {chain_key} — check address/chain")
     _cache_put(key, now, result)
+    _persist_scan(chain_key, address, result)
     return result
+
+
+def _persist_scan(chain_key: str, address: str, result: dict) -> None:
+    """BE-F2 write-through: append a scan_snapshot when persistence is on
+    (ALPHA_DB_PATH). Best-effort by design — a storage hiccup must never
+    break a scan; the miss is visible as a missing row, never wrong data."""
+    import sqlite3
+    path = db.resolve_path()
+    if path is None:
+        return
+    pair = result.get("pair") or {}
+    ident = (pair.get("pairAddress") or address).strip().lower()
+    try:
+        db.write_scan_snapshot(path, chain_key, ident, result)
+    except sqlite3.Error:
+        pass
 
 
 # hard cap on tracked IPs — one dict key per client IP must not grow forever
@@ -274,12 +292,15 @@ async def health() -> dict:
     }
 
 
-@app.get("/api/version", tags=["system"])
+@app.get("/api/version", response_model=schemas.VersionResponse, tags=["system"])
 async def version() -> dict:
-    """Build identity — real toolchain versions, nothing invented."""
+    """Build identity — real toolchain versions, nothing invented. The db
+    block reports measured persistence facts (path_kind, schema version,
+    rows per table, last run, oldest row) — never the raw filesystem path."""
     return {"name": "Terminal Alpha", "version": APP_VERSION,
             "python": sys.version.split()[0], "fastapi": fastapi.__version__,
-            "uptime_s": int(time.monotonic() - _T0)}
+            "uptime_s": int(time.monotonic() - _T0),
+            "db": db.db_info(db.resolve_path())}
 
 
 @app.get("/api/metrics", tags=["system"])
@@ -405,6 +426,54 @@ async def api_live(chain: str, mode: str = "new", limit: int = 20) -> dict:
     sources = ["geckoterminal"] + (["dexscreener"] if any(i.get("socials") for i in items) else [])
     return {"chain": chain, "network_id": info["network_id"], "live": True,
             "generated_at": generated_at, **meta, "items": items, "sources": sources}
+
+
+def _db_or_503() -> Path:
+    p = db.resolve_path()
+    if p is None:
+        raise HTTPException(503, "history unavailable — ALPHA_DB_PATH is not set on"
+                                " this deployment (persistence is opt-in)")
+    return p
+
+
+def _history_params(limit: int, cursor: str | None, since: str | None,
+                    until: str | None) -> dict:
+    return {"limit": limit, "cursor": cursor, "since": since, "until": until}
+
+
+@app.get("/api/v1/history/prices/{chain}/{ident}",
+         response_model=schemas.HistoryPage[schemas.OhlcvPoint], tags=["market"])
+async def api_history_prices(chain: str, ident: str, limit: int = 100,
+                             cursor: str | None = None, since: str | None = None,
+                             until: str | None = None) -> dict:
+    """Point-in-time price history from the local persistence layer (BE-F2).
+
+    limit clamped to 1..500 · opaque cursor is None-terminated · window
+    filters since/until take timezone-aware ISO-8601. data_mode = the union
+    of the page's rows (fixture|live), never hardcoded. Rows are point
+    observations: open/high/low stay None, close = the observed price —
+    candles are never synthesized."""
+    path = _db_or_503()
+    try:
+        return db.history_prices(path, chain.strip().lower(), ident.strip().lower(),
+                                 **_history_params(limit, cursor, since, until))
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+
+
+@app.get("/api/v1/history/trades/{chain}/{ident}",
+         response_model=schemas.HistoryPage[schemas.TradeRow], tags=["market"])
+async def api_history_trades(chain: str, ident: str, limit: int = 100,
+                             cursor: str | None = None, since: str | None = None,
+                             until: str | None = None) -> dict:
+    """Trade history from the local persistence layer (BE-F2) — same cursor,
+    window and data_mode contract as the prices page."""
+    path = _db_or_503()
+    try:
+        return db.history_trades(path, chain.strip().lower(), ident.strip().lower(),
+                                 **_history_params(limit, cursor, since, until))
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
 
 
 _NO_BUILD = """<!doctype html><html><head><meta charset="utf-8">
