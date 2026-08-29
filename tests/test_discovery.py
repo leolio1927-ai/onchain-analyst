@@ -56,7 +56,7 @@ def test_field_contract_exact_keys_and_copies(monkeypatch):
 
 
 def test_trending_hits_trending_path_and_slices_default_limit(monkeypatch):
-    items, path = _run(monkeypatch, discovery.trending_pools, _payload(25))
+    items, path = _run(monkeypatch, discovery.trending_pools, payload=_payload(25))
     assert path == "/networks/solana/trending_pools"
     assert len(items) == 20  # default limit=20 — 25 fetched, 20 served
 
@@ -84,7 +84,7 @@ def test_limit_clamped_both_sides(monkeypatch):
 def test_absent_fields_stay_absent(monkeypatch):
     # bare pool: attributes carry only the name; no relationships at all
     bare = {"id": "solana_BARE", "type": "pool", "attributes": {"name": "Bare / SOL"}}
-    items, _ = _run(monkeypatch, discovery.trending_pools, {"data": [bare]})
+    items, _ = _run(monkeypatch, discovery.trending_pools, payload={"data": [bare]})
     first = items[0]
     for absent in ("price_usd", "volume_24h", "change_24h", "fdv_usd",
                    "created_at", "dex"):
@@ -92,13 +92,13 @@ def test_absent_fields_stay_absent(monkeypatch):
 
     # null-valued attributes must not crash either — still honest None
     nulled = _pool("solana_NULL", price_change_percentage=None, volume_usd=None)
-    items, _ = _run(monkeypatch, discovery.trending_pools, {"data": [nulled]})
+    items, _ = _run(monkeypatch, discovery.trending_pools, payload={"data": [nulled]})
     assert items[0]["change_24h"] is None and items[0]["volume_24h"] is None
 
 
 def test_unnamed_pool_dropped_not_fabricated(monkeypatch):
     payload = {"data": [_pool("solana_A"), _pool("solana_B", name=None), _pool("solana_C")]}
-    items, _ = _run(monkeypatch, discovery.trending_pools, payload)
+    items, _ = _run(monkeypatch, discovery.trending_pools, payload=payload)
     assert [i["pool_address"] for i in items] == ["A", "C"]
     assert all(i["pair"] for i in items)  # never a made-up pair label
 
