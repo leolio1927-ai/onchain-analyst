@@ -108,7 +108,9 @@ brackets) and was last re-verified 2026-08-29.
 - /terminal — terminal shell (internal beta). Its data surfaces render
   deterministic simulated data sets; the swap desk has no session, no wallet, no
   chain calls [src/pages/TokenPage.tsx].
-- /roadmap — shipped sprints and next moves.
+- /roadmap — the weekly hub of proof: shipped ledger TA-001..TA-008 with stable
+  anchor IDs (#ta-xxx), in-progress band, design queue TA-101..TA-105, published
+  non-goals.
 - /docs — the documentation page: honesty law, pipeline, API contract, alpha lens,
   security posture, engineering changelog (dates + commit hashes from git log).
 - /assets/llms.txt — this file.
@@ -136,6 +138,36 @@ brackets) and was last re-verified 2026-08-29.
 - Will never: custody seed/keys, sign anything, execute trades, sell rank
   placement (ranks are computed by the published alpha formula, not bought), or
   resell feed data through hidden channels.
+
+## Roadmap — The Weekly Hub of Proof (/roadmap)
+
+The roadmap page is the project's governance surface: a shipped ledger with
+git-verifiable dates, an honest in-progress band, a design queue, and published
+non-goals. Every entry has a stable anchor ID (e.g. /roadmap#ta-005) quotable by
+humans and AI agents; dates come from commit history and are re-verifiable with
+`git log` [src/pages/RoadmapPage.tsx].
+
+Shipped ledger (newest first, letters are the sprint taxonomy):
+- TA-008 · R — Roadmap weekly hub (this page) · 2026-08-29
+- TA-007 · D — Documentation flagship /docs · 2026-08-29
+- TA-006 · S — Swap desk, SIMULATED surface (deterministic data, no wallet) · 2026-08-29
+- TA-005 · X — Data integrity: junk guard, per-token dedupe, social chips · 2026-08-29
+- TA-004 · W — Hand-crafted SVG chain marks + token cards · 2026-08-29
+- TA-003 · V — Bordir visual system: 2px borders, dashed hairlines, glow · 2026-08-28
+- TA-002 · M — Memecoin Live frontend: board + chain pages, honest errors · 2026-08-28
+- TA-001 · G — Live-feed backend: 6 chains × 4 modes, 180s TTL, alpha lens · 2026-08-28
+
+Design queue (stable IDs, each with a WHY and the proof that marks it shipped):
+- TA-101 · Wallet session + quote engine [IN BUILD]
+- TA-102 · Watchlist [DESIGN]
+- TA-103 · Trade tape on the board (the /ws/tape route already ships) [IN BUILD]
+- TA-104 · AI analyst panel (the /api/explain local tier already ships) [DESIGN]
+- TA-105 · Backend foundations, one additive route at a time [IN BUILD]
+
+Confidence bands: Locked (the only band allowed a date) · In build · Design ·
+Simulated. Non-goals are published on the page (/roadmap#non-goals): no custody,
+no trade execution, no paid rankings, no hidden data, no ads/trackers, no date
+promises outside the Locked band.
 
 ## Statement
 
