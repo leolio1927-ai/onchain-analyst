@@ -329,3 +329,25 @@ class ApiError(Envelope):
     routes raise today; the footer fields make errors machine-diffable too."""
 
     detail: str = ""
+
+
+# ── ai surface ───────────────────────────────────────────────────────────
+
+class KeySignal(BaseModel):
+    """One quoted signal inside an explain narrative ({label, evidence})."""
+
+    label: str | None = None
+    evidence: str | None = None
+
+
+class ExplainResponse(Envelope):
+    """Evidence-first narrative (LLM provider or the deterministic local tier).
+    `limitations` keeps the wire's string type — typing it as a list would
+    500 every explain call; widening it is a deliberate contract change."""
+
+    summary: str | None = None
+    key_signals: list[KeySignal] = Field(default_factory=list)
+    limitations: str | None = None
+    parse_ok: bool = False
+    tier: str | None = None
+    provider: str | None = None
