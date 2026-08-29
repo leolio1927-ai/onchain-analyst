@@ -18,6 +18,11 @@ export const LIVE_CHAIN_LABEL: Record<LiveChain, string> = {
 export const LIVE_MODES = ['new', 'trending', 'volume', 'alpha'] as const
 export type LiveMode = (typeof LIVE_MODES)[number]
 
+export interface TokenSocials {
+  twitter: string | null
+  website: string | null
+}
+
 export interface LiveItem {
   pool_address: string | null
   token_symbol: string | null
@@ -33,6 +38,8 @@ export interface LiveItem {
   created_at: string | null
   dex_id: string | null
   launchpad: string | null
+  token_address: string | null
+  socials: TokenSocials | null
 }
 
 export interface LiveFeed {
