@@ -241,6 +241,10 @@
 .tk-pagefoot button { border: 1px solid var(--border); background: none; color: var(--muted);
   border-radius: 6px; width: 24px; height: 22px; cursor: pointer; }
 
+.tk-rail-r { display: grid; gap: 16px; min-width: 0; }
+.tk-yt { font-family: var(--font-mono); font-size: 9px; fill: var(--muted-deep); }
+.tk-ychip { font-family: var(--font-mono); font-size: 9px; font-weight: 700; fill: #04130b; }
+
 @media (max-width: 1100px) {
   .tk-main { grid-template-columns: 1fr; }
 }
