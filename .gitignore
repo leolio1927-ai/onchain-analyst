@@ -29,6 +29,9 @@ logs/
 # --- tooling lokal, bukan bagian produk ---
 .zcode/
 
+# --- database lokal (BE-F2: jalur ALPHA_DB_PATH; bukan artefak source) ---
+data/
+
 # --- frontend (node_modules & hasil build tidak masuk git) ---
 frontend/node_modules/
 frontend/dist/
