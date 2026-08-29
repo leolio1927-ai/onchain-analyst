@@ -9,9 +9,9 @@ export const BRAND_SHORT = 'Terminal Alpha'
 export const BRAND_POSTURE =
   'READ-ONLY RESEARCH INFRASTRUCTURE · NO TRADING · NO CUSTODY · EVIDENCE FIRST'
 
-/* footer fine print (landing footer legal line) */
+/* footer fine print — ONE sentence, posture said once (L2 FIX 1) */
 export const BRAND_LEGAL =
-  '© 2026 TERMINAL ALPHA — READ-ONLY INTELLIGENCE. NO TRADING. NO CUSTODY. EVIDENCE FIRST.'
+  '© 2026 TERMINAL ALPHA — READ-ONLY RESEARCH INFRASTRUCTURE · NO TRADING · NO CUSTODY · EVIDENCE FIRST · DATA: GECKOTERMINAL + DEXSCREENER'
 
 /* data attribution — the only two upstreams wired to the live plane */
 export const BRAND_DATA = 'DATA: GECKOTERMINAL + DEXSCREENER'
