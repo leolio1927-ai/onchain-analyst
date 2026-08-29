@@ -8,6 +8,7 @@ import { LIVE_CHAINS, LIVE_CHAIN_LABEL, LiveFeedError, fetchLiveFeed } from '../
 import type { LiveChain, LiveFeed, LiveItem } from '../lib/liveApi'
 import { fmtPrice, fmtUsdCompact, truncAddr } from '../lib/liveFormat'
 import { ChgBadge, EmptyBox, ErrBox, Skel, StatusChips, TokenLogo, TradeComingModal, accentStyle } from './liveParts'
+import { ChainLogo } from './chainLogos'
 
 type CardState =
   | { st: 'loading' }
@@ -22,7 +23,7 @@ function distinctLaunchpads(items: LiveItem[]): number {
 
 function MiniRow({ item, onOpen }: { item: LiveItem; onOpen: (it: LiveItem) => void }) {
   return (
-    <div className="lx-trow" role="button" tabIndex={0} title="Trade — coming soon"
+    <div className="lx-tcard" role="button" tabIndex={0} title="Trade — coming soon"
       onClick={() => onOpen(item)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(item) }
@@ -116,7 +117,7 @@ export function LiveBoard() {
             return (
               <article className="lx-card" data-chain={chain} key={chain} style={accentStyle(chain)}>
                 <div className="lx-card-hd">
-                  <span className="lx-cbadge">{chain.toUpperCase()}</span>
+                  <ChainLogo chain={chain} size={56} />
                   <div className="lx-card-id">
                     <span className="lx-card-name">
                       <a href={`/live/${chain}`}>{LIVE_CHAIN_LABEL[chain]}</a>
