@@ -2,7 +2,10 @@
    Reference: printr token page. FE-only mock: every number is STATIC and the
    page hero says so; one MOCK chip per panel, never per number. Deterministic
    seeded candles/trades (same input → same page). DNA: 2px bordir, dashed
-   hairlines, glow, mono density, zero purple. */
+   hairlines, glow, mono density, zero purple.
+   LAYOUT (founder-locked): main row = LEFT column stacks chart → bonding →
+   trades directly (zero gaps); RIGHT column (380px) is the compact swap rail
+   (sticky). No canvas — crash-proof pure CSS background. */
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { LIVE_CHAINS } from '../lib/liveApi'
@@ -151,6 +154,11 @@ const NATIVE: Record<LiveChain, string> = {
 }
 const QUICK = [0.001, 0.01, 0.05, 0.1, 0.5]
 
+function setAmt2(set: (v: string) => void, setP: (p: number) => void, balance: number, q: number) {
+  set(String(q))
+  setP(balance > 0 ? Math.round(Math.min(100, (q / balance) * 100)) : 0)
+}
+
 function SwapRail() {
   const [chain, setChain] = useState<LiveChain>('sol')
   const [dir, setDir] = useState<'buy' | 'sell'>('buy')
@@ -190,7 +198,8 @@ function SwapRail() {
             </div>
           </div>
           <div className="sw2-quick">
-            {QUICK.map((q) => <button type="button" key={q} onClick={() => setAmt2(setAmount, setPct, balance, q)}>{q}</button>)}
+            {QUICK.map((q) => <button type="button" key={q}
+              onClick={() => setAmt2(setAmount, setPct, balance, q)}>{q}</button>)}
           </div>
           <div className="sw2-rail" role="slider" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}
             aria-label="percent of balance">
@@ -228,17 +237,11 @@ function SwapRail() {
   )
 }
 
-function setAmt2(set: (v: string) => void, setP: (p: number) => void, balance: number, q: number) {
-  set(String(q))
-  setP(balance > 0 ? Math.round(Math.min(100, (q / balance) * 100)) : 0)
-}
-
 export function TokenPage() {
   if (typeof document !== 'undefined') document.title = 'FOMO · Swap — Terminal Alpha'
   const [tool, setTool] = useState('cross')
   const [tab, setTab] = useState('TRADES')
   const [chain] = useState<LiveChain>('sol')
-  void chain
   return (
     <div className="tk-root" style={accentStyle(chain)}>
       <div className="tk-aurora" aria-hidden="true" />
@@ -273,105 +276,103 @@ export function TokenPage() {
             </div>
           </section>
 
-          {/* ── [C1] chart + rail ── */}
+          {/* ── main row: LEFT column (chart → bonding → trades) + RIGHT rail ── */}
           <div className="tk-main">
-            <div className="tk-left">
-            <section className="tk-panel tk-chart" data-chain={chain}>
-              <div className="tk-rail">
-                {TOOLS.map((t) => (
-                  <span key={t.id} style={{ display: 'contents' }}>
-                    <button type="button" title={t.id}
-                      className={`tk-tool${tool === t.id ? ' on' : ''}`}
-                      onClick={() => setTool(t.id)}>
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
-                        stroke="currentColor" strokeWidth="1.5">{t.svg}</svg>
-                    </button>
-                    {t.sep && <span className="tk-tsep" />}
-                  </span>
-                ))}
-              </div>
-              <div className="tk-chart-main">
-                <div className="tk-cb">
-                  <span className="tg">15s</span>
-                  <span className="g">▮▮</span>
-                  <span className="g">ƒ Indicators</span>
-                  <span className="g">Marks ▾</span>
-                  <span className="g">↶</span>
-                  <span className="g">↷</span>
-                  <span className="rgt">
-                    <span className="g">◐</span><span className="g">⚙</span>
-                    <span className="g">⛶</span><span className="g">📷</span>
-                  </span>
+            <div className="tk-col-a">
+              <section className="tk-panel tk-chart" data-chain={chain}>
+                <div className="tk-tools">
+                  {TOOLS.map((t) => (
+                    <span key={t.id} style={{ display: 'contents' }}>
+                      <button type="button" title={t.id}
+                        className={`tk-tool${tool === t.id ? ' on' : ''}`}
+                        onClick={() => setTool(t.id)}>
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
+                          stroke="currentColor" strokeWidth="1.5">{t.svg}</svg>
+                      </button>
+                      {t.sep && <span className="tk-tsep" />}
+                    </span>
+                  ))}
                 </div>
-                <div className="tk-canvas">
-                  <div className="tk-overlay">{TOKEN.name} / USD · O H L C Vol</div>
-                  <ChartSvg />
+                <div className="tk-chart-main">
+                  <div className="tk-cb">
+                    <span className="tg">15s</span>
+                    <span className="g">▮▮</span>
+                    <span className="g">ƒ Indicators</span>
+                    <span className="g">Marks ▾</span>
+                    <span className="g">↶</span>
+                    <span className="g">↷</span>
+                    <span className="rgt">
+                      <span className="g">◐</span><span className="g">⚙</span>
+                      <span className="g">⛶</span><span className="g">📷</span>
+                    </span>
+                  </div>
+                  <div className="tk-canvas">
+                    <div className="tk-overlay">{TOKEN.name} / USD · O H L C Vol</div>
+                    <ChartSvg />
+                  </div>
+                  <div className="tk-xaxis">
+                    <span className="tg on">6m</span><span className="tg">3m</span>
+                    <span className="tg">1m</span><span className="tg">5d</span><span className="tg">1d</span>
+                    <span className="rgt">
+                      <span>01:05:17 UTC-7</span><span className="tg">%</span>
+                      <span className="tg">log</span><span className="tg on">auto</span>
+                    </span>
+                  </div>
                 </div>
-                <div className="tk-xaxis">
-                  <span className="tg on">6m</span><span className="tg">3m</span>
-                  <span className="tg">1m</span><span className="tg">5d</span><span className="tg">1d</span>
-                  <span className="rgt">
-                    <span>01:05:17 UTC-7</span><span className="tg">%</span>
-                    <span className="tg">log</span><span className="tg on">auto</span>
-                  </span>
-                </div>
-              </div>
-            </section>
+              </section>
 
-          </div>
+              <section className="tk-panel tk-bond" data-chain={chain}>
+                <ChainLogo chain={chain} size={26} />
+                <span className="t">BONDING CURVE PROGRESS</span>
+                <div className="rail"><i /></div>
+                <span className="pct">0.0%</span>
+                <span className="st">STATUS · ACTIVE</span>
+                <span className="tk-mock">MOCK</span>
+              </section>
 
-          {/* ── [C2] bonding + trades ── */}
-          {/* ── [C2] bonding + trades: INSIDE the left column — directly under
-                 the chart, same width, zero empty space ── */}
-            <section className="tk-panel tk-bond" data-chain={chain}>
-              <ChainLogo chain={chain} size={26} />
-              <span className="t">BONDING CURVE PROGRESS</span>
-              <div className="rail"><i /></div>
-              <span className="pct">0.0%</span>
-              <span className="st">STATUS · ACTIVE</span>
-              <span className="tk-mock">MOCK</span>
-            </section>
-            <section className="tk-panel">
-              <div className="tk-tabsrow">
-                {['TRADES', 'HOLDERS (1)', 'XCHAIN', 'COMMENTS'].map((t) => (
-                  <span key={t} className={tab === t ? 'on' : ''}
-                    onClick={() => setTab(t)} style={{ cursor: 'pointer' }}>{t}</span>
-                ))}
-                <span className="bubble">◉ BUBBLE MAP</span>
-              </div>
-              <div className="tk-table-wrap">
-                <table className="tk-table">
-                  <thead>
-                    <tr>
-                      <th>ACCOUNT</th><th>TYPE</th><th>VALUE</th><th>AMOUNT</th><th>PRICE</th>
-                      <th>DATE</th><th>CHANNEL</th><th>SOURCE</th><th>TX</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {TRADES.map((t, i) => (
-                      <tr key={i}>
-                        <td className="acc"><span className="dot" style={{ background: t.buy ? 'var(--brand-2)' : 'var(--rose)' }} />{t.account}</td>
-                        <td className={t.buy ? 'buy' : 'sell'}>{t.buy ? 'BUY' : 'SELL'}</td>
-                        <td>{t.value}</td>
-                        <td>{t.amount}</td>
-                        <td>{fmtSub(t.price)}</td>
-                        <td>{t.date}</td>
-                        <td><ChainLogo chain={t.chain} size={16} /></td>
-                        <td><span className="tk-src" style={{ background: t.srcColor }}>{t.src}</span></td>
-                        <td className="tx">{t.tx}</td>
+              <section className="tk-panel">
+                <div className="tk-tabsrow">
+                  {['TRADES', 'HOLDERS (1)', 'XCHAIN', 'COMMENTS'].map((t) => (
+                    <span key={t} className={tab === t ? 'on' : ''}
+                      onClick={() => setTab(t)} style={{ cursor: 'pointer' }}>{t}</span>
+                  ))}
+                  <span className="bubble">◉ BUBBLE MAP</span>
+                </div>
+                <div className="tk-table-wrap">
+                  <table className="tk-table">
+                    <thead>
+                      <tr>
+                        <th>ACCOUNT</th><th>TYPE</th><th>VALUE</th><th>AMOUNT</th><th>PRICE</th>
+                        <th>DATE</th><th>CHANNEL</th><th>SOURCE</th><th>TX</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <div className="tk-pagefoot">
-                  <button type="button" aria-label="previous">‹</button>
-                  <span>1</span>
-                  <button type="button" aria-label="next">›</button>
+                    </thead>
+                    <tbody>
+                      {TRADES.map((t, i) => (
+                        <tr key={i}>
+                          <td className="acc"><span className="dot" style={{ background: t.buy ? 'var(--brand-2)' : 'var(--rose)' }} />{t.account}</td>
+                          <td className={t.buy ? 'buy' : 'sell'}>{t.buy ? 'BUY' : 'SELL'}</td>
+                          <td>{t.value}</td>
+                          <td>{t.amount}</td>
+                          <td>{fmtSub(t.price)}</td>
+                          <td>{t.date}</td>
+                          <td><ChainLogo chain={t.chain} size={16} /></td>
+                          <td><span className="tk-src" style={{ background: t.srcColor }}>{t.src}</span></td>
+                          <td className="tx">{t.tx}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div className="tk-pagefoot">
+                    <button type="button" aria-label="previous">‹</button>
+                    <span>1</span>
+                    <button type="button" aria-label="next">›</button>
+                  </div>
                 </div>
-              </div>
-            </section>
-          </div>
-            <div className="tk-rail-r">
+              </section>
+            </div>
+
+            {/* right rail: swap + information + movement (fixed 380px, sticky) */}
+            <aside className="tk-rail-r">
               <SwapRail />
               <section className="tk-panel tk-info" data-chain={chain}>
                 <div className="tk-phd">INFORMATION <span className="tk-mock">MOCK</span></div>
@@ -408,7 +409,8 @@ export function TokenPage() {
                   <div className="tk-split-bar"><i className="up" style={{ width: '62%' }} /><i className="dn" style={{ width: '38%' }} /></div>
                 </div>
               </section>
-            </div>
+            </aside>
+          </div>
         </div>
       </div>
     </div>
