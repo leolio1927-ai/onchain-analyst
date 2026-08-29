@@ -10,7 +10,6 @@ import type { LiveChain } from '../lib/liveApi'
 import { truncAddr } from '../lib/liveFormat'
 import { accentStyle } from './liveParts'
 import { ChainLogo } from './chainLogos'
-import { PageBackground } from '../components/visuals'
 import '../styles/swap.css'
 
 /* ── deterministic mock data ──────────────────────────────────── */
@@ -243,7 +242,7 @@ export function TokenPage() {
   return (
     <div className="tk-root" style={accentStyle(chain)}>
       <div className="tk-aurora" aria-hidden="true" />
-      <PageBackground />
+      <div className="tk-dots" aria-hidden="true" />
       <div className="tk-page">
         <div className="tk-wrap">
           {/* ── [B] token header ── */}
