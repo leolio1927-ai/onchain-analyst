@@ -744,3 +744,8 @@ a { color: inherit; text-decoration: none; }
 .lv-faq details p { margin: 0 0 15px 24px; font-size: 12.5px; line-height: 1.75; color: var(--mut); }
 .lv-faq details p b { color: var(--text); }
 .lv-faq details p a { color: var(--g); font-family: var(--fm); font-size: 12px; }
+
+/* ── L2 color DNA — the 6-chain thread in the hero kicker ── */
+.lv-kicker { background: linear-gradient(90deg, #14F195, #F0B90B, #4D8DFF, #2DD4BF, #00C805, #E84142);
+  -webkit-background-clip: text; background-clip: text; color: transparent; }
+.lv-kicker::before { background: linear-gradient(90deg, #14F195, #F0B90B, #4D8DFF, #2DD4BF, #00C805, #E84142); }
