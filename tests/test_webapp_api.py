@@ -243,5 +243,7 @@ def test_openapi_premium_surface(client):
         op = spec["paths"][path][method]
         assert op["tags"] and set(op["tags"]) <= tags
         assert op.get("description")  # every public op documents itself
-    assert client.get("/docs").status_code == 200
-    assert client.get("/redoc").status_code == 200
+    assert client.get("/api/docs").status_code == 200   # Swagger (moved off /docs)
+    assert client.get("/api/redoc").status_code == 200
+    assert client.get("/docs").status_code == 200       # human Docs page serves here
+    assert "TERMINAL" in client.get("/docs").text.upper()
