@@ -352,7 +352,7 @@ function LiveFeed() {
 
 const NAV = [
   ['Features', 'features'], ['How It Works', 'how'], ['Multi-Chain', 'chains'],
-  ['AI Analyst', 'ai'], ['Token Utility', 'token'], ['Roadmap', 'roadmap'], ['Docs', 'docs'],
+  ['AI Analyst', 'ai'], ['Token Utility', 'token'], ['Roadmap', '/roadmap'], ['Docs', '/docs'],
 ]
 
 function Nav() {
@@ -369,7 +369,7 @@ function Nav() {
           <a href="#" className="lv-logo"><span className="m">◤</span>TERMINAL&nbsp;<span className="lg">ALPHA</span></a>
           <div className="lv-nav-links">
             {NAV.map(([l, id]) => (
-              <a key={id} href={`#${id}`} className={cur === id ? 'on' : ''}>{l}</a>
+              <a key={id} href={id.startsWith('/') ? id : `#${id}`} className={cur === id ? 'on' : ''}>{l}</a>
             ))}
             <a href="/live" style={{ color: 'var(--g)', textShadow: '0 0 14px rgba(0,255,163,.45)' }}>Memecoin Live</a>
             <span className="lv-clock" title="UTC">◉ {clock} UTC</span>
@@ -380,7 +380,7 @@ function Nav() {
         {open && (
           <div className="lv-nav-drop">
             <a href="/live" onClick={() => setOpen(false)}>Memecoin Live</a>
-            {NAV.map(([l, id]) => <a key={id} href={`#${id}`} onClick={() => setOpen(false)}>{l}</a>)}
+            {NAV.map(([l, id]) => <a key={id} href={id.startsWith('/') ? id : `#${id}`} onClick={() => setOpen(false)}>{l}</a>)}
           </div>
         )}
       </nav>
@@ -761,34 +761,8 @@ function Token() {
   )
 }
 
-const ROAD = [
-  { ph: 'PHASE 01', t: 'Foundation', done: true, items: ['Multi-chain scanner', 'Rug Check', 'AI Analyst', 'Terminal UI'] },
-  { ph: 'PHASE 02', t: 'Intelligence', done: true, items: ['Wallet clustering', 'Whale tracking', 'Alerts', 'Grounding logs'] },
-  { ph: 'PHASE 03', t: 'Advanced Intelligence', done: false, items: ['Funding-source analysis', 'Sniper detection', 'Advanced graph analysis', 'Deep research'] },
-  { ph: 'PHASE 04', t: 'Scale', done: false, items: ['Production data providers', 'Expanded chain coverage', 'Advanced intelligence infrastructure'] },
-]
-
-function Roadmap() {
-  return (
-    <section className="lv-sec alt" id="roadmap">
-      <div className="lv-num">07</div>
-      <div className="lv-sec-head lv-center rv">
-        <div className="lv-k2">ROADMAP</div>
-        <h2 className="lv-h2">From Scanner to <span className="a">Intelligence Infrastructure</span></h2>
-      </div>
-      <div className="lv-road">
-        {ROAD.map((r, i) => (
-          <div className={`lv-phase ${r.done ? 'done' : ''} rv d${i}`} key={r.ph}>
-            <span className="pt" />
-            <div className="ph">{r.ph}</div>
-            <b>{r.t}</b>
-            <ul>{r.items.map((it) => <li className={r.done ? 'done-i' : ''} key={it}>{it}</li>)}</ul>
-          </div>
-        ))}
-      </div>
-    </section>
-  )
-}
+/* Roadmap + Docs moved to their own full pages (/roadmap, /docs) — the
+   landing stays slim: hero + live + CTA, no duplicated sections. */
 
 /* social proof — live product stats + community */
 function SocialProof() {
@@ -820,7 +794,7 @@ function SocialProof() {
 
 function Final() {
   return (
-    <section className="lv-final" id="docs">
+    <section className="lv-final">
       <span className="ring3d" aria-hidden="true" /><span className="ring3d r" aria-hidden="true" />
       <div className="rv">
         <h2>Ready to See the Alpha <span style={{ color: 'var(--p2)' }}>Others Miss?</span></h2>
@@ -829,7 +803,7 @@ function Final() {
           <span className="lv-final-cta">Launch Terminal →</span>
         </Magnetic>
         <p style={{ marginTop: 30, fontSize: 12.5, fontFamily: 'var(--fm)', color: 'var(--dim)' }}>
-          DOCS · #how &nbsp;·&nbsp; API PREVIEW · #features &nbsp;·&nbsp; STATUS · <span style={{ color: 'var(--g)' }}>ALL SYSTEMS OPERATIONAL</span>
+          DOCS · <a href="/docs" style={{ color: 'var(--g)' }}>/docs</a> &nbsp;·&nbsp; ROADMAP · <a href="/roadmap" style={{ color: 'var(--g)' }}>/roadmap</a> &nbsp;·&nbsp; STATUS · <span style={{ color: 'var(--g)' }}>ALL SYSTEMS OPERATIONAL</span>
         </p>
       </div>
     </section>
@@ -850,7 +824,7 @@ function Foot() {
         </div>
         <div className="lv-foot-col">
           <b>INTELLIGENCE</b>
-          <a href="#ai">AI Analyst</a><a href="#token">Token Utility</a><a href="#roadmap">Roadmap</a><a href="#docs">Docs</a>
+          <a href="#ai">AI Analyst</a><a href="#token">Token Utility</a><a href="/roadmap">Roadmap</a><a href="/docs">Docs</a>
         </div>
         <div className="lv-foot-col">
           <b>STATUS</b>
@@ -888,7 +862,6 @@ export default function Landing() {
       <Philosophy />
       <AiSection />
       <Token />
-      <Roadmap />
       <SocialProof />
       <Final />
       <Foot />
