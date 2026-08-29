@@ -547,7 +547,7 @@ export function DocsPage() {
                 <li><span className="no">10.3</span><div><b>Zero secret handling in the browser.</b>
                   <p>No secret ships in any frontend bundle. AI provider keys live server-side and are never returned by any endpoint.</p></div></li>
                 <li><span className="no">10.4</span><div><b>No third-party script on the page.</b>
-                  <p>Verifiable in view-source: the bundle is self-hosted; fonts are the only third-party fetch, and they are stylesheets, not scripts.</p></div></li>
+                  <p>Verifiable in view-source: zero third-party requests of any kind — the bundle and the fonts are self-hosted from /assets.</p></div></li>
                 <li><span className="no">10.5</span><div><b>Bounded surfaces.</b>
                   <p>Every cache has a hard cap (scan 512, feed 32, socials 128 entries); WebSocket fan-out is capped (default 64 clients); AI endpoints are per-IP rate limited (5/hour, 30/day by default).</p></div></li>
               </ul>
