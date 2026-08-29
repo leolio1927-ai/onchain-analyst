@@ -228,3 +228,9 @@ body { background: var(--bg-deep); }
     linear-gradient(90deg, #14F195, #F0B90B, #4D8DFF, #2DD4BF, #00C805, #E84142) border-box;
   box-shadow: 0 0 12px rgba(20,241,149,.12); font-size: 10.5px; letter-spacing: .12em; }
 .rr-topnav a.boxed:hover { box-shadow: 0 0 22px rgba(20,241,149,.3); }
+
+/* ── L2 color DNA — the 6-chain thread in kickers + section accents ── */
+.rr-kicker { background: linear-gradient(90deg, #14F195, #F0B90B, #4D8DFF, #2DD4BF, #00C805, #E84142);
+  -webkit-background-clip: text; background-clip: text; color: transparent; }
+.rr-h2::before { background: linear-gradient(90deg, #14F195, #F0B90B, #4D8DFF, #2DD4BF, #00C805, #E84142);
+  box-shadow: 0 0 10px rgba(20, 241, 149, .4); }
