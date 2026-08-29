@@ -24,13 +24,19 @@ export function accentStyle(chain: LiveChain): CSSProperties {
   return { '--chain-accent': CHAIN_ACCENT[chain] } as CSSProperties
 }
 
+/* Square token-logo tile (W.2): one bordered tile wraps BOTH the registered
+   image and the initial fallback, so the square bordir + bevel always obey
+   the same size var (--tok-size in live.css). */
 export function TokenLogo({ src, symbol }: { src: string | null; symbol: string | null }) {
   const [broken, setBroken] = useState(false)
   const initial = (symbol ?? '?').slice(0, 1).toUpperCase()
-  if (!src || broken) {
-    return <span className="lx-logo fb" aria-hidden="true">{initial}</span>
-  }
-  return <img className="lx-logo" src={src} alt="" loading="lazy" onError={() => setBroken(true)} />
+  return (
+    <span className="lx-logo" aria-hidden="true">
+      {src && !broken
+        ? <img className="lx-logo-img" src={src} alt="" loading="lazy" onError={() => setBroken(true)} />
+        : <span className="lx-logo-fb">{initial}</span>}
+    </span>
+  )
 }
 
 function copyViaTextarea(text: string): boolean {
