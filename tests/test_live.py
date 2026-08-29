@@ -17,10 +17,14 @@ from webapp import server
 
 
 @pytest.fixture(autouse=True)
-def _clean():
+def _clean(monkeypatch):
     live._feed_cache.clear()
+    live._socials_cache.clear()
+    # unit tests never touch DexScreener — default stub returns no entries
+    monkeypatch.setattr(live, "_ds_get", lambda path: [])
     yield
     live._feed_cache.clear()
+    live._socials_cache.clear()
 
 
 @pytest.fixture
@@ -78,7 +82,7 @@ def test_field_contract_exact(monkeypatch):
         "price_usd": "0.001", "volume_24h": "1000", "change_24h": "1.5",
         "liquidity_usd": "5000", "txns_24h": 15, "fdv_usd": "9000",
         "created_at": "2026-08-29T00:00:00Z", "dex_id": "pump-fun",
-        "launchpad": "pump.fun"}
+        "launchpad": "pump.fun", "token_address": "TOK0", "socials": None}
 
 
 def test_absent_stays_absent(monkeypatch):
@@ -88,6 +92,9 @@ def test_absent_stays_absent(monkeypatch):
     assert items[0]["token_symbol"] is None
     assert items[0]["token_name"] is None
     assert items[0]["logo"] is None
+    # the token ADDRESS is still known — the relationship id was returned
+    assert items[0]["token_address"] == "TOK1"
+    assert items[0]["socials"] is None  # lookup found nothing → absent
     assert items[0]["pair"] == "TEST1 / SOL"  # pool-level fields still copied
 
     # unmapped dex → launchpad None, dex_id verbatim; missing txns → None
@@ -330,6 +337,53 @@ def test_dedupe_alpha_ranks_stay_contiguous(monkeypatch):
          "attributes": {"address": "X", "name": "Mystery / SOL"}}], "included": []})
     items2, _ = live.get_feed("sol", "volume", 20)
     assert len(items2) == 1  # identity-less items pass through, never collapsed
+
+
+def test_socials_mapped_from_dexscreener(monkeypatch):
+    pairs = [_pool(1)]
+    payload = {"data": [e for e, _ in pairs], "included": [t for _, t in pairs]}
+    _patch(monkeypatch, payload)
+
+    def fake_ds(path):
+        assert path.startswith("/tokens/v1/solana/TOK1")
+        return [{"baseToken": {"address": "TOK1"},
+                 "info": {"websites": [{"url": "https://tok.example", "label": "Website"}],
+                          "socials": [{"type": "telegram", "url": "https://t.me/x"},
+                                      {"type": "twitter", "url": "https://x.com/tok"}]}}]
+
+    monkeypatch.setattr(live, "_ds_get", fake_ds)
+    items, _ = live.get_feed("sol", "new", 20)
+    assert items[0]["socials"] == {"twitter": "https://x.com/tok",
+                                   "website": "https://tok.example"}
+
+    calls: list = []
+
+    def counting(path):
+        calls.append(path)
+        return []
+
+    monkeypatch.setattr(live, "_ds_get", counting)
+    again, _ = live.get_feed("sol", "new", 20)
+    assert again[0]["socials"] == {"twitter": "https://x.com/tok",
+                                   "website": "https://tok.example"}
+    assert calls == []  # served from the 1h socials cache — zero extra calls
+
+
+def test_socials_fail_soft_and_hype_skipped(monkeypatch):
+    import urllib.error
+
+    def boom(path):
+        raise urllib.error.URLError("ds down")
+
+    monkeypatch.setattr(live, "_ds_get", boom)
+    items, _ = live.get_feed("sol", "new", 20)  # must not raise
+    assert items[0]["socials"] is None
+
+    calls: list = []
+    monkeypatch.setattr(live, "_ds_get", lambda p: calls.append(p))
+    live._socials_cache.clear()
+    hitems, _ = live.get_feed("hype", "new", 20)  # DS does not list hype
+    assert hitems[0]["socials"] is None and calls == []
 
 
 # ── route ────────────────────────────────────────────────────────────────
