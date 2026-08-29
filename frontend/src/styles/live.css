@@ -328,3 +328,37 @@
 .lx-col-t { padding-bottom: 6px; border-bottom: 1px solid
   color-mix(in srgb, var(--chain-accent, var(--brand)) 26%, transparent); }
 
+
+/* ═══════════════════════════════════════════════════════════════
+   LIVE L2 — premium pass (PROMPT-L): boxed 6-chain topbar links,
+   shimmer skeletons, sticky column headers, card lift, gradient seam.
+   Register + data behavior untouched — additive only. ═══════════ */
+.lx-top-links a.boxed { padding: 6px 13px; border-radius: 999px; border: 2px solid transparent;
+  background:
+    linear-gradient(180deg, rgba(6,16,11,.92), rgba(6,16,11,.92)) padding-box,
+    linear-gradient(90deg, #14F195, #F0B90B, #4D8DFF, #2DD4BF, #00C805, #E84142) border-box;
+  box-shadow: 0 0 12px rgba(20,241,149,.12); }
+.lx-top-links a.boxed:hover { box-shadow: 0 0 22px rgba(20,241,149,.32); text-shadow: none; }
+
+.lx-skel i { position: relative; overflow: hidden; }
+.lx-skel i::after { content: ''; position: absolute; inset: 0;
+  background: linear-gradient(100deg, transparent 30%, rgba(0,255,163,.13) 50%, transparent 70%);
+  transform: translateX(-100%); animation: lx-shimmer 1.6s ease infinite; }
+@keyframes lx-shimmer { to { transform: translateX(100%); } }
+
+.lx-tcard { transition: border-color .18s, box-shadow .18s, transform .18s; }
+.lx-tcard:hover { transform: translateY(-2px); }
+
+.lx-col-hd { position: sticky; top: 0; z-index: 5;
+  background: linear-gradient(180deg, rgba(5,16,9,.98) 70%, rgba(5,16,9,.86));
+  backdrop-filter: blur(8px); }
+
+.lx-note { position: relative; }
+.lx-note::before { content: ''; position: absolute; top: -14px; left: 10%; right: 10%; height: 2px;
+  background: linear-gradient(90deg, transparent, #14F195, #F0B90B, #4D8DFF, #2DD4BF, #00C805, #E84142, transparent);
+  opacity: .55; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lx-skel i::after { animation: none; }
+  .lx-tcard, .lx-tcard:hover { transition: none; transform: none; }
+}
