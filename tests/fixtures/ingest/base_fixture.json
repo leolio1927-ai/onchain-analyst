@@ -1,0 +1,22 @@
+{
+  "kind": "be-f2 fixture — deterministic offline ingest set",
+  "notes": "Second chain so history tests prove chain/ident isolation and per-ident cursors. All rows stamped data_mode='fixture' on ingest.",
+  "chain": "base",
+  "ident": "0xfixturebasepair000000000000000000000000dead",
+  "price_points": [
+    { "ts": "2026-08-20T00:00:00+00:00", "price": 0.025, "liquidity": 120000.0, "fdv": 3000000.0, "vol24": 210000.0 },
+    { "ts": "2026-08-21T00:00:00+00:00", "price": 0.026, "liquidity": 122000.0, "fdv": 3060000.0, "vol24": 205000.0 },
+    { "ts": "2026-08-22T00:00:00+00:00", "price": 0.024, "liquidity": 119000.0, "fdv": 2990000.0, "vol24": 198000.0 },
+    { "ts": "2026-08-23T00:00:00+00:00", "price": 0.027, "liquidity": 130000.0, "fdv": 3200000.0, "vol24": 240000.0 }
+  ],
+  "trades": [
+    { "ts": "2026-08-23T00:00:01+00:00", "side": "buy",  "amount": 900.0, "wallet": "0xf1xtureeva000000000000000000000000000001", "tx_hash": "0xf1xturetx0000000000000000000000000000001" },
+    { "ts": "2026-08-23T00:00:02+00:00", "side": "sell", "amount": 400.0, "wallet": "0xf1xtureeva000000000000000000000000000002", "tx_hash": "0xf1xturetx0000000000000000000000000000002" }
+  ],
+  "scan_snapshot": {
+    "ts": "2026-08-23T00:00:02+00:00",
+    "score": 41.2,
+    "denominator": 5,
+    "payload": { "level": "medium", "level_label": "CAUTION", "signals_computed": 5 }
+  }
+}
