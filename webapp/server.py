@@ -302,8 +302,8 @@ async def api_scan(body: ScanBody) -> dict:
     return out
 
 
-@app.post("/api/v1/explain", tags=["ai"])
-@app.post("/api/explain", tags=["ai"], deprecated=True)
+@app.post("/api/v1/explain", response_model=schemas.ExplainResponse, tags=["ai"])
+@app.post("/api/explain", response_model=schemas.ExplainResponse, tags=["ai"], deprecated=True)
 async def api_explain(body: ExplainBody, request: Request) -> dict:
     """Evidence-first narrative. `provider`: claude|glm|kimi (LLM, rate-limited,
     needs its key) or `local` (deterministic heuristics, keyless, unlimited).
@@ -318,7 +318,8 @@ async def api_explain(body: ExplainBody, request: Request) -> dict:
         # no rate-limit slot — local costs no founder money.
         scan = await _get_scan(body.chain, body.address)
         out = ai_analyst.local_explain(scan["pair"], scan["assessment"], scan["clustering"])
-        return {**out, "tier": "local", "provider": "local"}
+        return {**out, "tier": "local", "provider": "local",
+                "sources": scan.get("sources", [])}
     ip = request.client.host if request.client else "unknown"
     if not _throttle_hit(ip):
         hourly, daily = _ai_rate_limits()
@@ -329,7 +330,8 @@ async def api_explain(body: ExplainBody, request: Request) -> dict:
                                       token_gate.resolve_tier(), body.provider)
     except ai_analyst.NoKeyError as e:
         raise HTTPException(503, f"{e} — or provider='local' for the keyless heuristic narrative") from e
-    return {**out, "tier": token_gate.resolve_tier(), "provider": body.provider}
+    return {**out, "tier": token_gate.resolve_tier(), "provider": body.provider,
+            "sources": scan.get("sources", [])}
 
 
 @app.post("/api/v1/whale", response_model=schemas.WhaleResponse, tags=["whale"])
