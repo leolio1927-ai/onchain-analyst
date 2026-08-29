@@ -168,3 +168,38 @@ def explain(pair: dict, assessment: dict, tier: str = "free",
     out = parse_output(text)
     _ground_log(p.key, ev, text, out, model, tier, usage)
     return out
+
+
+def local_explain(pair: dict, assessment: dict,
+                  clustering_result: dict | None = None) -> dict:
+    """Keyless fallback narrative (G.5) — deterministic, evidence-verbatim.
+
+    Built only from the computed rug_check signals plus the clustering
+    result; every quoted line is copied from heuristic output — nothing is
+    invented to fill the LLM's shape. Clearly labeled by the caller:
+    provider="local", tier="local". Same output schema as explain().
+    """
+    signals = [s for s in assessment.get("signals", []) if s.get("evidence")]
+    if clustering_result and clustering_result.get("evidence") and \
+            not any(s.get("key") == "clustering" for s in signals):
+        signals.append({"key": "clustering", "label": "Wallet coordination",
+                        "weight": 0.0, "severity": clustering_result.get("severity"),
+                        "evidence": clustering_result["evidence"]})
+    computed = sorted((s for s in signals if s.get("severity") is not None),
+                      key=lambda s: s.get("weight") or 0, reverse=True)
+    picked = (computed + [s for s in signals if s not in computed])[:3]
+
+    level = assessment.get("level_label") or "INSUFFICIENT DATA"
+    score = assessment.get("score")
+    head = level + (f" — risk score {score}/100" if score is not None
+                    else " — no score (insufficient data)")
+    return {
+        "summary": f"[LOCAL — deterministic heuristics, no LLM] {head}.",
+        "key_signals": [{"label": str(s["label"]), "evidence": str(s["evidence"])}
+                        for s in picked],
+        "limitations": ("Deterministic local narrative from the weighted risk "
+                        "heuristics (liquidity/FDV/volume/buy-ratio/age + wallet "
+                        "clustering) — no LLM was called and no fact beyond the "
+                        "quoted evidence is added. Not an audit."),
+        "parse_ok": True,
+    }
