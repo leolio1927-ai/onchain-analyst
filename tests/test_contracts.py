@@ -171,6 +171,30 @@ def test_schema_source_banned_register_clean():
     assert hits == [], f"banned register leaked into contract literals: {hits}"
 
 
+# ── F1a addendum: golden explain contract (local tier = deterministic) ───
+
+def test_golden_explain_local_contract(client, monkeypatch):
+    stubs.install_scan(monkeypatch)
+    body = {"chain": "sol", "address": stubs.address(), "provider": "local"}
+    r = client.post("/api/explain", json=body)
+    assert r.status_code == 200
+    j = r.json()
+    assert set(j) == {"summary", "key_signals", "limitations", "parse_ok",
+                      "tier", "provider",
+                      "data_mode", "schema_version", "sources", "ts"}
+    assert j["data_mode"] == "live" and j["schema_version"] == "1.0"
+    assert j["parse_ok"] is True and j["tier"] == "local" and j["provider"] == "local"
+    assert set(j["sources"]) == {"dexscreener", "geckoterminal"}  # evidence provenance
+    assert j["summary"].startswith("[LOCAL")
+    for ks in j["key_signals"]:
+        assert set(ks) == {"label", "evidence"}
+    assert datetime.fromisoformat(j["ts"]).utcoffset() == timedelta(0)
+    # deterministic engine: same input → identical narrative on the v1 alias
+    r2 = client.post("/api/v1/explain", json=body)
+    assert r2.json()["summary"] == j["summary"]
+    assert r2.json()["key_signals"] == j["key_signals"]
+
+
 # ── /api/v1 alias parity + deprecation headers ───────────────────────────
 
 def test_v1_scan_alias_same_engine_headers_flag_legacy(client, monkeypatch):
