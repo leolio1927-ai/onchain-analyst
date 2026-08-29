@@ -175,9 +175,9 @@ export function RoadmapPage() {
       <div className="rr-shell">
         <div className="rr-topnav">
           <a className="rr-a" href="/">← LANDING</a>
-          <a className="rr-a" href="/live">MEMECOIN LIVE</a>
-          <a className="rr-a" href="/docs">DOCS</a>
-          <a className="rr-a" href="/terminal">TERMINAL (BETA)</a>
+          <a className="rr-a boxed" href="/live">MEMECOIN LIVE</a>
+          <a className="rr-a boxed" href="/docs">DOCS</a>
+          <a className="rr-a boxed" href="/terminal">TERMINAL (BETA)</a>
         </div>
 
         {/* ── HERO ─────────────────────────────────────────── */}
