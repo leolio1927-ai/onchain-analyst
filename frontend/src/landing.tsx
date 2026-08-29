@@ -6,7 +6,7 @@ import { PageBackground, ChainGlobe, RadarScanner, SystemDiagram } from './compo
 import { NET_CHAINS } from './lib/netChains'
 import { fetchLiveFeed, LIVE_CHAINS, LIVE_CHAIN_LABEL, LIVE_MODES } from './lib/liveApi'
 import type { LiveChain, LiveItem } from './lib/liveApi'
-import { fmtPct, fmtPrice, fmtUtcClock } from './lib/liveFormat'
+import { fmtCount, fmtPct, fmtPrice, fmtUsdCompact, fmtUtcClock } from './lib/liveFormat'
 import { api, ApiError } from './api'
 import type { Chain, ScanResult } from './api'
 import { ChainLogo } from './pages/chainLogos'
@@ -477,13 +477,16 @@ function TapeBand() {
    errors are quoted verbatim. The scanner allowlist is five chains — hype
    joins when its chainId is verified upstream, and the UI says so. */
 
-const SCAN_CHAINS: { id: Chain; label: string; accent: string }[] = [
-  { id: 'sol', label: 'SOL', accent: '#14F195' },
-  { id: 'bnb', label: 'BNB', accent: '#F0B90B' },
-  { id: 'base', label: 'BASE', accent: '#4D8DFF' },
-  { id: 'avax', label: 'AVAX', accent: '#E84142' },
-  { id: 'hood', label: 'HOOD', accent: '#00C805' },
+const SCAN_CHAINS: { id: Chain; label: string; accent: string; hint: string }[] = [
+  { id: 'sol', label: 'SOL', accent: '#14F195', hint: 'SOLANA ADDRESS · 32–44 BASE58 CHARS' },
+  { id: 'bnb', label: 'BNB', accent: '#F0B90B', hint: 'EVM ADDRESS · 0X + 40 HEX CHARS' },
+  { id: 'base', label: 'BASE', accent: '#4D8DFF', hint: 'EVM ADDRESS · 0X + 40 HEX CHARS' },
+  { id: 'avax', label: 'AVAX', accent: '#E84142', hint: 'EVM ADDRESS · 0X + 40 HEX CHARS' },
+  { id: 'hood', label: 'HOOD', accent: '#00C805', hint: 'EVM ADDRESS · 0X + 40 HEX CHARS' },
 ]
+
+const SO_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/
+const EVM_RE = /^0x[a-fA-F0-9]{40}$/
 
 function SevBar({ severity }: { severity: number | null }) {
   if (severity === null || severity === undefined) return <span className="lv-ns">NOT SCORED</span>
@@ -491,16 +494,68 @@ function SevBar({ severity }: { severity: number | null }) {
   return <span className="lv-sev"><span className={`fill${severity >= 0.5 ? ' hot' : ''}`} style={{ width: `${pct}%` }} /></span>
 }
 
+/* semi-circular risk gauge — animated count-up on result (reduced motion: instant) */
+function Gauge({ score, level }: { score: number | null; level: string }) {
+  const color = level === 'low' ? '#14F195' : level === 'medium' ? '#F0B90B' : level === 'high' ? '#FB7185' : '#649580'
+  const [v, setV] = useState(0)
+  useEffect(() => {
+    if (score === null || score === undefined) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setV(score); return }
+    let raf = 0
+    const t0 = performance.now()
+    const step = (t: number) => {
+      const k = Math.min(1, (t - t0) / 700)
+      setV(score * (1 - Math.pow(1 - k, 3)))
+      if (k < 1) raf = requestAnimationFrame(step)
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [score])
+  const R = 54
+  const arc = Math.PI * R
+  const filled = ((v ?? 0) / 100) * arc
+  return (
+    <svg viewBox="0 0 148 84" className="lv-gauge" role="img"
+      aria-label={`Risk score ${score ?? 'unavailable'} of 100`}>
+      <path d={`M 18 74 A ${R} ${R} 0 0 1 130 74`} fill="none" stroke="rgba(22,53,42,.9)"
+        strokeWidth="10" strokeLinecap="round" />
+      <path d={`M 18 74 A ${R} ${R} 0 0 1 130 74`} fill="none" stroke={color} strokeWidth="10"
+        strokeLinecap="round" strokeDasharray={`${filled} ${arc}`}
+        style={{ filter: `drop-shadow(0 0 6px ${color})` }} />
+      <text x="74" y="62" textAnchor="middle" className="lv-gauge-num"
+        style={{ fill: score ? color : 'var(--dim)' }}>{score === null || score === undefined ? '–' : Math.round(v)}</text>
+      <text x="74" y="78" textAnchor="middle" className="lv-gauge-sub">/100 RISK</text>
+    </svg>
+  )
+}
+
 function LiveScan() {
   const [chain, setChain] = useState<Chain>('sol')
   const [addr, setAddr] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const [hint, setHint] = useState<{ msg: string; bad: boolean } | null>(null)
   const [res, setRes] = useState<ScanResult | null>(null)
+  const accent = SCAN_CHAINS.find((c) => c.id === chain)!.accent
 
   const run = () => {
     const a = addr.trim()
     if (!a || busy) return
+    const isEvm = EVM_RE.test(a)
+    const isSol = SO_RE.test(a)
+    if (chain === 'sol' && isEvm) {
+      setHint({ msg: 'THAT IS A 0X ADDRESS — PICK BNB / BASE / AVAX / HOOD FOR EVM CHAINS', bad: true })
+      return
+    }
+    if (chain !== 'sol' && isSol && !isEvm) {
+      setChain('sol') // a base58 address is a Solana address — switch, never guess an EVM chain
+      setHint({ msg: 'BASE58 DETECTED — SWITCHED TO SOLANA', bad: false })
+    } else if ((chain === 'sol' && !isSol) || (chain !== 'sol' && !isEvm)) {
+      setHint({ msg: `${SCAN_CHAINS.find((c) => c.id === chain)!.hint} — CHECK THE ADDRESS`, bad: true })
+      return
+    } else {
+      setHint(null)
+    }
     setBusy(true)
     setErr(null)
     api.scan(chain, a)
@@ -514,6 +569,11 @@ function LiveScan() {
 
   const level = res?.assessment.level
   const lvlChip = level === 'low' ? 'live' : level === 'medium' ? 'sim' : level === 'high' ? 'high' : 'design'
+  const top = res
+    ? [...res.assessment.signals].filter((x) => x.severity !== null).sort((x, y) => (y.severity ?? 0) - (x.severity ?? 0))[0]
+    : undefined
+  const p = res?.pair
+  const tx = p?.txns?.h24
 
   return (
     <section className="lv-scanband" id="scan">
@@ -521,7 +581,7 @@ function LiveScan() {
         <div className="lv-k2">LIVE SCAN — THE REAL ENGINE</div>
         <h2 className="lv-h2">Paste an Address. <span className="a">Get the Verdict.</span></h2>
         <p className="lv-lead" style={{ marginInline: 'auto' }}>
-          No sign-up, no wallet, no wait — the shipped engine answers right here, live.
+          Five chains, one engine, zero sign-up — the shipped heuristics answer right here, live.
         </p>
       </div>
       <div className="lv-scancard rv">
@@ -530,18 +590,22 @@ function LiveScan() {
             {SCAN_CHAINS.map((c) => (
               <button key={c.id} type="button" className={`lv-chipbtn${chain === c.id ? ' on' : ''}`}
                 style={{ '--acc': c.accent } as React.CSSProperties}
-                onClick={() => setChain(c.id)} aria-pressed={chain === c.id}>
+                onClick={() => { setChain(c.id); setHint(null) }} aria-pressed={chain === c.id}>
                 <span className="dot" />{c.label}
               </button>
             ))}
           </div>
           <input className="lv-scanin" value={addr} spellCheck={false}
+            style={{ borderColor: chain === 'sol' ? undefined : `color-mix(in srgb, ${accent} 45%, transparent)` }}
             onChange={(e) => setAddr(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && run()}
             aria-label="Token or pair address" />
           <button type="button" className="lv-cta neon lv-scanbtn" onClick={run} disabled={busy}>
             {busy ? 'SCANNING…' : 'SCAN →'}
           </button>
+        </div>
+        <div className={`lv-scanhelp${hint?.bad ? ' bad' : ''}`} role="status">
+          {hint ? `⚠ ${hint.msg}` : SCAN_CHAINS.find((c) => c.id === chain)!.hint}
         </div>
         <div className="lv-scanhint">
           SCANNER ALLOWLIST: SOL · BNB · BASE · AVAX · HOOD — HYPEREVM JOINS WHEN ITS CHAINID IS VERIFIED UPSTREAM
@@ -555,22 +619,40 @@ function LiveScan() {
             THE VERDICT RENDERS EXACTLY WHAT THE ENGINE RETURNED — NOTHING MORE
           </div>
         )}
-        {!busy && res && (
+        {!busy && res && p && (
           <div className="lv-verdict">
             <div className="lv-vhd">
-              <span className="sym">{res.pair.baseToken?.symbol ?? '–'}</span>
-              <span className="pair">{res.pair.pairAddress ?? '–'} · {res.pair.quoteToken?.symbol ?? '–'}</span>
-              {res.launch_venue && <span className="venue">BORN ON {res.launch_venue.toUpperCase()}</span>}
+              <span className="lv-toktile" style={{ '--acc': accent } as React.CSSProperties}>
+                {(p.baseToken?.symbol ?? '?').slice(0, 1).toUpperCase()}
+              </span>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <span className="sym">{p.baseToken?.symbol ?? '–'}</span>
+                  {res.launch_venue && <span className="venue">BORN ON {res.launch_venue.toUpperCase()}</span>}
+                  {top && (top.severity ?? 0) >= 0.5 && (
+                    <span className="lv-toprisk">TOP RISK DRIVER · {top.label.toUpperCase()}</span>
+                  )}
+                </div>
+                <div className="pair">{p.pairAddress ?? '–'} · {p.quoteToken?.symbol ?? '–'}</div>
+              </div>
               <span style={{ marginLeft: 'auto' }} className={`lv-status ${lvlChip}`}>
                 {res.assessment.level_label}
               </span>
             </div>
             <div className="lv-scorebox">
-              <div className="lv-score">{res.assessment.score ?? '–'}<small> /100 RISK</small></div>
-              <div style={{ fontSize: 12, color: 'var(--mut)', lineHeight: 1.7, maxWidth: 460 }}>
+              <Gauge score={res.assessment.score} level={level ?? 'nodata'} />
+              <div style={{ fontSize: 12, color: 'var(--mut)', lineHeight: 1.7, maxWidth: 480 }}>
                 Weighted combination of the signals below — thresholds public in
                 heuristics/rug_check.py. Higher = riskier. Never a binary verdict.
               </div>
+            </div>
+            <div className="lv-mstrip">
+              <div><span>PRICE</span><b>{fmtPrice(p.priceUsd ?? null)}</b></div>
+              <div><span>CHG 24H</span><b className={Number(p.priceChange?.h24 ?? 0) < 0 ? 'down' : 'up'}>{fmtPct(p.priceChange?.h24 ?? null)}</b></div>
+              <div><span>LIQUIDITY</span><b>{fmtUsdCompact(p.liquidity?.usd ?? null)}</b></div>
+              <div><span>FDV</span><b>{fmtUsdCompact(p.fdv ?? null)}</b></div>
+              <div><span>VOL 24H</span><b>{fmtUsdCompact(p.volume?.h24 ?? null)}</b></div>
+              <div><span>TXNS 24H</span><b>{tx ? fmtCount(tx.buys + tx.sells) : '–'}</b></div>
             </div>
             <div className="lv-sigs">
               {res.assessment.signals.map((sig) => (
