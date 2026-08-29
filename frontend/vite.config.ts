@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// Multi-page app: / (landing) + /terminal (web terminal) + /live (memecoin live).
+// Multi-page app: / (landing) + /terminal + /live + /docs + /roadmap.
 // Dev: `npm run dev` proxies /api to the FastAPI backend on :8000.
 // Prod: `npm run build` → dist/ served by webapp/server.py.
 export default defineConfig({
@@ -20,6 +20,7 @@ export default defineConfig({
         terminal: 'terminal.html',
         live: 'live.html',
         docs: 'docs.html',
+        roadmap: 'roadmap.html',
       },
     },
   },
