@@ -227,6 +227,15 @@
   font-variant-numeric: tabular-nums; }
 .lx-tcard.ranked { grid-template-columns: 24px var(--tok-size) minmax(0, 1fr) auto; }
 
+/* ── social links (X/website) — quiet mono chips riding the accent ── */
+.lx-socials { display: inline-flex; align-items: center; gap: 5px; }
+.lx-soc { display: inline-grid; place-items: center; min-width: 18px; height: 18px;
+  padding: 0 5px; border-radius: 6px; text-decoration: none; font-family: var(--f-m);
+  font-size: 10px; color: var(--muted); border: 1px solid var(--border);
+  transition: color .2s, border-color .2s; }
+.lx-soc:hover { color: var(--chain-accent, var(--brand));
+  border-color: color-mix(in srgb, var(--chain-accent, var(--brand)) 55%, transparent); }
+
 /* ── copy address ────────────────────────────────────────────── */
 .lx-copy { display: inline-flex; align-items: center; gap: 4px; border: none; background: none;
   padding: 0; font-family: var(--f-m); font-size: 9.5px; color: var(--muted-deep); cursor: pointer;
