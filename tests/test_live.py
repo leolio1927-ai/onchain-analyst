@@ -30,10 +30,10 @@ def client():
 
 def _pool(i, *, dex="pump-fun", vol="1000", liq="5000", buys=10, sells=5,
           symbol="TST", logo="https://img.example/x.png",
-          age="2026-08-29T00:00:00Z"):
+          age="2026-08-29T00:00:00Z", name=None, tok_name=None):
     tok_id = f"solana_TOK{i}"
     e = {"id": f"solana_POOL{i}", "type": "pool",
-         "attributes": {"address": f"POOL{i}", "name": f"TEST{i} / SOL",
+         "attributes": {"address": f"POOL{i}", "name": name or f"TEST{i} / SOL",
                         "base_token_price_usd": "0.001",
                         "volume_usd": {"h24": vol},
                         "price_change_percentage": {"h24": "1.5"},
@@ -43,7 +43,7 @@ def _pool(i, *, dex="pump-fun", vol="1000", liq="5000", buys=10, sells=5,
          "relationships": {"base_token": {"data": {"id": tok_id}},
                            "dex": {"data": {"id": dex}}}}
     tok = {"id": tok_id, "type": "token",
-           "attributes": {"symbol": symbol, "name": f"Test {i}", "image_url": logo}}
+           "attributes": {"symbol": symbol, "name": tok_name or f"Test {i}", "image_url": logo}}
     return e, tok
 
 
@@ -283,6 +283,53 @@ def test_alpha_pure_score_components(monkeypatch):
     s_full = live._alpha_score(live._normalize({"data": [full]}, 50)[0], now)
     assert 0.99 < s_full <= 1.0  # everything present and maximal → ~1
     assert live._alpha_score(bare, now) == 0.0  # absent components contribute 0
+
+
+def test_dedupe_keeps_most_liquid_pool_stable_order(monkeypatch):
+    # same (symbol, name) in 3 pools → one card; the deepest pool wins;
+    # survivors keep their first-occurrence positions; distinct tokens untouched
+    pairs = [
+        _pool(10, vol="100", liq="1000", symbol="WAVAX", tok_name="Wrapped AVAX"),
+        _pool(11, vol="200", liq="2000", symbol="JOE", tok_name="Trader Joe"),
+        _pool(12, vol="900", liq="90000", symbol="WAVAX", tok_name="Wrapped AVAX"),
+        _pool(13, vol="50", liq=None, symbol="WAVAX", tok_name="Wrapped AVAX"),
+    ]
+    payload = {"data": [e for e, _ in pairs], "included": [t for _, t in pairs]}
+    live._feed_cache.clear()
+    _patch(monkeypatch, payload)
+    items, _ = live.get_feed("sol", "volume", 20)
+    assert len(items) == 2
+    # survivor pool takes the first-occurrence position; POOL10 is gone entirely
+    assert [i["pool_address"] for i in items] == ["POOL12", "POOL11"]
+    wavax = next(i for i in items if i["token_symbol"] == "WAVAX")
+    assert wavax["liquidity_usd"] == "90000"  # most liquid survived, not the first
+
+    # rerun → identical output (stable)
+    live._feed_cache.clear()
+    _patch(monkeypatch, payload)
+    again, _ = live.get_feed("sol", "volume", 20)
+    assert again == items
+
+
+def test_dedupe_alpha_ranks_stay_contiguous(monkeypatch):
+    pairs = [
+        _pool(20, vol="100", liq="1000", symbol="WAVAX", tok_name="Wrapped AVAX"),
+        _pool(21, vol="900", liq="90000", symbol="WAVAX", tok_name="Wrapped AVAX"),
+        _pool(22, vol="300", liq="3000", symbol="JOE", tok_name="Trader Joe"),
+    ]
+    payload = {"data": [e for e, _ in pairs], "included": [t for _, t in pairs]}
+    live._feed_cache.clear()
+    _patch(monkeypatch, payload)
+    items, _ = live.get_feed("sol", "alpha", 20)
+    symbols = [i["token_symbol"] for i in items]
+    assert len(symbols) == len(set(symbols))  # no duplicate tokens after dedupe
+    assert len(items) == 2  # ranks #1..#N stay contiguous with no ghost entries
+    live._feed_cache.clear()
+    _patch(monkeypatch, {"data": [
+        {"id": "solana_X", "type": "pool",
+         "attributes": {"address": "X", "name": "Mystery / SOL"}}], "included": []})
+    items2, _ = live.get_feed("sol", "volume", 20)
+    assert len(items2) == 1  # identity-less items pass through, never collapsed
 
 
 # ── route ────────────────────────────────────────────────────────────────
