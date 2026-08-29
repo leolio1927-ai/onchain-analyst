@@ -187,7 +187,17 @@ def local_explain(pair: dict, assessment: dict,
                         "evidence": clustering_result["evidence"]})
     computed = sorted((s for s in signals if s.get("severity") is not None),
                       key=lambda s: s.get("weight") or 0, reverse=True)
-    picked = (computed + [s for s in signals if s not in computed])[:3]
+    # wallet coordination always gets a slot when evidenced — it is THE
+    # memecoin signal, even when the sample was too small to score
+    cl_sig = next((s for s in signals if s.get("key") == "clustering"), None)
+    scored = [s for s in computed if s is not cl_sig]
+    picked = scored[:2]
+    if cl_sig is not None:
+        picked.append(cl_sig)
+    for s in scored[2:]:
+        if len(picked) >= 3:
+            break
+        picked.append(s)
 
     level = assessment.get("level_label") or "INSUFFICIENT DATA"
     score = assessment.get("score")
