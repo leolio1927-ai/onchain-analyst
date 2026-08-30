@@ -32,7 +32,7 @@ import ai_analyst
 from access import token_gate
 from heuristics import clustering, rug_check
 from providers import dexscreener, discovery, geckoterminal, helius, live
-from webapp import db, schemas
+from webapp import chains, db, schemas
 
 CACHE_TTL_S = 30.0
 SCAN_CACHE_MAX = 512  # hard cap — every /api/scan key would otherwise live forever (memory DoS)
@@ -147,7 +147,12 @@ def _pair_view(pair: dict) -> dict:
 
 async def _scan_chain(chain_key: str, address: str) -> dict | None:
     """DexScreener pair + GeckoTerminal clustering → assessment. GT failure →
-    honest degrade (severity None + reason), the other signals still run."""
+    honest degrade (severity None + reason), the other signals still run.
+
+    Per-chain denominator note (BE-F4 wiring decision, deliberately not
+    joined yet — same no-join rule as F3 labels): when it ships, it reads the
+    chain's capabilities from webapp/chains.py CHAIN_CATALOG (e.g. hood has
+    clustering=False → an honest "5 of 6 signals available on this chain")."""
     try:
         pairs = await asyncio.to_thread(dexscreener.fetch_pairs, chain_key, address)
     except urllib.error.HTTPError as e:
@@ -313,7 +318,8 @@ async def metrics() -> dict:
             "ws_clients": len(_WS_CLIENTS), "scan_cache_entries": len(_scan_cache),
             "gt_trade_cache_entries": len(geckoterminal._trade_cache),
             "throttled_ips": len(_ai_hits),
-            "tokens": rows.get("tokens", 0), "labels": rows.get("wallet_labels", 0)}
+            "tokens": rows.get("tokens", 0), "labels": rows.get("wallet_labels", 0),
+            "chains": len(chains.CHAIN_CATALOG)}
 
 
 @app.post("/api/v1/scan", response_model=schemas.ScanResponse, tags=["market"])
@@ -513,6 +519,25 @@ async def api_wallet_labels(address: str) -> dict:
                                  f"not base58 (32-44) or 0x-hex (40)")
     path = _db_or_503()
     return await asyncio.to_thread(db.get_wallet_labels, path, address)
+
+
+# ── BE-F4: chain capability catalog (config-not-observed → data_mode "static") ──
+
+@app.get("/api/v1/chains", response_model=schemas.ChainsResponse, tags=["market"])
+async def api_chains() -> dict:
+    """What each chain can honestly do today, per provider. This is the
+    audit-§2 provider matrix as a structured, importable constant — the
+    guard in webapp/chains.py keeps it equivalent to the provider modules,
+    so a capability change fails the catalog test until updated."""
+    return {
+        "chains": [{"chain": cid, **info}
+                   for cid, info in chains.CHAIN_CATALOG.items()],
+        "note": "reflects verified provider support",
+        "data_mode": "static",
+        "schema_version": "1.0",
+        "sources": ["chains.py"],
+        "ts": schemas._utc_now_iso(),
+    }
 
 
 _NO_BUILD = """<!doctype html><html><head><meta charset="utf-8">
