@@ -91,8 +91,10 @@ def _call(url: str, *, body: dict | None = None) -> dict | list:
                     ".", "", 1).isdigit() else 2.0)
                 continue
             raise _HeliusError(f"http_{e.code}") from e
-        except (urllib.error.URLError, TimeoutError, OSError) as e:
-            raise _HeliusError(f"transport:{str(e)[:60]}") from e
+        except TimeoutError as e:
+            raise _HeliusError("timeout") from e
+        except (urllib.error.URLError, OSError) as e:
+            raise _HeliusError(f"unreachable:{str(e)[:60]}") from e
     raise _HeliusError("http_429")
 
 
