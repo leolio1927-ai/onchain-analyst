@@ -18,6 +18,7 @@ export interface Signal {
   weight: number
   severity: number | null
   evidence: string
+  computed?: boolean
 }
 
 export interface Assessment {
@@ -58,6 +59,9 @@ export interface ScanResult {
   clustering: Clustering
   sources: string[]
   launch_venue: string | null
+  data_mode: 'live' | 'partial'
+  schema_version: string
+  context: Record<string, unknown>
   ts: string
 }
 
