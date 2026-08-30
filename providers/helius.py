@@ -133,6 +133,49 @@ def _guarded(chain: str, expected: str = "sol") -> str | None:
     return None
 
 
+def transfers(chain: str, token: str, limit: int = 100) -> tuple[dict | None, str | None]:
+    """Recent enhanced transactions for a token → signed per-wallet deltas.
+    Returns ({"transfers": [...], "txs_seen": n} | None, note). A transfer
+    whose amount cannot be parsed is skipped — never guessed; an empty list
+    is DATA (a quiet token), distinct from a failed fetch."""
+    key = ("transfers", chain, token, limit)
+    if (note := _guarded(chain)) is not None:
+        return None, note
+    cached = _cache_get(key)
+    if cached is not None:
+        return cached, None
+
+    def fetch():
+        url = f"{BASE}/v0/addresses/{token}/transactions?api-key={_key()}&limit={limit}"
+        txs = _call(url)
+        if not isinstance(txs, list):
+            raise _HeliusError("unparsed_response")
+        out, seen = [], 0
+        for tx in txs:
+            seen += 1
+            ts = tx.get("timestamp")
+            sig = tx.get("signature")
+            for tb in tx.get("tokenBalances") or []:
+                if (tb.get("mint") or "") != token:
+                    continue
+                try:
+                    amount = float(tb.get("amount"))
+                except (TypeError, ValueError):
+                    continue                      # unparseable delta: skip, never guess
+                wallet = tb.get("userAccount")
+                if not wallet:
+                    continue
+                out.append({"wallet": wallet, "amount": amount,
+                            "direction": "in" if amount >= 0 else "out",
+                            "ts": ts, "tx": sig})
+        return {"transfers": out, "txs_seen": seen}
+
+    try:
+        return _single_flight(key, fetch), None
+    except _HeliusError as e:
+        return None, f"helius:{e}"
+
+
 def get_creation(chain: str, mint: str) -> tuple[dict | None, str | None]:
     """Creation tx of an SPL mint → fee_payer = deployer. Returns
     ({"tx", "fee_payer", "at"} | None, note). Empty result sets are honest

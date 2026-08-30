@@ -31,7 +31,15 @@ from pydantic import BaseModel
 import ai_analyst
 from access import token_gate
 from heuristics import clustering, rug_check
-from providers import chains_map, dexscreener, discovery, geckoterminal, helius, live
+from providers import (
+    chains_map,
+    dexscreener,
+    discovery,
+    geckoterminal,
+    helius,
+    live,
+    whales,
+)
 from webapp import chains, db, schemas
 from webapp import lineage as lineage_mod
 
@@ -355,6 +363,8 @@ def _enrich_scan(chain_key: str, ident: str) -> dict:
         if data is None:
             continue
         live += 1
+        if data.get("data_source"):
+            ctx.setdefault("data_sources", []).append(data["data_source"])
         if cap["source"] not in ctx["sources"]:
             ctx["sources"].append(cap["source"])
         if name == "deployer":
@@ -608,6 +618,44 @@ async def api_chains() -> dict:
         "sources": ["chains.py", "chains_map.py"],
         "ts": schemas._utc_now_iso(),
     }
+
+
+# ── BE-ALL-LIVE F3: whale tracker (large transfers + netflow) ──
+
+@app.get("/api/v1/whales/{chain}/{token}", response_model=schemas.WhalesResponse,
+         tags=["market"])
+async def api_whales(chain: str, token: str, threshold_usd: float = 1000.0,
+                     limit: int = 25) -> dict:
+    """Large recent transfers + per-wallet netflow for one token. Solana =
+    Helius enhanced transactions (keyed); bnb/base/hood/hype carry the probe
+    reason — no $0 trade feed exists there. USD sizing uses the DexScreener
+    pair price; when absent, `usd` stays None and token amounts stand alone."""
+    out: dict = {"chain": chain.strip().lower(), "token": token.strip().lower(),
+                 "threshold_usd": threshold_usd, "transfers": [], "netflow": [],
+                 "window_txs": 0, "price_usd": None,
+                 "data_mode": "unwired", "schema_version": "1.0",
+                 "sources": [], "ts": schemas._utc_now_iso(),
+                 "data_sources": []}
+    try:
+        # the token goes to providers AS GIVEN — solana addresses are
+        # case-sensitive; lowercasing is only for DB idents
+        data, note = await asyncio.to_thread(whales.whales, chain.strip().lower(),
+                                             token.strip(),
+                                             threshold_usd, limit)
+    except Exception as e:  # noqa: BLE001 — a provider failure is a note, not a 500
+        data, note = None, f"whales:failed ({str(e)[:40]})"
+    if data is None:
+        out["data_sources"].append(note or "whales unavailable")
+        out["data_mode"] = "unwired"
+        return out
+    out.update(data)
+    out["data_mode"] = "live"       # a served window is real data; quiet tokens included
+    out["sources"] = ["helius", "dexscreener"] if data["price_usd"] is not None else ["helius"]
+    out["data_sources"].append(
+        f"whales: helius enhanced txs (window={data['window_txs']} txs, "
+        f"threshold ${threshold_usd}) + dexscreener pair price"
+        + ("" if data["price_usd"] is not None else " — price absent: usd stays null"))
+    return out
 
 
 _NO_BUILD = """<!doctype html><html><head><meta charset="utf-8">

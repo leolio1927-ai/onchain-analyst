@@ -1139,6 +1139,57 @@
     "title": "LiveResponse",
     "type": "object"
    },
+   "NetflowRow": {
+    "description": "Per-wallet net over the same window as the transfers shown.",
+    "properties": {
+     "direction": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Direction"
+     },
+     "net_amount": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Net Amount"
+     },
+     "net_usd": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Net Usd"
+     },
+     "wallet": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Wallet"
+     }
+    },
+    "title": "NetflowRow",
+    "type": "object"
+   },
    "OhlcvPoint": {
     "description": "Point-in-time quote mapped onto the OHLCV shape: open/high/low stay\nNone (a candle that was never observed is never synthesized), close =\nthe observed price, volume = the observed 24h volume.",
     "properties": {
@@ -2302,6 +2353,93 @@
     "title": "WhaleBody",
     "type": "object"
    },
+   "WhaleEntry": {
+    "description": "One large transfer: signed token delta (in/out) + USD at the window\nprice. usd stays None when no pair price exists \u2014 never fabricated.",
+    "properties": {
+     "amount": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Amount"
+     },
+     "direction": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Direction"
+     },
+     "price_usd": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price Usd"
+     },
+     "ts": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ts"
+     },
+     "tx": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Tx"
+     },
+     "usd": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Usd"
+     },
+     "wallet": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Wallet"
+     }
+    },
+    "title": "WhaleEntry",
+    "type": "object"
+   },
    "WhaleResponse": {
     "properties": {
      "address": {
@@ -2392,6 +2530,112 @@
      }
     },
     "title": "WhaleToken",
+    "type": "object"
+   },
+   "WhalesResponse": {
+    "description": "Whale tracker (BE-ALL-LIVE F3). A quiet token is an honest empty\nlist; an unwired chain carries the probe reason sentence in data_sources.",
+    "properties": {
+     "chain": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Chain"
+     },
+     "data_mode": {
+      "default": "unwired",
+      "enum": [
+       "live",
+       "fixture",
+       "unwired",
+       "static",
+       "partial"
+      ],
+      "title": "Data Mode",
+      "type": "string"
+     },
+     "data_sources": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Data Sources",
+      "type": "array"
+     },
+     "netflow": {
+      "items": {
+       "$ref": "#/components/schemas/NetflowRow"
+      },
+      "title": "Netflow",
+      "type": "array"
+     },
+     "price_usd": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Price Usd"
+     },
+     "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+     },
+     "sources": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Sources",
+      "type": "array"
+     },
+     "threshold_usd": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Threshold Usd"
+     },
+     "token": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Token"
+     },
+     "transfers": {
+      "items": {
+       "$ref": "#/components/schemas/WhaleEntry"
+      },
+      "title": "Transfers",
+      "type": "array"
+     },
+     "ts": {
+      "title": "Ts",
+      "type": "string"
+     },
+     "window_txs": {
+      "default": 0,
+      "title": "Window Txs",
+      "type": "integer"
+     }
+    },
+    "title": "WhalesResponse",
     "type": "object"
    }
   }
@@ -3129,6 +3373,78 @@
     "summary": "Api Whale",
     "tags": [
      "whale"
+    ]
+   }
+  },
+  "/api/v1/whales/{chain}/{token}": {
+   "get": {
+    "description": "Large recent transfers + per-wallet netflow for one token. Solana =\nHelius enhanced transactions (keyed); bnb/base/hood/hype carry the probe\nreason \u2014 no $0 trade feed exists there. USD sizing uses the DexScreener\npair price; when absent, `usd` stays None and token amounts stand alone.",
+    "operationId": "api_whales_api_v1_whales__chain___token__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "chain",
+      "required": true,
+      "schema": {
+       "title": "Chain",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "token",
+      "required": true,
+      "schema": {
+       "title": "Token",
+       "type": "string"
+      }
+     },
+     {
+      "in": "query",
+      "name": "threshold_usd",
+      "required": false,
+      "schema": {
+       "default": 1000.0,
+       "title": "Threshold Usd",
+       "type": "number"
+      }
+     },
+     {
+      "in": "query",
+      "name": "limit",
+      "required": false,
+      "schema": {
+       "default": 25,
+       "title": "Limit",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WhalesResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Api Whales",
+    "tags": [
+     "market"
     ]
    }
   },

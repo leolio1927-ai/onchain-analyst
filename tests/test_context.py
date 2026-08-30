@@ -57,19 +57,25 @@ def test_live_enrichment_per_chain(client, db_path, monkeypatch):
     assert sol["data_mode"] == "live"            # all three wired blocks live
     assert rows["sol"]["data_mode"] == "partial"  # envelope: enriched-but-partial
     assert sol["lineage"]["launches"] == 0       # watched, launched nothing YET
+    # FASE 2: EVM deployer is wired (blockscout base / goplus bnb, canned) —
+    # holders + sell_test remain catalog-null with their reason sentences
+    assert rows["base"]["context"]["deployer"] == "0xcanned0000000000000000000000000000000001"
+    assert rows["base"]["context"]["deployer_source"] == "blockscout"
+    assert any("verified on-chain" in s for s in rows["base"]["context"]["data_sources"])
+    assert rows["bnb"]["context"]["deployer_source"] == "goplus"
+    assert any("NOT on-chain-verifiable" in s for s in rows["bnb"]["context"]["data_sources"])
     for c in ("bnb", "base"):
         ctx = rows[c]["context"]
-        assert ctx["deployer"] is None           # probe: no $0 deployer on EVM
         assert ctx["top10_share"] is None        # catalog null → stays None
         assert ctx["sell_test"] is None
-        assert len(ctx["notes"]) == 3            # a sentence per capability
-        assert ctx["data_mode"] == "unwired"     # nothing wired on EVM yet
-        assert rows[c]["data_mode"] == "live"    # verdict half fully live
+        assert len(ctx["notes"]) == 3            # holders + sell_test + whales sentences
+        assert ctx["data_mode"] == "partial"     # one of three capabilities live
+        assert rows[c]["data_mode"] == "partial"
     for c in ("hood",):            # hype is unscannable (catalog scan=False)
         ctx = rows[c]["context"]
         assert ctx["deployer"] is None and ctx["top10_share"] is None
         assert ctx["sell_test"] is None and ctx["lineage"] is None
-        assert len(ctx["notes"]) == 3            # a sentence per capability
+        assert len(ctx["notes"]) == 4            # a sentence per capability
         assert ctx["data_mode"] == "unwired"
         assert rows[c]["data_mode"] == "live"    # verdict half fully live
 
@@ -83,10 +89,12 @@ def test_not_configured_is_honest_not_zero(client, monkeypatch):
     assert any("helius:not_configured" in n for n in sol["notes"])
     assert sol["sell_test"]["routable"] is True  # keyless path unaffected
     assert sol["data_mode"] == "partial"
-    for c in ("bnb", "base", "hood"):
-        ctx = rows[c]["context"]
-        assert ctx["deployer"] is None and ctx["deployer_source"] is None
-        assert ctx["data_mode"] == "unwired"
+    # keyless providers (blockscout/goplus) keep serving without keys —
+    # only the KEYED provider (helius) honors absence on sol
+    for c in ("bnb", "base"):
+        assert rows[c]["context"]["deployer"] == "0xcanned0000000000000000000000000000000001"
+    hood_ctx = rows["hood"]["context"]
+    assert hood_ctx["deployer"] is None and hood_ctx["data_mode"] == "unwired"
     for c in ("hood",):            # hype is unscannable (catalog scan=False)
         assert rows[c]["context"]["data_mode"] == "unwired"
 

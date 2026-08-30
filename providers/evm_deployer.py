@@ -63,8 +63,6 @@ def get_creation(chain: str, token: str) -> tuple[dict | None, str | None]:
     else:
         return None, f"evm_deployer:chain_unsupported ({chain})"
 
-    if data is not None and data.get("data_source"):
-        notes.append(data["data_source"])
-    if data is not None:
-        data = {k: v for k, v in data.items() if k != "data_source"}
+    # the data_source provenance line rides ON the data — the server moves
+    # it into ctx["data_sources"] verbatim; notes only carry path failures
     return data, ("; ".join(notes) or None)

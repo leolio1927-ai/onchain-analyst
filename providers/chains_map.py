@@ -18,12 +18,9 @@ two disagree.
 """
 from __future__ import annotations
 
-from providers import helius, jupiter
+from providers import evm_deployer, helius, jupiter, whales
 from webapp.chains import CHAIN_CATALOG
 
-_EVM_NO_DEPLOYER = ("probe 2026-08-30: alchemy_getAssetTransfers rejects "
-                    "category 'contract' on this network — EVM creation "
-                    "lookup needs an Etherscan-class indexer")
 _EVM_NO_HOLDERS = ("probe 2026-08-30: top-holder enumeration needs an indexer "
                    "key; alchemy free RPC cannot enumerate holders")
 
@@ -32,20 +29,27 @@ _CAPABILITIES: dict[str, dict[str, dict]] = {
         "deployer": {"source": "helius", "fn": helius.get_creation},
         "holders": {"source": "helius", "fn": helius.get_largest_accounts},
         "sell_test": {"source": "jupiter", "fn": jupiter.sell_quote},
+        "whales": {"source": "helius", "fn": whales.whales},
     },
     "bnb": {
-        "deployer": {"source": None, "reason": _EVM_NO_DEPLOYER},
+        # FASE-1 probe: goplus keyless creator (LIVE, CAKE) — the provider
+        # ships no creation tx, so claims ride flagged unverified-tx
+        "deployer": {"source": "goplus", "fn": evm_deployer.get_creation},
         "holders": {"source": None, "reason": _EVM_NO_HOLDERS},
         "sell_test": {"source": None,
                       "reason": "1inch quote requires an API key "
                                 "(probe: 401 unauthenticated)"},
+        "whales": {"source": None, "reason": "birdeye trade endpoints answer 404 on the free tier (probe 2026-08-30); no $0 trade feed"},
     },
     "base": {
-        "deployer": {"source": None, "reason": _EVM_NO_DEPLOYER},
+        # FASE-1 probe: blockscout primary (LIVE, law-3 verified on AERO);
+        # goplus fallback composed inside evm_deployer.get_creation
+        "deployer": {"source": "blockscout", "fn": evm_deployer.get_creation},
         "holders": {"source": None, "reason": _EVM_NO_HOLDERS},
         "sell_test": {"source": None,
                       "reason": "1inch quote requires an API key "
                                 "(probe: 401 unauthenticated)"},
+        "whales": {"source": None, "reason": "birdeye trade endpoints answer 404 on the free tier (probe 2026-08-30); no $0 trade feed"},
     },
     # avax row parked 2026-08-30 (founder: 5-chain lineup) — was: "avax": {         "deployer": {"source": None, "reason": _EVM_NO_DEPLOYER},         "holders": {"source": None, "reason": _EVM_NO_HOLDERS},         "sell_test": {"source": None,                       "reason": "1inch quote requires an API key "                                 "(probe: 401 unauthenticated)"},     },
 
@@ -57,6 +61,7 @@ _CAPABILITIES: dict[str, dict[str, dict]] = {
                     "reason": "no $0 holder source for robinhood"},
         "sell_test": {"source": None,
                       "reason": "DEX-less venues: no route concept"},
+        "whales": {"source": None, "reason": "birdeye trade endpoints answer 404 on the free tier (probe 2026-08-30); no $0 trade feed"},
     },
     "hype": {
         "deployer": {"source": None,
@@ -66,6 +71,7 @@ _CAPABILITIES: dict[str, dict[str, dict]] = {
                     "reason": "no $0 holder source for hyperevm"},
         "sell_test": {"source": None,
                       "reason": "DEX-less venues: no route concept"},
+        "whales": {"source": None, "reason": "birdeye trade endpoints answer 404 on the free tier (probe 2026-08-30); no $0 trade feed"},
     },
 }
 
@@ -76,11 +82,12 @@ _CAPABILITIES: dict[str, dict[str, dict]] = {
 # the day an indexer-grade source lands).
 _PROVIDER_CHAINS: dict[str, frozenset[str]] = {
     "helius": frozenset({"sol"}),
-    "alchemy": frozenset(),
+    "blockscout": frozenset({"base"}),
+    "goplus": frozenset({"bnb", "base"}),
     "jupiter": frozenset({"sol"}),
 }
 
-CAPABILITY_NAMES = ("deployer", "holders", "sell_test")
+CAPABILITY_NAMES = ("deployer", "holders", "sell_test", "whales")
 
 
 def capabilities_for(chain: str) -> dict[str, dict]:

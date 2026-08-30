@@ -65,6 +65,30 @@ def _single_flight(key, fn):
     return _cache_get(key)
 
 
+def _get(url: str) -> dict:
+    req = urllib.request.Request(url, headers={
+        "User-Agent": "terminal-alpha/0.1", "Accept": "application/json"})
+    for attempt in (1, 2):
+        try:
+            with urllib.request.urlopen(req, timeout=_TIMEOUT_S) as r:
+                out = json.load(r)
+            break
+        except urllib.error.HTTPError as e:
+            if e.code in (429, 502, 503) and attempt == 1:
+                delay = e.headers.get("Retry-After")
+                time.sleep(min(float(delay), 5.0) if delay and delay.replace(
+                    ".", "", 1).isdigit() else 2.0)
+                continue
+            raise _GoPlusError(f"http_{e.code}") from e
+        except TimeoutError as e:
+            raise _GoPlusError("timeout") from e
+        except (urllib.error.URLError, OSError) as e:
+            raise _GoPlusError(f"unreachable:{str(e)[:60]}") from e
+    if not isinstance(out, dict) or out.get("code") not in (1, 0):
+        raise _GoPlusError("unparsed_response")
+    return out
+
+
 def token_security(chain: str, token: str) -> tuple[dict | None, str | None]:
     """Raw security payload for one contract ({} when GoPlus has no row —
     that is data-level absence, note "goplus:no_row")."""
@@ -76,27 +100,8 @@ def token_security(chain: str, token: str) -> tuple[dict | None, str | None]:
         return cached, None
 
     def fetch():
-        url = f"{_BASE}/token_security/{_CHAIN_IDS[chain]}?contract_addresses={token}"
-        req = urllib.request.Request(url, headers={
-            "User-Agent": "terminal-alpha/0.1", "Accept": "application/json"})
-        for attempt in (1, 2):
-            try:
-                with urllib.request.urlopen(req, timeout=_TIMEOUT_S) as r:
-                    out = json.load(r)
-                break
-            except urllib.error.HTTPError as e:
-                if e.code in (429, 502, 503) and attempt == 1:
-                    delay = e.headers.get("Retry-After")
-                    time.sleep(min(float(delay), 5.0) if delay and delay.replace(
-                        ".", "", 1).isdigit() else 2.0)
-                    continue
-                raise _GoPlusError(f"http_{e.code}") from e
-            except TimeoutError as e:
-                raise _GoPlusError("timeout") from e
-            except (urllib.error.URLError, OSError) as e:
-                raise _GoPlusError(f"unreachable:{str(e)[:60]}") from e
-        if not isinstance(out, dict) or out.get("code") not in (1, 0):
-            raise _GoPlusError("unparsed_response")
+        out = _get(f"{_BASE}/token_security/{_CHAIN_IDS[chain]}"
+                   f"?contract_addresses={token}")
         result = out.get("result") or {}
         row = result.get(token.lower())
         if not row:

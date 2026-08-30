@@ -170,6 +170,7 @@ class TokenContext(Envelope):
     top10_share: float | None = None
     sell_test: SellTest | None = None
     notes: list[str] = Field(default_factory=list)
+    data_sources: list[str] = Field(default_factory=list)
 
 
 class ScanResponse(Envelope):
@@ -471,6 +472,44 @@ class ChainInfo(BaseModel):
     live_feed: bool = False
     venues: list[str] = Field(default_factory=list)
     logo_ref: str | None = None
+
+
+class WhaleEntry(BaseModel):
+    """One large transfer: signed token delta (in/out) + USD at the window
+    price. usd stays None when no pair price exists — never fabricated."""
+
+    wallet: str | None = None
+    amount: float | None = None
+    direction: str | None = None
+    ts: str | int | None = None      # verbatim from the provider (helius = epoch int)
+    tx: str | None = None
+    usd: float | None = None
+    price_usd: float | None = None
+
+
+class NetflowRow(BaseModel):
+    """Per-wallet net over the same window as the transfers shown."""
+
+    wallet: str | None = None
+    net_amount: float | None = None
+    direction: str | None = None
+    net_usd: float | None = None
+
+
+class WhalesResponse(Envelope):
+    """Whale tracker (BE-ALL-LIVE F3). A quiet token is an honest empty
+    list; an unwired chain carries the probe reason sentence in data_sources."""
+
+    data_mode: DataMode = "unwired"
+
+    chain: str | None = None
+    token: str | None = None
+    price_usd: float | None = None
+    threshold_usd: float | None = None
+    window_txs: int = 0
+    transfers: list[WhaleEntry] = Field(default_factory=list)
+    netflow: list[NetflowRow] = Field(default_factory=list)
+    data_sources: list[str] = Field(default_factory=list)
 
 
 class CapabilityRow(BaseModel):
