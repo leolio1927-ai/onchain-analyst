@@ -18,8 +18,14 @@ two disagree.
 """
 from __future__ import annotations
 
-from providers import alchemy, helius, jupiter
+from providers import helius, jupiter
 from webapp.chains import CHAIN_CATALOG
+
+_EVM_NO_DEPLOYER = ("probe 2026-08-30: alchemy_getAssetTransfers rejects "
+                    "category 'contract' on this network — EVM creation "
+                    "lookup needs an Etherscan-class indexer")
+_EVM_NO_HOLDERS = ("probe 2026-08-30: top-holder enumeration needs an indexer "
+                   "key; alchemy free RPC cannot enumerate holders")
 
 _CAPABILITIES: dict[str, dict[str, dict]] = {
     "sol": {
@@ -28,28 +34,22 @@ _CAPABILITIES: dict[str, dict[str, dict]] = {
         "sell_test": {"source": "jupiter", "fn": jupiter.sell_quote},
     },
     "bnb": {
-        "deployer": {"source": "alchemy", "fn": alchemy.get_creation},
-        "holders": {"source": None,
-                    "reason": "no $0 top-holders source on EVM: enumeration "
-                              "needs an indexer key (probe 2026-08-30)"},
+        "deployer": {"source": None, "reason": _EVM_NO_DEPLOYER},
+        "holders": {"source": None, "reason": _EVM_NO_HOLDERS},
         "sell_test": {"source": None,
                       "reason": "1inch quote requires an API key "
                                 "(probe: 401 unauthenticated)"},
     },
     "base": {
-        "deployer": {"source": "alchemy", "fn": alchemy.get_creation},
-        "holders": {"source": None,
-                    "reason": "no $0 top-holders source on EVM: enumeration "
-                              "needs an indexer key (probe 2026-08-30)"},
+        "deployer": {"source": None, "reason": _EVM_NO_DEPLOYER},
+        "holders": {"source": None, "reason": _EVM_NO_HOLDERS},
         "sell_test": {"source": None,
                       "reason": "1inch quote requires an API key "
                                 "(probe: 401 unauthenticated)"},
     },
     "avax": {
-        "deployer": {"source": "alchemy", "fn": alchemy.get_creation},
-        "holders": {"source": None,
-                    "reason": "no $0 top-holders source on EVM: enumeration "
-                              "needs an indexer key (probe 2026-08-30)"},
+        "deployer": {"source": None, "reason": _EVM_NO_DEPLOYER},
+        "holders": {"source": None, "reason": _EVM_NO_HOLDERS},
         "sell_test": {"source": None,
                       "reason": "1inch quote requires an API key "
                                 "(probe: 401 unauthenticated)"},
@@ -75,10 +75,13 @@ _CAPABILITIES: dict[str, dict[str, dict]] = {
 }
 
 # where each provider is a legitimate source — the wiring guard checks rows
-# against this so a fn can never be attached to a chain it cannot serve
+# against this so a fn can never be attached to a chain it cannot serve.
+# alchemy: NO chains — the probe rejected its deployment category on every
+# EVM network we serve (providers/alchemy.py stays as the working client for
+# the day an indexer-grade source lands).
 _PROVIDER_CHAINS: dict[str, frozenset[str]] = {
     "helius": frozenset({"sol"}),
-    "alchemy": frozenset({"bnb", "base", "avax"}),
+    "alchemy": frozenset(),
     "jupiter": frozenset({"sol"}),
 }
 
