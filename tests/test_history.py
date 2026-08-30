@@ -113,8 +113,8 @@ def test_schema_migrations_recorded(db_path):
     try:
         rows = conn.execute("SELECT version, applied_at FROM schema_migrations"
                             " ORDER BY version").fetchall()
-        # v1 base DDL + v2 entity layer (BE-F3) — each applied once, stamped
-        assert [r["version"] for r in rows] == [1, db.SCHEMA_VERSION]
+        # every migration 1..SCHEMA_VERSION applied exactly once, stamped
+        assert [r["version"] for r in rows] == list(range(1, db.SCHEMA_VERSION + 1))
         assert all(r["applied_at"] for r in rows)
     finally:
         conn.close()
