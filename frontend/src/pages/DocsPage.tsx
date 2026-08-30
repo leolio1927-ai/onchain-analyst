@@ -18,12 +18,12 @@ import '../styles/docs.css'
    the docs bundle stays free of unrelated strings and deps */
 const ACCENT: Record<LiveChain, string> = {
   sol: '#14F195', bnb: '#F0B90B', base: '#4D8DFF',
-  hype: '#2DD4BF', hood: '#00C805', avax: '#E84142',
+  hype: '#2DD4BF', hood: '#00C805', // avax accent parked 2026-08-30
 }
 
 /* GeckoTerminal network slugs — copied from providers/live.py CHAINS */
 const NET_ID: Record<LiveChain, string> = {
-  sol: 'solana', bnb: 'bsc', base: 'base', hype: 'hyperevm', hood: 'robinhood', avax: 'avax',
+  sol: 'solana', bnb: 'bsc', base: 'base', hype: 'hyperevm', hood: 'robinhood', // avax parked 2026-08-30
 }
 
 const SECTIONS = [
@@ -61,7 +61,7 @@ const MAIN_NODES = [
   { x: 374, t: 'DEDUPE', s: 'DEEPEST POOL SURVIVES' },
   { x: 554, t: 'TTL CACHE', s: '180s · STALE-SAFE' },
   { x: 734, t: '/API/V1/LIVE', s: 'HONEST 400/404/502' },
-  { x: 914, t: 'LIVE BOARD', s: '6 CHAINS · STAGGERED' },
+  { x: 914, t: 'LIVE BOARD', s: '5 CHAINS · STAGGERED' },
 ]
 const ROW2 = [
   { x: 554, t: 'DS SOCIALS', s: 'X/WEBSITE · 1H CACHE · FAIL-SOFT' },
@@ -175,7 +175,7 @@ export function DocsPage() {
             <h1 className="dd-h1">One terminal. <em>All chains.</em> Zero lies.</h1>
             <p className="dd-deck">
               <b>Terminal Alpha</b> is a production read-only research terminal for memecoin markets
-              across six chains: a keyless live data pipeline with deterministic integrity guarantees,
+              across five chains: a keyless live data pipeline with deterministic integrity guarantees,
               public risk heuristics, and an evidence-first analysis layer. No custody, no keys, no
               black boxes. Everything on this site renders exactly what an upstream API actually
               returned. Machine-readable index: <a className="dd-a" href="/assets/llms.txt">/assets/llms.txt</a>.
@@ -301,7 +301,7 @@ export function DocsPage() {
                 <thead><tr><th>Node</th><th>What ships</th><th>Evidence</th></tr></thead>
                 <tbody>
                   <tr><td>4.1 · GeckoTerminal</td>
-                    <td>Keyless pools/trades API — new, trending and volume sources for six chains; volume sort verified monotonic in stage-0 (2026-08-29).</td>
+                    <td>Keyless pools/trades API — new, trending and volume sources for five chains; volume sort verified monotonic in stage-0 (2026-08-29).</td>
                     <td className="path">providers/live.py · providers/geckoterminal.py</td></tr>
                   <tr><td>4.2 · Normalize + guard</td>
                     <td>Verbatim field copy; impossible numerics (negative price/liquidity/volume/FDV) become “–”; zeros stay; a negative 24h change is market data and stays.</td>
@@ -338,10 +338,10 @@ export function DocsPage() {
                 <tbody>
                   <tr><td>GeckoTerminal API v2</td>
                     <td>Keyless · free tier</td>
-                    <td>~10 calls/min. Feed endpoints (new/trending/volume) wired for all six networks: <code>solana</code>, <code>bsc</code>, <code>base</code>, <code>hyperevm</code>, <code>robinhood</code>, <code>avax</code> — stage-0 verified against 248 network ids (2026-08-29). The trade-level path used by clustering currently resolves four chains (sol/bnb/base/avax); hype/hood scans degrade honestly there. 180s feed cache keeps steady-state at ~6 rpm.</td></tr>
+                    <td>~10 calls/min. Feed endpoints (new/trending/volume) wired for five networks: <code>solana</code>, <code>bsc</code>, <code>base</code>, <code>hyperevm</code>, <code>robinhood</code> — stage-0 verified against 248 network ids (2026-08-29); avax parked 2026-08-30 (founder 5-chain lineup). The trade-level path used by clustering currently resolves three chains (sol/bnb/base); hype/hood scans degrade honestly there. 180s feed cache keeps steady-state at ~6 rpm.</td></tr>
                   <tr><td>DexScreener</td>
                     <td>Keyless</td>
-                    <td>Social profiles, batch ≤30 addresses per call, cached 1h. Chain ids served: solana, bsc, base, avax, robinhood — <code>hyperevm</code> is not listed upstream, so socials stay absent on hype. Failures leave socials absent; the feed never breaks.</td></tr>
+                    <td>Social profiles, batch ≤30 addresses per call, cached 1h. Chain ids served: solana, bsc, base, robinhood (avax parked 2026-08-30) — <code>hyperevm</code> is not listed upstream, so socials stay absent on hype. Failures leave socials absent; the feed never breaks.</td></tr>
                   <tr><td>Helius</td>
                     <td>Key required</td>
                     <td>Wallet balances for the whale surface (<code>HELIUS_API_KEY</code>, server-side only). Framework status — not part of the live feed plane.</td></tr>
@@ -366,7 +366,7 @@ export function DocsPage() {
               <table className="dd-tbl">
                 <thead><tr><th>Parameter</th><th>In</th><th>Contract</th></tr></thead>
                 <tbody>
-                  <tr><td>chain</td><td>path</td><td>One of <code>sol | bnb | base | hype | hood | avax</code>. Anything else → 404 with the allowed list echoed.</td></tr>
+                  <tr><td>chain</td><td>path</td><td>One of <code>sol | bnb | base | hype | hood</code> (avax parked 2026-08-30). Anything else → 404 with the allowed list echoed.</td></tr>
                   <tr><td>mode</td><td>query</td><td><code>new | trending | volume | alpha</code> (default <code>new</code>). Anything else → 400.</td></tr>
                   <tr><td>limit</td><td>query</td><td>Integer 1..50 (default 20). Out of range → 400. Alpha ranks the full page before slicing, so ranking is never clipped by the limit.</td></tr>
                 </tbody>
@@ -418,7 +418,7 @@ export function DocsPage() {
               </p>
               <div className="dd-code">
                 <div className="hd">ERROR CONTRACT — REAL BODIES, ECHOED VERBATIM</div>
-                <span className="c-n">404</span> <span className="c-err">{`{"detail":"unknown chain 'nope' — pick sol|bnb|base|hype|hood|avax"}`}</span>{'\n'}
+                <span className="c-n">404</span> <span className="c-err">{`{"detail":"unknown chain 'nope' — pick sol|bnb|base|hype|hood"}`}</span>{'\n'}
                 <span className="c-n">400</span> <span className="c-err">{`{"detail":"mode must be new|trending|volume|alpha"}`}</span>{'\n'}
                 <span className="c-n">400</span> <span className="c-err">{`{"detail":"limit must be 1..50"}`}</span>{'\n'}
                 <span className="c-n">502</span> <span className="c-err">{`{"detail":"GeckoTerminal HTTP 429 — live feed upstream failed"}`}</span>{' '}
@@ -481,7 +481,7 @@ export function DocsPage() {
           </Sec>
 
           {/* ── 8 · NETWORKS ─────────────────────────────────── */}
-          <Sec id="networks" n="8" title="NETWORKS — SIX CHAINS, FOUNDER-LOCKED ORDER"
+          <Sec id="networks" n="8" title="NETWORKS — FIVE CHAINS, FOUNDER-LOCKED ORDER"
             sub="Network ids are GeckoTerminal slugs, copied from providers/live.py CHAINS. Every entry below answers live:true today.">
             <div className="dd-nets">
               {LIVE_CHAINS.map((c) => (
@@ -643,7 +643,7 @@ export function DocsPage() {
                 <div><dt>fresh / stale</dt><dd>Fresh = served inside the 180s TTL window. Stale = the refresh failed and the expired copy was served, flagged stale:true.</dd></div>
                 <div><dt>TTL</dt><dd>Time-to-live — how long a cached (chain, source) entry answers before the next upstream call.</dd></div>
                 <div><dt>fail-soft</dt><dd>A non-critical enrichment (socials) degrades to absent instead of breaking the feed.</dd></div>
-                <div><dt>network id</dt><dd>GeckoTerminal's slug for a chain: solana, bsc, base, hyperevm, robinhood, avax.</dd></div>
+                <div><dt>network id</dt><dd>GeckoTerminal's slug for a chain: solana, bsc, base, hyperevm, robinhood (avax parked 2026-08-30).</dd></div>
                 <div><dt>α (alpha score)</dt><dd>The deterministic local ranking — volume 40 · txns 25 · liquidity 20 · freshness 15, capped, ties by 24h volume.</dd></div>
                 <div><dt>dedupe</dt><dd>One token = one card: the same (symbol, name) collapses to its most liquid pool.</dd></div>
                 <div><dt>junk guard</dt><dd>The normalizer that turns impossible upstream values into “–”; zeros and negative changes pass through.</dd></div>

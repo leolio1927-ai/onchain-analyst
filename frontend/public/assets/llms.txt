@@ -1,7 +1,8 @@
 # Terminal Alpha
 
-> Read-only memecoin research terminal across six chains: Solana, BNB Chain, Base,
-> HyperEVM, Robinhood Chain, Avalanche. A keyless live data pipeline with
+> Read-only memecoin research terminal across five chains: Solana, BNB Chain, Base,
+> HyperEVM, Robinhood Chain (Avalanche disabled 2026-08-30 by founder mandate). A
+> keyless live data pipeline with
 > deterministic integrity guarantees, public risk heuristics, and an evidence-first
 > analysis layer. No custody, no keys, no black boxes, no trade execution.
 > Everything the UI renders is exactly what an upstream API actually returned.
@@ -13,7 +14,8 @@ brackets) and was last re-verified 2026-08-29.
 ## What Terminal Alpha Is
 
 - Production read-only research terminal for memecoin markets (web + TUI engine).
-- Six chains served by the live feed: solana, bsc, base, hyperevm, robinhood, avax
+- Five chains served by the live feed: solana, bsc, base, hyperevm, robinhood
+  (avax disabled 2026-08-30 by founder mandate; mapping parked in providers)
   [providers/live.py — CHAINS].
 - Keyless by architecture: the live pipeline holds zero API credentials, so no
   secret can leak [providers/live.py, providers/dexscreener.py].
@@ -57,7 +59,7 @@ brackets) and was last re-verified 2026-08-29.
 ## Live API (read-only)
 
 - GET /api/v1/live/{chain}?mode=&limit= — per-chain memecoin feed.
-  - chain: sol | bnb | base | hype | hood | avax (unknown → 404 with allowed list).
+  - chain: sol | bnb | base | hype | hood (avax disabled 2026-08-30; unknown → 404 with allowed list).
   - mode: new | trending | volume | alpha (default new; invalid → 400).
   - limit: 1..50 (default 20; out of range → 400).
   - 200 envelope: { chain, network_id, live, generated_at, cached, stale, items[] }.
@@ -80,7 +82,7 @@ brackets) and was last re-verified 2026-08-29.
     hyperevm is not listed by DexScreener, so socials stay absent there
     [providers/live.py _enrich_socials].
   - Errors (verbatim bodies): 404 {"detail":"unknown chain 'x' — pick
-    sol|bnb|base|hype|hood|avax"} · 400 {"detail":"mode must be
+    sol|bnb|base|hype|hood"} · 400 {"detail":"mode must be
     new|trending|volume|alpha"} · 400 {"detail":"limit must be 1..50"} ·
     502 {"detail":"GeckoTerminal HTTP <code> — live feed upstream failed"}.
 - GET /api/v1/discovery?chain=&mode=trending|new&limit= — keyless pool radar
@@ -106,7 +108,7 @@ brackets) and was last re-verified 2026-08-29.
   the machine layer for AI agents, and a FAQ. The terminal entry button is
   disabled on purpose: the product ships in phases, and every ship is dated in
   the roadmap ledger.
-- /live — Memecoin Live board: six chain cards, founder-locked order, trending
+- /live — Memecoin Live board: five chain cards, founder-locked order, trending
   top-3 previews, staggered fetches, per-card 60s retry [src/pages/LiveBoard.tsx].
 - /live/{chain} — three columns per chain (NEW | TRENDING | VOLUME·ALPHA) with
   alpha ranks [src/pages/ChainLive.tsx].
@@ -124,12 +126,12 @@ brackets) and was last re-verified 2026-08-29.
 ## Data Source Constraints (as wired)
 
 - GeckoTerminal API v2, https://api.geckoterminal.com/api/v2, keyless, free tier
-  ~10 calls/min. Feed endpoints wired for all six networks; volume sort verified
+  ~10 calls/min. Feed endpoints wired for five networks (avax parked 2026-08-30); volume sort verified
   monotonic on sampled networks (stage-0, 2026-08-29). Trade-level path used by
-  clustering resolves sol/bnb/base/avax; hype/hood scans degrade honestly there
+  clustering resolves sol/bnb/base; hype/hood scans degrade honestly there
   [providers/geckoterminal.py, providers/live.py].
 - DexScreener, https://api.dexscreener.com, keyless: social profiles, batch ≤30,
-  1h cache; chain ids solana/bsc/base/avax/robinhood [providers/dexscreener.py].
+  1h cache; chain ids solana/bsc/base/robinhood [providers/dexscreener.py].
 - The 180s feed cache keeps steady-state at ~6 requests/minute against the ~10 rpm
   free tier (18 chain×source combinations) [providers/live.py].
 

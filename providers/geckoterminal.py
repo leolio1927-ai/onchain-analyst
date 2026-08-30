@@ -17,7 +17,7 @@ import urllib.request
 
 BASE = "https://api.geckoterminal.com/api/v2"
 
-NETWORKS = {"sol": "solana", "bnb": "bsc", "base": "base", "avax": "avax"}
+NETWORKS = {"sol": "solana", "bnb": "bsc", "base": "base"}  # "avax": "avax" parked 2026-08-30 (founder: 5-chain lineup; re-add to re-enable)
 
 # Free tier is ~10 calls/min — a small TTL trade cache keeps a warm scan at
 # zero GT calls without serving meaningfully stale per-wallet data.

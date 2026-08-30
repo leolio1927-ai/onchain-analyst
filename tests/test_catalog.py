@@ -23,9 +23,10 @@ def client():
 
 # ── the catalog itself ───────────────────────────────────────────────────
 
-def test_all_six_chains_present():
-    assert sorted(chains.CHAIN_CATALOG) == ["avax", "base", "bnb", "hood",
-                                            "hype", "sol"]
+def test_all_five_chains_present():
+    # founder mandate 2026-08-30: 5-chain lineup — avax sits in DISABLED_CHAINS
+    assert sorted(chains.CHAIN_CATALOG) == ["base", "bnb", "hood", "hype", "sol"]
+    assert sorted(chains.DISABLED_CHAINS) == ["avax"]
 
 
 def test_known_false_cells_are_exactly_false():
@@ -85,7 +86,7 @@ def test_chains_route_golden_wire(client):
     assert j["note"] == "reflects verified provider support"
     assert datetime.fromisoformat(j["ts"]).utcoffset() == timedelta(0)
     assert j["schema_version"] == "1.0"
-    assert len(j["chains"]) == 6
+    assert len(j["chains"]) == 5
     for info in j["chains"]:
         assert set(info) == {"chain", "name", "symbol", "scan", "clustering",
                              "socials", "live_feed", "venues", "logo_ref"}
@@ -107,5 +108,5 @@ def test_chains_route_in_openapi(client):
 
 def test_metrics_chains_additive(client):
     m = client.get("/api/metrics").json()
-    assert m["chains"] == 6                  # additive; F2/F3 keys untouched
+    assert m["chains"] == 5                  # additive; F2/F3 keys untouched
     assert {"scans", "tokens", "labels"} <= set(m)

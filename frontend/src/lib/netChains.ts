@@ -13,5 +13,5 @@ export const NET_CHAINS: NetChain[] = [
   { id: 'base', label: 'BASE', color: '#93c5fd', live: true, stats: 'network_id: base · keyless live feed' },
   { id: 'hype', label: 'HYPEREVM', color: '#cbb8ff', live: true, stats: 'network_id: hyperevm · keyless live feed' },
   { id: 'hood', label: 'ROBINHOOD CHAIN', color: '#7dff9e', live: true, stats: 'network_id: robinhood · keyless live feed' },
-  { id: 'avax', label: 'AVALANCHE', color: '#ffabab', live: true, stats: 'network_id: avax · keyless live feed' },
+  // { id: 'avax', ... } parked 2026-08-30 (founder: 5-chain lineup)
 ]

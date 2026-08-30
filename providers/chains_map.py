@@ -47,13 +47,8 @@ _CAPABILITIES: dict[str, dict[str, dict]] = {
                       "reason": "1inch quote requires an API key "
                                 "(probe: 401 unauthenticated)"},
     },
-    "avax": {
-        "deployer": {"source": None, "reason": _EVM_NO_DEPLOYER},
-        "holders": {"source": None, "reason": _EVM_NO_HOLDERS},
-        "sell_test": {"source": None,
-                      "reason": "1inch quote requires an API key "
-                                "(probe: 401 unauthenticated)"},
-    },
+    # avax row parked 2026-08-30 (founder: 5-chain lineup) — was: "avax": {         "deployer": {"source": None, "reason": _EVM_NO_DEPLOYER},         "holders": {"source": None, "reason": _EVM_NO_HOLDERS},         "sell_test": {"source": None,                       "reason": "1inch quote requires an API key "                                 "(probe: 401 unauthenticated)"},     },
+
     "hood": {
         "deployer": {"source": None,
                      "reason": "no $0 deployment source: GT/DS expose no "

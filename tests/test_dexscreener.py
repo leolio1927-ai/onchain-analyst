@@ -81,8 +81,8 @@ def test_launch_venue_map_covers_known_launchpads():
     assert dexscreener.VENUE_MAP["launchlab"] == "bonk.fun (LaunchLab)"
 
 
-def test_avax_chain_id_is_dexscreeners_avalanche_slug():
-    # Regression (found live 2026-08-29): DexScreener's Avalanche chainId is
-    # "avalanche" — the old "avax" slug matched nothing, so every avax scan
-    # answered an honest-but-wrong "no pair found".
-    assert dexscreener.CHAIN_IDS["avax"] == "avalanche"
+def test_avax_is_disabled_not_deleted():
+    # founder mandate 2026-08-30: 5-chain lineup. The verified mapping
+    # (avax -> "avalanche", regression-found 2026-08-29) stays parked in the
+    # CHAIN_IDS comment and out of the live allowlist.
+    assert "avax" not in dexscreener.CHAIN_IDS

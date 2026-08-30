@@ -23,7 +23,7 @@ _SOL_ADDR = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"
 _EVM_ADDR = "0x" + "a" * 40
 _ADDRS = {"sol": _SOL_ADDR, "bnb": _EVM_ADDR, "base": _EVM_ADDR,
           "avax": _EVM_ADDR, "hood": _EVM_ADDR, "hype": _EVM_ADDR}
-_SCANNABLE = ("sol", "bnb", "base", "avax", "hood")  # hype: catalog scan=False
+_SCANNABLE = ("sol", "bnb", "base", "hood")  # hype: scan=False; avax: disabled 2026-08-30
 _DEPLOYERS = {"sol": "DEP1", "bnb": "DEPEVM", "base": "DEPEVM", "avax": "DEPEVM"}
 _T0 = "2026-08-29T12:00:00+00:00"
 
@@ -57,7 +57,7 @@ def test_live_enrichment_per_chain(client, db_path, monkeypatch):
     assert sol["data_mode"] == "live"            # all three wired blocks live
     assert rows["sol"]["data_mode"] == "partial"  # envelope: enriched-but-partial
     assert sol["lineage"]["launches"] == 0       # watched, launched nothing YET
-    for c in ("bnb", "base", "avax"):
+    for c in ("bnb", "base"):
         ctx = rows[c]["context"]
         assert ctx["deployer"] is None           # probe: no $0 deployer on EVM
         assert ctx["top10_share"] is None        # catalog null → stays None
@@ -83,7 +83,7 @@ def test_not_configured_is_honest_not_zero(client, monkeypatch):
     assert any("helius:not_configured" in n for n in sol["notes"])
     assert sol["sell_test"]["routable"] is True  # keyless path unaffected
     assert sol["data_mode"] == "partial"
-    for c in ("bnb", "base", "avax", "hood"):
+    for c in ("bnb", "base", "hood"):
         ctx = rows[c]["context"]
         assert ctx["deployer"] is None and ctx["deployer_source"] is None
         assert ctx["data_mode"] == "unwired"

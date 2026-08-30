@@ -55,7 +55,7 @@ interface Trade {
 const TRADES: Trade[] = (() => {
   const rnd = mulberry32(911)
   const srcs = [['R', '#4D8DFF'], ['J', '#2DD4BF'], ['P', '#14F195'], ['B', '#F0B90B']]
-  const chains: LiveChain[] = ['sol', 'bnb', 'base', 'hype', 'hood', 'avax']
+  const chains: LiveChain[] = ['sol', 'bnb', 'base', 'hype', 'hood']  // avax parked 2026-08-30
   const out: Trade[] = []
   for (let i = 0; i < 12; i++) {
     const buy = rnd() > 0.45
@@ -150,7 +150,8 @@ function CopyCa({ value }: { value: string }) {
 }
 
 const NATIVE: Record<LiveChain, string> = {
-  sol: 'SOL', bnb: 'BNB', base: 'ETH', hype: 'HYPE', hood: 'ETH', avax: 'AVAX',
+  sol: 'SOL', bnb: 'BNB', base: 'ETH', hype: 'HYPE', hood: 'ETH',
+  // avax: 'AVAX' parked 2026-08-30 (founder: 5-chain lineup)
 }
 const QUICK = [0.001, 0.01, 0.05, 0.1, 0.5]
 

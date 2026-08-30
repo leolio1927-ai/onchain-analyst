@@ -18,7 +18,7 @@ export const CHAIN_ACCENT: Record<LiveChain, string> = {
   base: '#4D8DFF',
   hype: '#2DD4BF',
   hood: '#00C805',
-  avax: '#E84142',
+  // avax accent parked 2026-08-30 (founder: 5-chain lineup)
 }
 
 export function accentStyle(chain: LiveChain): CSSProperties {

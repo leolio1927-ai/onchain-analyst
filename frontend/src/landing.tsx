@@ -413,20 +413,20 @@ function Hero() {
         <a className="lv-announce" href="/docs#honesty">
           <span className="blink" /> THE HONESTY LAW — SIX CLAUSES, ENFORCED IN CODE <i>→</i>
         </a>
-        <div className="lv-kicker"><span className="live-dot" /> MEMECOIN RESEARCH · 6 CHAINS · KEYLESS LIVE</div>
+        <div className="lv-kicker"><span className="live-dot" /> MEMECOIN RESEARCH · 5 CHAINS · KEYLESS LIVE</div>
         <h1 className="lv-h1">
           <span className="l1"><Decode text="See What Others Miss." delay={700} /></span>
           <span className="l2 grad"><Decode text="VERIFY EVERYTHING." delay={1250} /></span>
         </h1>
         <p className="lv-sub">
-          A read-only research terminal for memecoin markets across six chains — keyless live
+          A read-only research terminal for memecoin markets across five chains — keyless live
           feeds, deterministic risk heuristics with public thresholds, and evidence-first AI.
           <b> No custody. No keys. No black boxes.</b> Everything on this site renders exactly
           what an upstream API actually returned.
         </p>
         <div className="lv-badges">
           <span className="lv-badge hot"><Icon name="scan" size={13} /> Keyless Live Feeds</span>
-          <span className="lv-badge"><Icon name="hex" size={13} /> Six Chains</span>
+          <span className="lv-badge"><Icon name="hex" size={13} /> Five Chains</span>
           <span className="lv-badge"><Icon name="cpu" size={13} /> Public Heuristics</span>
           <span className="lv-badge"><Icon name="ban" size={13} /> No Trading Execution</span>
           <span className="lv-badge"><Icon name="lock" size={13} /> No Custody</span>
@@ -454,7 +454,7 @@ function Hero() {
           <div className="cell"><b>CACHE</b><span className="v">180s</span><small>STALE-SAFE</small></div>
           <div className="cell"><b>MODES</b><span className="v">4</span><small>α LENS INCLUDED</small></div>
         </div>
-        <div className="lv-scanpill"><span className="blink" /> SCANNING SIX CHAINS · SOL BNB BASE HYPE HOOD AVAX</div>
+        <div className="lv-scanpill"><span className="blink" /> SCANNING FIVE CHAINS · SOL BNB BASE HOOD HYPE</div>
       </div>
     </section>
   )
@@ -481,8 +481,7 @@ const SCAN_CHAINS: { id: Chain; label: string; accent: string; hint: string }[] 
   { id: 'sol', label: 'SOL', accent: '#14F195', hint: 'SOLANA ADDRESS · 32–44 BASE58 CHARS' },
   { id: 'bnb', label: 'BNB', accent: '#F0B90B', hint: 'EVM ADDRESS · 0X + 40 HEX CHARS' },
   { id: 'base', label: 'BASE', accent: '#4D8DFF', hint: 'EVM ADDRESS · 0X + 40 HEX CHARS' },
-  { id: 'avax', label: 'AVAX', accent: '#E84142', hint: 'EVM ADDRESS · 0X + 40 HEX CHARS' },
-  { id: 'hood', label: 'HOOD', accent: '#00C805', hint: 'EVM ADDRESS · 0X + 40 HEX CHARS' },
+    { id: 'hood', label: 'HOOD', accent: '#00C805', hint: 'EVM ADDRESS · 0X + 40 HEX CHARS' },
 ]
 
 const SO_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/
@@ -546,7 +545,7 @@ function LiveScan() {
     const isEvm = EVM_RE.test(a)
     const isSol = SO_RE.test(a)
     if (isEvm && chain === 'sol') {
-      setHint({ msg: 'THAT IS A 0X ADDRESS — PICK BNB / BASE / AVAX / HOOD FOR EVM CHAINS', bad: true })
+      setHint({ msg: 'THAT IS A 0X ADDRESS — PICK BNB / BASE / HOOD FOR EVM CHAINS', bad: true })
       return
     }
     if (!isEvm && !isSol) {
@@ -646,7 +645,7 @@ function LiveScan() {
           {hint ? `⚠ ${hint.msg}` : SCAN_CHAINS.find((c) => c.id === chain)!.hint}
         </div>
         <div className="lv-scanhint">
-          SCANNER ALLOWLIST: SOL · BNB · BASE · AVAX · HOOD — HYPEREVM JOINS WHEN ITS CHAINID IS VERIFIED UPSTREAM
+          SCANNER ALLOWLIST: SOL · BNB · BASE · HOOD — HYPE JOINS WHEN ITS CHAINID IS VERIFIED UPSTREAM
         </div>
         {busy && <div className="lv-scanwait">{probe ?? 'FETCHING LIVE EVIDENCE — DEXSCREENER + GECKOTERMINAL…'}</div>}
         {!busy && err && (
@@ -833,7 +832,7 @@ const BP: { g: string; items: { t: string; d: string; chip: 'live' | 'sim' | 'bu
   {
     g: 'SHIPPED & LIVE — RUNS TODAY',
     items: [
-      { t: 'Live Board', chip: 'live', d: 'Six chains, founder-locked order, trending previews, honest flags — at /live.' },
+      { t: 'Live Board', chip: 'live', d: 'Five chains, founder-locked order, trending previews, honest flags — at /live.' },
       { t: 'Chain Pages', chip: 'live', d: 'Three staggered columns per chain — NEW | TRENDING | VOLUME·ALPHA with α-ranks.' },
       { t: 'Token Scanner', chip: 'live', d: 'Paste an address, get the real engine verdict — weighted signals with public thresholds.' },
       { t: 'TUI Research Engine', chip: 'live', d: 'The same engine in your terminal: /load /verify /cluster /explain /whale.' },
@@ -855,7 +854,7 @@ const BP: { g: string; items: { t: string; d: string; chip: 'live' | 'sim' | 'bu
     g: 'DESIGN — SCOPED, QUEUED',
     items: [
       { t: 'AI Analyst', chip: 'design', d: 'Evidence-first narratives over live data — provider-agnostic, never trades (TA-104).' },
-      { t: 'Watchlist', chip: 'design', d: 'Track tokens across the six chains — account-less, local storage (TA-102).' },
+      { t: 'Watchlist', chip: 'design', d: 'Track tokens across the five chains — account-less, local storage (TA-102).' },
       { t: 'Portfolio Watch', chip: 'design', d: 'Read-only positions from public market data — no wallet connection.' },
       { t: 'Alerts', chip: 'design', d: 'Signal alerts when a tracked token\'s risk posture changes.' },
       { t: 'Holdings Check', chip: 'design', d: 'Wallet holdings without connecting anything — read-only by contract.' },
@@ -937,7 +936,7 @@ function Chains() {
       <div className="lv-num">05</div>
       <div className="lv-sec-head lv-center rv">
         <div className="lv-k2">MULTI-CHAIN</div>
-        <h2 className="lv-h2">One Terminal. <span className="a">All Six Chains.</span></h2>
+        <h2 className="lv-h2">One Terminal. <span className="a">All Five Chains.</span></h2>
         <p className="lv-lead">Solana, BNB Chain, Base, HyperEVM, Robinhood Chain, Avalanche — every one live on the keyless feed today.</p>
       </div>
       <div className="lv-net-wrap rv">
@@ -1051,7 +1050,7 @@ function Audiences() {
         <div className="aud rv">
           <Icon name="activity" size={22} />
           <b>TRADERS</b>
-          <p>Context before conviction. A live board across six chains, a deterministic α lens,
+          <p>Context before conviction. A live board across five chains, a deterministic α lens,
              and rug heuristics with public weights — the truth, faster.</p>
           <a className="lnk" href="/live">OPEN THE BOARD →</a>
         </div>
@@ -1079,7 +1078,7 @@ function Audiences() {
           </a>
           <a className="ag" href="/docs#api">
             <div className="u">GET /api/v1/live/{'{chain}'}</div>
-            <p>Free keyless feed — six chains, four modes, honest 400/404/502, cached/stale flags in-body.</p>
+            <p>Free keyless feed — five chains, four modes, honest 400/404/502, cached/stale flags in-body.</p>
           </a>
           <a className="ag" href="/assets/llms.txt">
             <div className="u">/assets/llms.txt — machine index</div>
@@ -1205,7 +1204,7 @@ function Foot() {
       <div className="lv-foot-grid">
         <div>
           <div className="lv-logo" style={{ marginBottom: 12 }}><span className="m">◤</span>TERMINAL&nbsp;<span className="lg">ALPHA</span></div>
-          <p className="disc">Read-only memecoin research across six chains. Analysis &amp; education only — risk scores are heuristics, not audits. DYOR.</p>
+          <p className="disc">Read-only memecoin research across five chains. Analysis &amp; education only — risk scores are heuristics, not audits. DYOR.</p>
         </div>
         <div className="lv-foot-col">
           <b>SURFACES</b>

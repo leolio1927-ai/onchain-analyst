@@ -48,12 +48,6 @@ CHAIN_CATALOG: dict[ChainId, dict] = {
         "venues": ["uniswap", "aerodrome", "clanker", "virtuals"],
         "logo_ref": None,
     },
-    "avax": {
-        "name": "Avalanche", "symbol": "AVAX",
-        "scan": True, "clustering": True, "socials": True, "live_feed": True,
-        "venues": ["uniswap", "traderjoe", "pharaoh", "blackhole"],
-        "logo_ref": None,
-    },
     "hood": {
         "name": "Robinhood Chain", "symbol": None,
         "scan": True, "clustering": False, "socials": True, "live_feed": True,
@@ -64,6 +58,19 @@ CHAIN_CATALOG: dict[ChainId, dict] = {
         "name": "HyperEVM", "symbol": "HYPE",
         "scan": False, "clustering": False, "socials": False, "live_feed": True,
         "venues": ["ring-exchange"],
+        "logo_ref": None,
+    },
+}
+
+
+# DISABLED 2026-08-30 by founder mandate — the lineup is 5 chains
+# (sol/bnb/base/hood/hype) until avax is re-enabled. Kept here verbatim so
+# re-enabling is a one-line move back into CHAIN_CATALOG (+ providers).
+DISABLED_CHAINS: dict[str, dict] = {
+    "avax": {
+        "name": "Avalanche", "symbol": "AVAX",
+        "scan": True, "clustering": True, "socials": True, "live_feed": True,
+        "venues": ["uniswap", "traderjoe", "pharaoh", "blackhole"],
         "logo_ref": None,
     },
 }

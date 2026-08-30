@@ -2,7 +2,7 @@
    Fetch only — no retries inside; the caller owns retry policy (60s cool-down).
    Absent fields stay null end-to-end: the UI renders "–", never a zero. */
 
-export const LIVE_CHAINS = ['sol', 'bnb', 'base', 'hype', 'hood', 'avax'] as const
+export const LIVE_CHAINS = ['sol', 'bnb', 'base', 'hype', 'hood'] as const  // avax parked 2026-08-30 (founder: 5-chain lineup)
 export type LiveChain = (typeof LIVE_CHAINS)[number]
 
 /* Founder-locked display order lives in LIVE_CHAINS. */
@@ -12,7 +12,7 @@ export const LIVE_CHAIN_LABEL: Record<LiveChain, string> = {
   base: 'Base',
   hype: 'HyperEVM',
   hood: 'Robinhood Chain',
-  avax: 'Avalanche',
+  // avax: 'Avalanche',  <- parked 2026-08-30
 }
 
 export const LIVE_MODES = ['new', 'trending', 'volume', 'alpha'] as const

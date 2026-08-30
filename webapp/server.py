@@ -42,7 +42,7 @@ _ADDRESS_RES = {
     "sol": re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$"),
     "bnb": re.compile(r"^0x[a-fA-F0-9]{40}$"),
     "base": re.compile(r"^0x[a-fA-F0-9]{40}$"),
-    "avax": re.compile(r"^0x[a-fA-F0-9]{40}$"),
+    # "avax" parked 2026-08-30 (founder: 5-chain lineup)
 }
 
 # (chain, address) → (monotonic_ts, response). Tiny TTL cache so /api/explain

@@ -81,7 +81,9 @@ function HoodMark({ size }: MarkProps) {
   )
 }
 
-function AvaxMark({ size }: MarkProps) {
+/* PARKED 2026-08-30 (founder: 5-chain lineup) — kept verbatim for re-enable;
+   exported so tsc keeps it alive without a live chain key. */
+export function AvaxMark({ size }: MarkProps) {
   return (
     <svg className="lx-chainlogo" width={size} height={size} viewBox="0 0 64 64" role="img"
       aria-label="Avalanche (simplified mark)">
@@ -92,13 +94,13 @@ function AvaxMark({ size }: MarkProps) {
   )
 }
 
+// avax mark parked 2026-08-30 (founder: 5-chain lineup) — AvaxMark kept above
 const MARKS: Record<LiveChain, (p: MarkProps) => ReturnType<typeof SolMark>> = {
   sol: SolMark,
   bnb: BnbMark,
   base: BaseMark,
   hype: HypeMark,
   hood: HoodMark,
-  avax: AvaxMark,
 }
 
 /* Chain logo mark, sized per context: board cards ≈56px, chain header ≈64px. */

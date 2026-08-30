@@ -34,7 +34,7 @@ CHAINS: dict[str, dict] = {
     "base": {"network_id": "base",     "live": True},
     "hype": {"network_id": "hyperevm", "live": True},
     "hood": {"network_id": "robinhood", "live": True},
-    "avax": {"network_id": "avax",     "live": True},
+    # "avax": {"network_id": "avax", "live": True}  - parked 2026-08-30 (founder: 5-chain lineup)
 }
 
 MODES = ("new", "trending", "volume", "alpha")

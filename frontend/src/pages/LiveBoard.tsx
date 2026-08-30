@@ -118,7 +118,7 @@ export function LiveBoard() {
       <main className="lx-wrap">
         <div className="lx-hd">
           <h1 className="lx-h1">MEMECOIN <em>LIVE</em></h1>
-          <span className="lx-sub">6 CHAINS · TRENDING PREVIEW · KEYLESS GECKOTERMINAL · AUTO-REFRESH 60s</span>
+          <span className="lx-sub">5 CHAINS · TRENDING PREVIEW · KEYLESS GECKOTERMINAL · AUTO-REFRESH 60s</span>
         </div>
         <div className="lx-board">
           {LIVE_CHAINS.map((chain) => {
