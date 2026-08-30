@@ -27,7 +27,9 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-DataMode = Literal["live", "fixture", "unwired", "static"]
+DataMode = Literal["live", "fixture", "unwired", "static", "partial"]
+# "partial" — the payload is real but enrichment is mixed: some context
+# blocks came back live while others are honestly absent (BE-F5a-R).
 SchemaVersion = Literal["1.0"]
 
 # Upstream-copied scalar: GeckoTerminal/DexScreener send numbers as strings;
@@ -121,13 +123,70 @@ class RugAssessment(BaseModel):
     notes: list[str] = Field(default_factory=list)
 
 
+class SellTest(BaseModel):
+    """Sell-side simulation, tri-state: routable True / False / None.
+    None = "sell simulation unavailable" (timeout etc.) — NEVER implied safe;
+    False = a recognized no-route answer, a loud honeypot signal."""
+
+    routable: bool | None = None
+    checked_via: str | None = None
+    note: str | None = None
+
+
+class LineageToken(BaseModel):
+    """One prior scan_snapshots row for this deployer (DB-local view)."""
+
+    mint: str | None = None
+    chain: str | None = None
+    score: float | None = None
+    rug: str | None = None
+    ts: str | None = None
+
+
+class DeployerLineage(BaseModel):
+    """What THIS registry observed about a deployer — DB-local, zero
+    provider calls. launches=0 is DATA (watched, launched nothing so far);
+    an absent deployer has no lineage block at all."""
+
+    launches: int = 0
+    tokens: list[LineageToken] = Field(default_factory=list)
+    labels: list[WalletLabel] = Field(default_factory=list)
+
+
+class TokenContext(Envelope):
+    """Trader-loop context block (BE-F5a-R) — renders BESIDE the verdict.
+    The rug weights and score formula never read from here. Per-block
+    provenance: deployer_source names the provider that said it,
+    sell_test.checked_via names the quote path, and notes carry the honest
+    reason for every absent capability ("<provider>:not_configured",
+    "<provider>:timeout", or a catalog reason sentence)."""
+
+    data_mode: DataMode = "unwired"
+
+    deployer: str | None = None
+    deployer_kind: str | None = None
+    deployer_source: str | None = None
+    lineage: DeployerLineage | None = None
+    top10_share: float | None = None
+    sell_test: SellTest | None = None
+    notes: list[str] = Field(default_factory=list)
+
+
 class ScanResponse(Envelope):
+    """scan contract v1.1 — everything v1.0 served, unchanged, plus the
+    best-effort `context` block (BE-F5a-R). The rug weights and score
+    formula are NOT part of this bump: context renders beside the verdict,
+    never inside it. schema_version is bumped on THIS model only."""
+
+    schema_version: Literal["1.0", "1.1"] = "1.1"
+
     pair: Pair = Field(default_factory=Pair)
     assessment: RugAssessment = Field(default_factory=RugAssessment)
     clustering: ClusteringBlock = Field(default_factory=ClusteringBlock)
     sources: list[str] = Field(default_factory=list)
     launch_venue: str | None = None
     ts: str = Field(default_factory=_utc_now_iso)
+    context: TokenContext = Field(default_factory=lambda: TokenContext())
 
 
 # ── live + discovery surfaces ────────────────────────────────────────────
@@ -414,15 +473,27 @@ class ChainInfo(BaseModel):
     logo_ref: str | None = None
 
 
+class CapabilityRow(BaseModel):
+    """One capability×chain wiring row: either a source (a fn is wired) or
+    an explicit reason why nobody computes it at $0."""
+
+    source: str | None = None
+    reason: str | None = None
+
+
 class ChainsResponse(Envelope):
     """The full catalog, config-not-observed: data_mode='static' marks that
     these are maintained capability flags, not a response observed from an
-    upstream at request time. The `note` travels with the payload."""
+    upstream at request time. The `note` travels with the payload.
+    `capabilities` renders the wiring map (BE-F5a-R): who computes what per
+    chain — a source name, or an explicit reason sentence."""
 
     data_mode: DataMode = "static"
 
     chains: list[ChainInfo] = Field(default_factory=list)
     note: str | None = None
+    capabilities: dict[str, dict[str, CapabilityRow]] = Field(
+        default_factory=dict)
 
 
 # ── ai surface ───────────────────────────────────────────────────────────
