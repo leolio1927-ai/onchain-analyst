@@ -1,6 +1,137 @@
 {
  "components": {
   "schemas": {
+   "ChainInfo": {
+    "description": "One chain's verified provider support (webapp/chains.py CHAIN_CATALOG).\nA False cell is a stated absence \u2014 e.g. hood clustering is impossible\ntoday because GeckoTerminal has no robinhood network.",
+    "properties": {
+     "chain": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Chain"
+     },
+     "clustering": {
+      "default": false,
+      "title": "Clustering",
+      "type": "boolean"
+     },
+     "live_feed": {
+      "default": false,
+      "title": "Live Feed",
+      "type": "boolean"
+     },
+     "logo_ref": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Logo Ref"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "scan": {
+      "default": false,
+      "title": "Scan",
+      "type": "boolean"
+     },
+     "socials": {
+      "default": false,
+      "title": "Socials",
+      "type": "boolean"
+     },
+     "symbol": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Symbol"
+     },
+     "venues": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Venues",
+      "type": "array"
+     }
+    },
+    "title": "ChainInfo",
+    "type": "object"
+   },
+   "ChainsResponse": {
+    "description": "The full catalog, config-not-observed: data_mode='static' marks that\nthese are maintained capability flags, not a response observed from an\nupstream at request time. The `note` travels with the payload.",
+    "properties": {
+     "chains": {
+      "items": {
+       "$ref": "#/components/schemas/ChainInfo"
+      },
+      "title": "Chains",
+      "type": "array"
+     },
+     "data_mode": {
+      "default": "static",
+      "enum": [
+       "live",
+       "fixture",
+       "unwired",
+       "static"
+      ],
+      "title": "Data Mode",
+      "type": "string"
+     },
+     "note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Note"
+     },
+     "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+     },
+     "sources": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Sources",
+      "type": "array"
+     },
+     "ts": {
+      "title": "Ts",
+      "type": "string"
+     }
+    },
+    "title": "ChainsResponse",
+    "type": "object"
+   },
    "ClusteringBlock": {
     "description": "Wallet-coordination result. On upstream failure the counts are None\n(never 0 \u2014 a failed fetch observed no wallets); severity None with real\ncounts = sample too small, honestly not scored.",
     "properties": {
@@ -257,7 +388,8 @@
       "enum": [
        "live",
        "fixture",
-       "unwired"
+       "unwired",
+       "static"
       ],
       "title": "Data Mode",
       "type": "string"
@@ -332,7 +464,8 @@
       "enum": [
        "live",
        "fixture",
-       "unwired"
+       "unwired",
+       "static"
       ],
       "title": "Data Mode",
       "type": "string"
@@ -646,7 +779,8 @@
       "enum": [
        "live",
        "fixture",
-       "unwired"
+       "unwired",
+       "static"
       ],
       "title": "Data Mode",
       "type": "string"
@@ -697,7 +831,8 @@
       "enum": [
        "live",
        "fixture",
-       "unwired"
+       "unwired",
+       "static"
       ],
       "title": "Data Mode",
       "type": "string"
@@ -799,7 +934,8 @@
       "enum": [
        "live",
        "fixture",
-       "unwired"
+       "unwired",
+       "static"
       ],
       "title": "Data Mode",
       "type": "string"
@@ -1245,7 +1381,8 @@
       "enum": [
        "live",
        "fixture",
-       "unwired"
+       "unwired",
+       "static"
       ],
       "title": "Data Mode",
       "type": "string"
@@ -1421,7 +1558,8 @@
       "enum": [
        "live",
        "fixture",
-       "unwired"
+       "unwired",
+       "static"
       ],
       "title": "Data Mode",
       "type": "string"
@@ -1820,7 +1958,8 @@
       "enum": [
        "live",
        "fixture",
-       "unwired"
+       "unwired",
+       "static"
       ],
       "title": "Data Mode",
       "type": "string"
@@ -1884,7 +2023,8 @@
       "enum": [
        "live",
        "fixture",
-       "unwired"
+       "unwired",
+       "static"
       ],
       "title": "Data Mode",
       "type": "string"
@@ -2099,6 +2239,28 @@
      }
     },
     "summary": "Api Scan",
+    "tags": [
+     "market"
+    ]
+   }
+  },
+  "/api/v1/chains": {
+   "get": {
+    "description": "What each chain can honestly do today, per provider. This is the\naudit-\u00a72 provider matrix as a structured, importable constant \u2014 the\nguard in webapp/chains.py keeps it equivalent to the provider modules,\nso a capability change fails the catalog test until updated.",
+    "operationId": "api_chains_api_v1_chains_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/ChainsResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Api Chains",
     "tags": [
      "market"
     ]
