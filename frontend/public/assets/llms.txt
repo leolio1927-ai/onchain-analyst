@@ -88,7 +88,12 @@ brackets) and was last re-verified 2026-08-29.
 - GET /api/v1/discovery?chain=&mode=trending|new&limit= — keyless pool radar
   [webapp/server.py api_discovery].
 - POST /api/scan — DexScreener pair + GeckoTerminal trade clustering → weighted
-  risk assessment; refresh flag bypasses the 30s TTL cache [webapp/server.py].
+  risk assessment (contract v1.1) + the `context` block, provenance-stamped:
+  sol deployer/top10 (Helius), base deployer (Blockscout, law-3 on-chain
+  verified), bnb deployer (GoPlus, flagged unverified-tx), sell-test (Jupiter
+  lite, tri-state), whale-derived nothing here — context fields the chain has
+  no $0 source for stay null with verbatim reasons in `context.data_sources`
+  [webapp/server.py, providers/evm_deployer.py].
 - POST /api/explain — evidence-first narrative; provider "local" is a deterministic
   keyless tier; LLM providers are rate-limited per IP (5/hour, 30/day default);
   evidence is always re-fetched and re-assessed server-side [webapp/server.py].
@@ -99,6 +104,14 @@ brackets) and was last re-verified 2026-08-29.
   client, no random walk [webapp/server.py].
 - WS /ws/tape — additive trade-tape deltas over real GeckoTerminal trades,
   deduped by trade identity [webapp/server.py].
+- GET /api/v1/chains — capability × chain truth table (`capabilities` map:
+  source name or an explicit reason sentence) + the 5-chain catalog
+  [webapp/chains.py, providers/chains_map.py].
+- GET /api/v1/whales/{chain}/{token} — large transfers + per-wallet netflow
+  (sol = Helius enhanced txs; other chains = probe reason; USD via DexScreener
+  price, null when absent) [providers/whales.py].
+- GET /api/v1/tokens/{chain}/{ident} + /api/v1/wallets/{address} — token
+  registry + wallet label claims (fixture-stamped, verified=false).
 - OpenAPI surface: /api/docs (Swagger) and /api/redoc.
 
 ## Site Surfaces

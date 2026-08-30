@@ -1,6 +1,6 @@
 # onchain-analyst — Terminal Alpha
 
-A **read-only** memecoin research terminal (Python/Textual TUI) across chains: load tokens via
+A **read-only** memecoin research terminal (Python/Textual TUI) across five chains — sol/bnb/base/hood/hype (avax disabled 2026-08-30 by founder mandate): load tokens via
 DexScreener, deterministic heuristic risk scores, and evidence-first AI analysis
 multi-provider (claude/glm/kimi) with a replayable grounding log.
 
@@ -48,10 +48,13 @@ in the `location /` block, certificates via certbot. Run as a systemd service
 (`ExecStart=/path/uv run python -m webapp --host 127.0.0.1 --port 8000`, `Restart=always`).
 AI endpoint rate limit: env `ALPHA_AI_RATELIMIT_HOURLY` (default 5) / `ALPHA_AI_RATELIMIT_DAILY` (default 30).
 
-MVP status: 5 aggregate heuristic signals (liquidity, FDV/liquidity, volume/liquidity,
-buy-sell ratio, pair age) + a wallet-coordination signal from the GeckoTerminal trade feed
-(clustering v0, runs automatically on `/load`). Holder-distribution analysis and funding
-traceback do not exist yet — do not claim them. Whale tracking is still a framework (needs `HELIUS_API_KEY`).
+ALL-LIVE status 2026-08-30: the scanner verdict now ships beside a provenance-stamped
+CONTEXT block (`data_mode`/`data_sources` on every value): sol deployer + top-10-holder
+share (Helius), EVM deployer (Blockscout base — law-3 on-chain verified; GoPlus bnb —
+keyless, flagged unverified-tx), sell-test (Jupiter lite, tri-state), whale transfers +
+netflow (sol, Helius; EVM = probe-proven absent at $0). `/api/v1/chains` exposes the full
+capability × chain truth table with verbatim reasons. Cluster/AI/alerts/portfolio/token-gate
+remain SOON — never rendered from invented data.
 
 > **Disclaimer:** a tool for analysis & education. AI output is NOT financial advice. All
 > risk scores are automated heuristics, not official audits — do your own research (DYOR).
