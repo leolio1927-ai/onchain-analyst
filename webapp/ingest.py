@@ -221,7 +221,10 @@ def load_labels(sources: list[Path], now: datetime, db_path: Path) -> dict:
             # validate every kind BEFORE writing anything — a bad kind
             # refuses the whole file instead of landing half of it
             for r in rows:
-                db.assert_label_kind(r.get("kind"))
+                try:
+                    db.assert_label_kind(r.get("kind"))
+                except ValueError as e:
+                    raise SystemExit(str(e)) from e
             total = len(rows)
             if not _entity_run(conn, f"labels:{path.name}", total, now_iso):
                 out[path.name] = 0
