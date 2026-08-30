@@ -1724,6 +1724,13 @@
       "title": "Data Mode",
       "type": "string"
      },
+     "data_sources": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Data Sources",
+      "type": "array"
+     },
      "deployer": {
       "anyOf": [
        {
