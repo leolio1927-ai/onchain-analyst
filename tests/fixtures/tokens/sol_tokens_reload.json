@@ -1,0 +1,15 @@
+{
+  "kind": "be-f3 fixture — deterministic RELOAD set (same idents, thinner payload)",
+  "notes": "Ingested AFTER sol_tokens.json. decimals is null here and MUST NOT erase the stored 6/18 (last-non-null-wins); logo_ref is new and must land; first_seen must stay the earlier MIN. tags here are non-empty and replace.",
+  "tokens": [
+    { "chain": "sol", "ident": "fixturepair1111111111111111111111111111111",
+      "symbol": null, "name": null, "decimals": null,
+      "logo_ref": "assets/fixture/fxt.png", "tags": ["fixture", "reloaded"],
+      "first_seen": "2026-07-15T00:00:00+00:00",
+      "last_seen": "2026-08-25T00:00:00+00:00" },
+    { "chain": "base", "ident": "0xfixturebasepair000000000000000000000000dead",
+      "symbol": null, "name": null, "decimals": null,
+      "logo_ref": null, "tags": [],
+      "first_seen": null, "last_seen": null }
+  ]
+}
