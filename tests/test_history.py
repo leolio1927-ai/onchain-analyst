@@ -111,9 +111,11 @@ def test_schema_migrations_recorded(db_path):
     _ingest_all(db_path)
     conn = db.connect(db_path)
     try:
-        row = conn.execute(
-            "SELECT version, applied_at FROM schema_migrations").fetchone()
-        assert row["version"] == db.SCHEMA_VERSION and row["applied_at"]
+        rows = conn.execute("SELECT version, applied_at FROM schema_migrations"
+                            " ORDER BY version").fetchall()
+        # v1 base DDL + v2 entity layer (BE-F3) — each applied once, stamped
+        assert [r["version"] for r in rows] == [1, db.SCHEMA_VERSION]
+        assert all(r["applied_at"] for r in rows)
     finally:
         conn.close()
 
