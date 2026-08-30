@@ -1,0 +1,21 @@
+{
+  "kind": "be-f3 fixture — deterministic token registry set",
+  "notes": "Read by webapp/ingest.py --tokens only. Rows are force-stamped data_mode='fixture'. idents match the BE-F2 price-history fixtures so the registry and the history tables describe the same entities. One row carries decimals:null on purpose — absent stays absent.",
+  "tokens": [
+    { "chain": "sol", "ident": "fixturepair1111111111111111111111111111111",
+      "symbol": "FXT", "name": "Fixture Token", "decimals": 6,
+      "logo_ref": null, "tags": ["fixture", "sample"],
+      "first_seen": "2026-08-01T00:00:00+00:00",
+      "last_seen": "2026-08-20T00:00:00+00:00" },
+    { "chain": "sol", "ident": "fixturetokendecnull111111111111111111111",
+      "symbol": "NDC", "name": "Null Decimals Coin", "decimals": null,
+      "logo_ref": null, "tags": ["fixture"],
+      "first_seen": "2026-08-02T00:00:00+00:00",
+      "last_seen": "2026-08-21T00:00:00+00:00" },
+    { "chain": "base", "ident": "0xfixturebasepair000000000000000000000000dead",
+      "symbol": "FBT", "name": "Fixture Base Token", "decimals": 18,
+      "logo_ref": null, "tags": ["fixture"],
+      "first_seen": "2026-08-03T00:00:00+00:00",
+      "last_seen": "2026-08-22T00:00:00+00:00" }
+  ]
+}
