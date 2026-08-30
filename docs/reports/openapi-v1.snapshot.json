@@ -1,6 +1,35 @@
 {
  "components": {
   "schemas": {
+   "CapabilityRow": {
+    "description": "One capability\u00d7chain wiring row: either a source (a fn is wired) or\nan explicit reason why nobody computes it at $0.",
+    "properties": {
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "source": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source"
+     }
+    },
+    "title": "CapabilityRow",
+    "type": "object"
+   },
    "ChainInfo": {
     "description": "One chain's verified provider support (webapp/chains.py CHAIN_CATALOG).\nA False cell is a stated absence \u2014 e.g. hood clustering is impossible\ntoday because GeckoTerminal has no robinhood network.",
     "properties": {
@@ -80,8 +109,18 @@
     "type": "object"
    },
    "ChainsResponse": {
-    "description": "The full catalog, config-not-observed: data_mode='static' marks that\nthese are maintained capability flags, not a response observed from an\nupstream at request time. The `note` travels with the payload.",
+    "description": "The full catalog, config-not-observed: data_mode='static' marks that\nthese are maintained capability flags, not a response observed from an\nupstream at request time. The `note` travels with the payload.\n`capabilities` renders the wiring map (BE-F5a-R): who computes what per\nchain \u2014 a source name, or an explicit reason sentence.",
     "properties": {
+     "capabilities": {
+      "additionalProperties": {
+       "additionalProperties": {
+        "$ref": "#/components/schemas/CapabilityRow"
+       },
+       "type": "object"
+      },
+      "title": "Capabilities",
+      "type": "object"
+     },
      "chains": {
       "items": {
        "$ref": "#/components/schemas/ChainInfo"
@@ -95,7 +134,8 @@
        "live",
        "fixture",
        "unwired",
-       "static"
+       "static",
+       "partial"
       ],
       "title": "Data Mode",
       "type": "string"
@@ -246,6 +286,32 @@
     "title": "DbInfo",
     "type": "object"
    },
+   "DeployerLineage": {
+    "description": "What THIS registry observed about a deployer \u2014 DB-local, zero\nprovider calls. launches=0 is DATA (watched, launched nothing so far);\nan absent deployer has no lineage block at all.",
+    "properties": {
+     "labels": {
+      "items": {
+       "$ref": "#/components/schemas/WalletLabel"
+      },
+      "title": "Labels",
+      "type": "array"
+     },
+     "launches": {
+      "default": 0,
+      "title": "Launches",
+      "type": "integer"
+     },
+     "tokens": {
+      "items": {
+       "$ref": "#/components/schemas/LineageToken"
+      },
+      "title": "Tokens",
+      "type": "array"
+     }
+    },
+    "title": "DeployerLineage",
+    "type": "object"
+   },
    "DiscoveryItem": {
     "description": "providers/discovery.py FIELDS key set, exact.",
     "properties": {
@@ -389,7 +455,8 @@
        "live",
        "fixture",
        "unwired",
-       "static"
+       "static",
+       "partial"
       ],
       "title": "Data Mode",
       "type": "string"
@@ -465,7 +532,8 @@
        "live",
        "fixture",
        "unwired",
-       "static"
+       "static",
+       "partial"
       ],
       "title": "Data Mode",
       "type": "string"
@@ -780,7 +848,8 @@
        "live",
        "fixture",
        "unwired",
-       "static"
+       "static",
+       "partial"
       ],
       "title": "Data Mode",
       "type": "string"
@@ -832,7 +901,8 @@
        "live",
        "fixture",
        "unwired",
-       "static"
+       "static",
+       "partial"
       ],
       "title": "Data Mode",
       "type": "string"
@@ -905,6 +975,68 @@
     "title": "KeySignal",
     "type": "object"
    },
+   "LineageToken": {
+    "description": "One prior scan_snapshots row for this deployer (DB-local view).",
+    "properties": {
+     "chain": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Chain"
+     },
+     "mint": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Mint"
+     },
+     "rug": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Rug"
+     },
+     "score": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Score"
+     },
+     "ts": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ts"
+     }
+    },
+    "title": "LineageToken",
+    "type": "object"
+   },
    "LiveResponse": {
     "properties": {
      "cached": {
@@ -935,7 +1067,8 @@
        "live",
        "fixture",
        "unwired",
-       "static"
+       "static",
+       "partial"
       ],
       "title": "Data Mode",
       "type": "string"
@@ -1369,6 +1502,7 @@
     "type": "object"
    },
    "ScanResponse": {
+    "description": "scan contract v1.1 \u2014 everything v1.0 served, unchanged, plus the\nbest-effort `context` block (BE-F5a-R). The rug weights and score\nformula are NOT part of this bump: context renders beside the verdict,\nnever inside it. schema_version is bumped on THIS model only.",
     "properties": {
      "assessment": {
       "$ref": "#/components/schemas/RugAssessment"
@@ -1376,13 +1510,17 @@
      "clustering": {
       "$ref": "#/components/schemas/ClusteringBlock"
      },
+     "context": {
+      "$ref": "#/components/schemas/TokenContext"
+     },
      "data_mode": {
       "default": "live",
       "enum": [
        "live",
        "fixture",
        "unwired",
-       "static"
+       "static",
+       "partial"
       ],
       "title": "Data Mode",
       "type": "string"
@@ -1402,8 +1540,11 @@
       "$ref": "#/components/schemas/Pair"
      },
      "schema_version": {
-      "const": "1.0",
-      "default": "1.0",
+      "default": "1.1",
+      "enum": [
+       "1.0",
+       "1.1"
+      ],
       "title": "Schema Version",
       "type": "string"
      },
@@ -1420,6 +1561,46 @@
      }
     },
     "title": "ScanResponse",
+    "type": "object"
+   },
+   "SellTest": {
+    "description": "Sell-side simulation, tri-state: routable True / False / None.\nNone = \"sell simulation unavailable\" (timeout etc.) \u2014 NEVER implied safe;\nFalse = a recognized no-route answer, a loud honeypot signal.",
+    "properties": {
+     "checked_via": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Checked Via"
+     },
+     "note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Note"
+     },
+     "routable": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Routable"
+     }
+    },
+    "title": "SellTest",
     "type": "object"
    },
    "SignalRow": {
@@ -1528,6 +1709,113 @@
     "title": "SocialLinks",
     "type": "object"
    },
+   "TokenContext": {
+    "description": "Trader-loop context block (BE-F5a-R) \u2014 renders BESIDE the verdict.\nThe rug weights and score formula never read from here. Per-block\nprovenance: deployer_source names the provider that said it,\nsell_test.checked_via names the quote path, and notes carry the honest\nreason for every absent capability (\"<provider>:not_configured\",\n\"<provider>:timeout\", or a catalog reason sentence).",
+    "properties": {
+     "data_mode": {
+      "default": "unwired",
+      "enum": [
+       "live",
+       "fixture",
+       "unwired",
+       "static",
+       "partial"
+      ],
+      "title": "Data Mode",
+      "type": "string"
+     },
+     "deployer": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Deployer"
+     },
+     "deployer_kind": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Deployer Kind"
+     },
+     "deployer_source": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Deployer Source"
+     },
+     "lineage": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/DeployerLineage"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "notes": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Notes",
+      "type": "array"
+     },
+     "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+     },
+     "sell_test": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/SellTest"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "sources": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Sources",
+      "type": "array"
+     },
+     "top10_share": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Top10 Share"
+     },
+     "ts": {
+      "title": "Ts",
+      "type": "string"
+     }
+    },
+    "title": "TokenContext",
+    "type": "object"
+   },
    "TokenMeta": {
     "description": "Token registry entry (BE-F3) + the planned live token-page fields.\nRegistry-backed responses carry data_mode='fixture' today; fields the\nregistry does not know (socials, launchpad, \u2026) stay None \u2014 absent stays\nabsent until a real upstream fills them.",
     "properties": {
@@ -1559,7 +1847,8 @@
        "live",
        "fixture",
        "unwired",
-       "static"
+       "static",
+       "partial"
       ],
       "title": "Data Mode",
       "type": "string"
@@ -1959,7 +2248,8 @@
        "live",
        "fixture",
        "unwired",
-       "static"
+       "static",
+       "partial"
       ],
       "title": "Data Mode",
       "type": "string"
@@ -2024,7 +2314,8 @@
        "live",
        "fixture",
        "unwired",
-       "static"
+       "static",
+       "partial"
       ],
       "title": "Data Mode",
       "type": "string"
@@ -2204,7 +2495,7 @@
   "/api/scan": {
    "post": {
     "deprecated": true,
-    "description": "Full evidence scan: pair view + weighted risk assessment + clustering.\n`refresh: true` bypasses the 30s TTL cache and forces a fresh fetch.",
+    "description": "Full evidence scan: pair view + weighted risk assessment + clustering,\nplus the best-effort trader-loop `context` block (BE-F5a-R \u2014 context\nrenders beside the verdict; the score formula never reads it).\n`refresh: true` bypasses the 30s TTL cache and forces a fresh fetch.",
     "operationId": "api_scan_api_scan_post",
     "requestBody": {
      "content": {
@@ -2657,7 +2948,7 @@
   },
   "/api/v1/scan": {
    "post": {
-    "description": "Full evidence scan: pair view + weighted risk assessment + clustering.\n`refresh: true` bypasses the 30s TTL cache and forces a fresh fetch.",
+    "description": "Full evidence scan: pair view + weighted risk assessment + clustering,\nplus the best-effort trader-loop `context` block (BE-F5a-R \u2014 context\nrenders beside the verdict; the score formula never reads it).\n`refresh: true` bypasses the 30s TTL cache and forces a fresh fetch.",
     "operationId": "api_scan_api_v1_scan_post",
     "requestBody": {
      "content": {
