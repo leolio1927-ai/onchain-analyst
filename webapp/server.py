@@ -305,11 +305,15 @@ async def version() -> dict:
 
 @app.get("/api/metrics", tags=["system"])
 async def metrics() -> dict:
-    """Live process counters — every number is measured, none estimated."""
+    """Live process counters — every number is measured, none estimated.
+    tokens/labels are measured persistence row counts (0 when persistence
+    is off — off is a fact, not an estimate)."""
+    rows = db.db_info(db.resolve_path())["rows_by_table"]
     return {"scans": _STATS["scans"], "uptime_s": int(time.monotonic() - _T0),
             "ws_clients": len(_WS_CLIENTS), "scan_cache_entries": len(_scan_cache),
             "gt_trade_cache_entries": len(geckoterminal._trade_cache),
-            "throttled_ips": len(_ai_hits)}
+            "throttled_ips": len(_ai_hits),
+            "tokens": rows.get("tokens", 0), "labels": rows.get("wallet_labels", 0)}
 
 
 @app.post("/api/v1/scan", response_model=schemas.ScanResponse, tags=["market"])
@@ -476,6 +480,39 @@ async def api_history_trades(chain: str, ident: str, limit: int = 100,
                                  **_history_params(limit, cursor, since, until))
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
+
+
+# ── BE-F3 entity surface: token registry + wallet labels (additive) ──
+
+@app.get("/api/v1/tokens/{chain}/{ident}", response_model=schemas.TokenMeta,
+         tags=["market"])
+async def api_token_meta(chain: str, ident: str) -> dict:
+    """One registry token. 404 only when the registry never saw it — the
+    registry is silent on unknowns, never guesses. Registry-backed pages
+    carry data_mode='fixture' today; fields no upstream filled stay None."""
+    path = _db_or_503()
+    tok = db.get_token(path, chain.strip().lower(), ident.strip().lower())
+    if tok is None:
+        raise HTTPException(404, f"unknown token '{ident}' on '{chain}' — "
+                                 f"the registry has no row for it")
+    return tok
+
+
+_WALLET_SHAPE = re.compile(r"[1-9A-HJ-NP-Za-km-z]{32,44}|0x[a-fA-F0-9]{40}")
+
+
+@app.get("/api/v1/wallets/{address}", response_model=schemas.WalletLabelsResponse,
+         tags=["market"])
+async def api_wallet_labels(address: str) -> dict:
+    """Wallet label claims across chains. 200 + [] for a valid address with
+    no labels (unlabeled = silence, never a guess); 404 only on a malformed
+    address shape. Labels are claims with provenance — verified=false unless
+    an operator path (none exists yet) checked them."""
+    if not _WALLET_SHAPE.fullmatch(address or ""):
+        raise HTTPException(404, f"invalid wallet address shape '{address[:12]}…' — "
+                                 f"not base58 (32-44) or 0x-hex (40)")
+    path = _db_or_503()
+    return await asyncio.to_thread(db.get_wallet_labels, path, address)
 
 
 _NO_BUILD = """<!doctype html><html><head><meta charset="utf-8">
