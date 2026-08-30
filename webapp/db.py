@@ -30,7 +30,7 @@ import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 HISTORY_LIMIT_MAX = 500
 
 _TABLES = ("price_points", "trades", "scan_snapshots", "ingest_run",
@@ -127,8 +127,24 @@ CREATE TABLE IF NOT EXISTS wallet_labels (
 );
 """
 
-# ordered migrations; each applied at most once, recorded in schema_migrations
-_MIGRATIONS: tuple[tuple[int, str], ...] = ((1, _DDL), (2, _DDL_V2))
+def _migrate_v3(conn: sqlite3.Connection) -> None:
+    """v3 (BE-F5a-R) — deployer provenance columns on scan_snapshots, added
+    in one ALTER batch. Conditional because SQLite lacks ADD COLUMN IF NOT
+    EXISTS; the index itself is IF NOT EXISTS."""
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(scan_snapshots)")}
+    for col in ("deployer", "deployer_kind", "deployer_source"):
+        if col not in cols:
+            conn.execute(f"ALTER TABLE scan_snapshots ADD COLUMN {col} TEXT")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_scan_snapshots_deployer "
+                 "ON scan_snapshots (chain, deployer)")
+
+
+# ordered migrations; each applied at most once, recorded in schema_migrations.
+# A str entry runs via executescript; a callable entry runs against the open
+# connection (used when a step must be conditional, e.g. SQLite has no
+# "ADD COLUMN IF NOT EXISTS").
+_MIGRATIONS: tuple[tuple[int, str | object], ...] = (
+    (1, _DDL), (2, _DDL_V2), (3, _migrate_v3))
 
 
 def resolve_path() -> Path | None:
@@ -156,10 +172,13 @@ def init_schema(conn: sqlite3.Connection) -> None:
     Safe on every open, fresh or old database alike."""
     conn.executescript(_DDL)
     applied = {r[0] for r in conn.execute("SELECT version FROM schema_migrations")}
-    for version, ddl in _MIGRATIONS:
+    for version, step in _MIGRATIONS:
         if version in applied:
             continue
-        conn.executescript(ddl)
+        if callable(step):
+            step(conn)
+        else:
+            conn.executescript(step)
         conn.execute(
             "INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)",
             (version, datetime.now(UTC).isoformat()))
@@ -172,10 +191,16 @@ def utc_now_iso() -> str:
 
 # ── write-through (scan) ─────────────────────────────────────────────────
 
-def write_scan_snapshot(path: Path, chain: str, ident: str, scan: dict) -> int:
+def write_scan_snapshot(path: Path, chain: str, ident: str, scan: dict, *,
+                        deployer: str | None = None,
+                        deployer_kind: str | None = None,
+                        deployer_source: str | None = None) -> int:
     """Persist one scan observation. The stored data_mode is "live" because
     only real engine output reaches this writer (fixture snapshots arrive
-    through the ingest loader, which stamps "fixture")."""
+    through the ingest loader, which stamps "fixture"). The deployer columns
+    ride in the SAME INSERT/transaction — lineage can see its own scan the
+    moment it is served. deployer_source records WHO said it (helius/
+    alchemy), so cross-chain values stay comparable strings."""
     assessment = scan.get("assessment") or {}
     signals = assessment.get("signals") or []
     denominator = sum(1 for s in signals if s.get("severity") is not None)
@@ -184,14 +209,16 @@ def write_scan_snapshot(path: Path, chain: str, ident: str, scan: dict) -> int:
         init_schema(conn)
         cur = conn.execute(
             "INSERT INTO scan_snapshots (chain, ident, ts, score, denominator,"
-            " payload_json, data_mode, source, ingested_at)"
-            " VALUES (?, ?, ?, ?, ?, ?, 'live', ?, ?)",
+            " payload_json, data_mode, source, ingested_at,"
+            " deployer, deployer_kind, deployer_source)"
+            " VALUES (?, ?, ?, ?, ?, ?, 'live', ?, ?, ?, ?, ?)",
             (chain, ident, scan.get("ts") or utc_now_iso(),
              assessment.get("score"), denominator,
              json.dumps({"pair": scan.get("pair"), "assessment": assessment,
                          "clustering": scan.get("clustering")},
                         ensure_ascii=False, separators=(",", ":")),
-             ",".join(scan.get("sources") or []), utc_now_iso()))
+             ",".join(scan.get("sources") or []), utc_now_iso(),
+             deployer, deployer_kind, deployer_source))
         conn.commit()
         return cur.lastrowid
     finally:
