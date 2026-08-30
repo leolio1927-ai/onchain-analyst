@@ -90,8 +90,10 @@ def _get(path: str) -> dict:
             if e.code == 400:
                 raise _JupiterError(f"no-route:{body[:120]}") from e
             raise _JupiterError(f"http_{e.code}") from e
-        except (urllib.error.URLError, TimeoutError, OSError) as e:
-            raise _JupiterError(f"transport:{str(e)[:60]}") from e
+        except TimeoutError as e:
+            raise _JupiterError("timeout") from e
+        except (urllib.error.URLError, OSError) as e:
+            raise _JupiterError(f"unreachable:{str(e)[:60]}") from e
     raise _JupiterError("http_429")  # unreachable: loop always returns/raises
 
 
