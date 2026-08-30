@@ -1391,6 +1391,178 @@
     "title": "SocialLinks",
     "type": "object"
    },
+   "TokenMeta": {
+    "description": "Token registry entry (BE-F3) + the planned live token-page fields.\nRegistry-backed responses carry data_mode='fixture' today; fields the\nregistry does not know (socials, launchpad, \u2026) stay None \u2014 absent stays\nabsent until a real upstream fills them.",
+    "properties": {
+     "address": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Address"
+     },
+     "chain": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Chain"
+     },
+     "data_mode": {
+      "default": "unwired",
+      "enum": [
+       "live",
+       "fixture",
+       "unwired"
+      ],
+      "title": "Data Mode",
+      "type": "string"
+     },
+     "decimals": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Decimals"
+     },
+     "dex_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Dex Id"
+     },
+     "first_seen": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "First Seen"
+     },
+     "last_seen": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Last Seen"
+     },
+     "launchpad": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Launchpad"
+     },
+     "logo": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Logo"
+     },
+     "logo_ref": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Logo Ref"
+     },
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+     },
+     "socials": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/SocialLinks"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "sources": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Sources",
+      "type": "array"
+     },
+     "symbol": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Symbol"
+     },
+     "tags": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Tags",
+      "type": "array"
+     },
+     "ts": {
+      "title": "Ts",
+      "type": "string"
+     }
+    },
+    "title": "TokenMeta",
+    "type": "object"
+   },
    "TradeRow": {
     "description": "Normalized GeckoTerminal trade (providers.geckoterminal.fetch_trades).",
     "properties": {
@@ -1560,6 +1732,125 @@
      }
     },
     "title": "VersionResponse",
+    "type": "object"
+   },
+   "WalletLabel": {
+    "description": "One labeled-wallet claim. `label`+`kind`+`evidence` are the claim;\n`verified` means OPERATOR-checked and is distinct from data provenance \u2014\nfixture-loaded rows are always verified=false. No row is the honest\n'unlabeled' state; there is no unlabeled kind.",
+    "properties": {
+     "address": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Address"
+     },
+     "chain": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Chain"
+     },
+     "evidence": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Evidence"
+     },
+     "kind": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Kind"
+     },
+     "label": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Label"
+     },
+     "verified": {
+      "default": false,
+      "title": "Verified",
+      "type": "boolean"
+     }
+    },
+    "title": "WalletLabel",
+    "type": "object"
+   },
+   "WalletLabelsResponse": {
+    "description": "All claims for one wallet across chains. An unlabeled wallet is an\nhonest empty list \u2014 never synthesized, never a guess, never an error.",
+    "properties": {
+     "address": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Address"
+     },
+     "data_mode": {
+      "default": "unwired",
+      "enum": [
+       "live",
+       "fixture",
+       "unwired"
+      ],
+      "title": "Data Mode",
+      "type": "string"
+     },
+     "labels": {
+      "items": {
+       "$ref": "#/components/schemas/WalletLabel"
+      },
+      "title": "Labels",
+      "type": "array"
+     },
+     "schema_version": {
+      "const": "1.0",
+      "default": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+     },
+     "sources": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Sources",
+      "type": "array"
+     },
+     "ts": {
+      "title": "Ts",
+      "type": "string"
+     }
+    },
+    "title": "WalletLabelsResponse",
     "type": "object"
    },
    "WhaleBody": {
@@ -1748,7 +2039,7 @@
   },
   "/api/metrics": {
    "get": {
-    "description": "Live process counters \u2014 every number is measured, none estimated.",
+    "description": "Live process counters \u2014 every number is measured, none estimated.\ntokens/labels are measured persistence row counts (0 when persistence\nis off \u2014 off is a fact, not an estimate).",
     "operationId": "metrics_api_metrics_get",
     "responses": {
      "200": {
@@ -2239,6 +2530,101 @@
      }
     },
     "summary": "Api Scan",
+    "tags": [
+     "market"
+    ]
+   }
+  },
+  "/api/v1/tokens/{chain}/{ident}": {
+   "get": {
+    "description": "One registry token. 404 only when the registry never saw it \u2014 the\nregistry is silent on unknowns, never guesses. Registry-backed pages\ncarry data_mode='fixture' today; fields no upstream filled stay None.",
+    "operationId": "api_token_meta_api_v1_tokens__chain___ident__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "chain",
+      "required": true,
+      "schema": {
+       "title": "Chain",
+       "type": "string"
+      }
+     },
+     {
+      "in": "path",
+      "name": "ident",
+      "required": true,
+      "schema": {
+       "title": "Ident",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/TokenMeta"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Api Token Meta",
+    "tags": [
+     "market"
+    ]
+   }
+  },
+  "/api/v1/wallets/{address}": {
+   "get": {
+    "description": "Wallet label claims across chains. 200 + [] for a valid address with\nno labels (unlabeled = silence, never a guess); 404 only on a malformed\naddress shape. Labels are claims with provenance \u2014 verified=false unless\nan operator path (none exists yet) checked them.",
+    "operationId": "api_wallet_labels_api_v1_wallets__address__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "address",
+      "required": true,
+      "schema": {
+       "title": "Address",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/WalletLabelsResponse"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Api Wallet Labels",
     "tags": [
      "market"
     ]
