@@ -907,7 +907,7 @@ function Surfaces() {
       </div>
       <div className="lv-surfgrid">
         {[
-          { t: 'Memecoin Live Board', s: 'Six chain cards, four feed modes, honest flags and auto-refresh.', u: '/live', chip: ['live'] },
+          { t: 'Memecoin Live Board', s: 'Five chain cards, four feed modes, honest flags and auto-refresh.', u: '/live', chip: ['live'] },
           { t: 'Chain Pages ×6', s: 'Three staggered columns per chain with α-ranks and copy-address.', u: '/live/sol', chip: ['live'] },
           { t: 'Terminal', s: 'The product — ships in phases. The button unlocks with the Locked deploy.', u: '/terminal', chip: ['build'] },
           { t: 'Documentation', s: 'The honesty law, the pipeline, the API contract, the security posture.', u: '/docs', chip: ['live'] },
@@ -927,7 +927,7 @@ function Surfaces() {
   )
 }
 
-/* S7 — multi-chain globe, six marks */
+/* S7 — multi-chain globe, five live marks (avax parked) */
 function Chains() {
   const [hover, setHover] = useState<string | null>(null)
   const info = NET_CHAINS.find((c) => c.id === hover)

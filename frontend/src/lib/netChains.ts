@@ -1,7 +1,7 @@
 /* Chain metadata for the landing globe/cards — lives outside the visuals
    module so it can be imported without pulling canvas components into
    fast-refresh scope (one export kind per file).
-   All six founder-locked chains are LIVE on the GeckoTerminal feed
+   All five founder-locked chains are LIVE on the GeckoTerminal feed (avax parked 2026-08-30)
    (stage-0 verified 2026-08-29, providers/live.py CHAINS): the network_id
    slugs below mirror that file exactly — no chain invented, none hidden. */
 

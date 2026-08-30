@@ -131,7 +131,7 @@ const ORBITS = [
   { color: '#ffabab', r: 0.64, speed: 0.09, size: 2.7 },
 ]
 
-/* the radar sweeps the real feed universe — the six founder-locked chains,
+/* the radar sweeps the real feed universe — the five founder-locked chains,
    colored with their exact accents (mirrors pages/liveParts CHAIN_ACCENT) */
 const SCANCHAINS: readonly (readonly [string, string, string])[] = [
   ['SOL', 'SOLANA', '#14F195'], ['BNB', 'BNB CHAIN', '#F0B90B'], ['BASE', 'BASE', '#4D8DFF'],
