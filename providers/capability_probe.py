@@ -125,9 +125,10 @@ def render(results: dict) -> str:
     lines = [
         f"# Capability probe — {datetime.now(UTC):%Y-%m-%d %H:%M} UTC",
         "",
-        "Manual run (providers/capability_probe.py). Founder-authorized live calls on",
-        "free tiers only. Keys present at run time: "
-        f"HELIUS_API_KEY={_has_key('HELIUS_API_KEY')}, ALCHEMY_API_KEY={_has_key('ALCHEMY_API_KEY')}.",
+          "Manual run (providers/capability_probe.py). Founder-authorized live calls on",
+          ("free tiers only. Keys present at run time: "
+           f"HELIUS_API_KEY={_has_key('HELIUS_API_KEY')}, "
+           f"ALCHEMY_API_KEY={_has_key('ALCHEMY_API_KEY')}."),
         "",
         "| chain | capability | result | note |",
         "|---|---|---|---|",
@@ -161,6 +162,11 @@ def render(results: dict) -> str:
 
 
 def main() -> int:
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()          # founder keys live in .env (gitignored)
+    except ImportError:
+        pass
     results = {c: probe_chain(c) for c in _CHAINS}
     report = render(results)
     _OUT_DIR.mkdir(parents=True, exist_ok=True)
