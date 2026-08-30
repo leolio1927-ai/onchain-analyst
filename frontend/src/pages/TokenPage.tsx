@@ -6,13 +6,15 @@
    LAYOUT (founder-locked): main row = LEFT column stacks chart → bonding →
    trades directly (zero gaps); RIGHT column (380px) is the compact swap rail
    (sticky). No canvas — crash-proof pure CSS background. */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { LIVE_CHAINS } from '../lib/liveApi'
 import type { LiveChain } from '../lib/liveApi'
 import { truncAddr } from '../lib/liveFormat'
 import { accentStyle } from './liveParts'
 import { ChainLogo } from './chainLogos'
+import { fetchSwapQuote } from '../services/dexscreener'
+import type { SwapQuote } from '../services/dexscreener'
 import '../styles/swap.css'
 
 /* ── deterministic simulated data set ─────────────────────────── */
@@ -153,6 +155,16 @@ const NATIVE: Record<LiveChain, string> = {
   sol: 'SOL', bnb: 'BNB', base: 'ETH', hype: 'HYPE', hood: 'ETH',
   // avax: 'AVAX' parked 2026-08-30 (founder: 5-chain lineup)
 }
+/* Real default token per chain for the swap rail's LIVE quote (UI-3).
+   Verified addresses: BONK (sol), CAKE (bnb), AERO (base), APU (hood).
+   hype has no verified default pair → the rail shows an honest reason. */
+const SWAP_DEFAULT: Record<LiveChain, string | null> = {
+  sol: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',
+  bnb: '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82',
+  base: '0x940181a94A35A4569E4529A3CDfB74e38FD98631',
+  hood: '0x0f03df65dace80e5e727b6c2628889c6d8ea20a6',
+  hype: null,
+}
 const QUICK = [0.001, 0.01, 0.05, 0.1, 0.5]
 
 function setAmt2(set: (v: string) => void, setP: (p: number) => void, balance: number, q: number) {
@@ -166,14 +178,28 @@ function SwapRail() {
   const [amount, setAmount] = useState('')
   const [pct, setPct] = useState(0)
   const [adv, setAdv] = useState(false)
+  const [quote, setQuote] = useState<SwapQuote | null>(null)
+  const [qErr, setQErr] = useState<string | null>(null)
   const balance = 3.421
-  const price = 0.0031
+
+  useEffect(() => {
+    let on = true
+    const addr = SWAP_DEFAULT[chain]
+    if (!addr) { setQuote(null); setQErr(`no default pair wired for ${chain} — pick sol/bnb/base/hood`); return }
+    setQuote(null); setQErr(null)
+    fetchSwapQuote(chain, addr)
+      .then((q) => { if (on) { if (q) setQuote(q); else setQErr(`no live ${chain} quote — dexscreener returned no finite rate`) } })
+      .catch(() => { if (on) setQErr('dexscreener unreachable — rate unavailable') })
+    return () => { on = false }
+  }, [chain])
+
   const n = Number.parseFloat(amount)
   const payAmt = Number.isFinite(n) && n > 0 ? n : 0
-  const getAmt = payAmt * price > 0 ? payAmt / price : 0
+  const perNative = quote ? 1 / quote.priceNative : 0
+  const getAmt = quote ? payAmt / quote.priceNative : 0
   return (
     <section className="tk-panel" data-chain={chain} style={accentStyle(chain)}>
-      <div className="tk-phd">SWAP <span className="tk-mock">SIMULATED</span></div>
+      <div className="tk-phd">SWAP {quote ? <span className="tk-live">LIVE QUOTE</span> : <span className="tk-mock">NO QUOTE</span>}</div>
       <div className="tk-swap">
         <div className="sw-tabs2" role="tablist" aria-label="direction">
           <button type="button" role="tab" aria-selected={dir === 'buy'}
@@ -194,7 +220,7 @@ function SwapRail() {
               <ChainLogo chain={chain} size={20} />
               <select value={chain} onChange={(e) => { setChain(e.target.value as LiveChain); setAmount(''); setPct(0) }}
                 aria-label="chain" style={{ background: 'none', border: 'none', color: 'var(--text)', fontFamily: 'var(--font-mono)', fontSize: 11, cursor: 'pointer' }}>
-                {LIVE_CHAINS.map((c) => <option key={c} value={c} style={{ background: '#071410' }}>{NATIVE[c]}</option>)}
+                {LIVE_CHAINS.map((c) => <option key={c} value={c} style={{ background: '#071410' }}>{c.toUpperCase()} · {NATIVE[c]}</option>)}
               </select>
             </div>
           </div>
@@ -214,12 +240,17 @@ function SwapRail() {
             onClick={() => { setDir((d) => (d === 'buy' ? 'sell' : 'buy')); setAmount(''); setPct(0) }}>⇅</button>
         </div>
         <div className="sw2-field">
-          <div className="sw2-hd"><span>YOU GET</span><span>1 {NATIVE[chain]} = {fmtSub(1 / price)} {TOKEN.ticker}</span></div>
+          <div className="sw2-hd"><span>YOU GET</span>
+            <span>{quote ? `1 ${quote.quote} = ${perNative.toLocaleString('en-US', { maximumFractionDigits: 0 })} ${quote.token}` : '—'}</span></div>
           <div className="sw2-row">
-            <span className="sw2-input ro">{getAmt === 0 ? '0' : getAmt.toLocaleString('en-US', { maximumFractionDigits: 2 })}</span>
-            <div className="sw2-chip"><span className="tk-logo" style={{ width: 20, height: 20, borderRadius: 6, fontSize: 10 }}>{TOKEN.ticker.slice(0, 1)}</span>{TOKEN.ticker}</div>
+            <span className="sw2-input ro">{getAmt === 0 ? '0' : getAmt.toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
+            <div className="sw2-chip"><span className="tk-logo" style={{ width: 20, height: 20, borderRadius: 6, fontSize: 10 }}>{(quote?.token ?? '—').slice(0, 1)}</span>{quote?.token ?? '—'}</div>
           </div>
         </div>
+        {quote && quote.priceUsd != null && (
+          <div className="sw2-note" style={{ marginTop: 6 }}>{quote.token} ${quote.priceUsd} · liq ${quote.liq.toLocaleString('en-US', { maximumFractionDigits: 0 })} · {quote.dexId}</div>
+        )}
+        {qErr && <div className="sw2-note" style={{ marginTop: 6, color: 'var(--rose)' }}>{qErr}</div>}
         <button type="button" className="sw2-adv" aria-expanded={adv} onClick={() => setAdv((a) => !a)}>
           ADVANCED <span>{adv ? '▴' : '▾'}</span>
         </button>
@@ -229,10 +260,14 @@ function SwapRail() {
             <label>DEADLINE <span className="tk-mock">SIMULATED</span><input placeholder="30 min" readOnly tabIndex={-1} /></label>
           </div>
         )}
-        <button type="button" className="sw2-cta" onClick={() => {}}>
-          {payAmt > 0 ? 'SWAP' : 'CONNECT WALLET'}
-        </button>
-        <p className="sw2-note">SIMULATED · PRE-RELEASE — deterministic data set, no wallet, no chain calls.</p>
+        {quote?.url ? (
+          <a className="sw2-cta" href={quote.url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>
+            OPEN {quote.dexId.toUpperCase()} PAIR ↗
+          </a>
+        ) : (
+          <button type="button" className="sw2-cta" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>NO LIVE PAIR</button>
+        )}
+        <p className="sw2-note">Read-only terminal — the quote is live (dexscreener) but execution never happens here. Chart &amp; trades remain simulated.</p>
       </div>
     </section>
   )

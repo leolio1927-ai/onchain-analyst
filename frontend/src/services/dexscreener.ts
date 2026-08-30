@@ -146,6 +146,54 @@ export async function fetchChainTickers(): Promise<LiveRow[] | null> {
   return rows.length ? rows : null
 }
 
+/* ── Swap quote (UI-3): a REAL pair rate, never a mock echo ─────────────
+   Returns the deepest pair for a token on a chain, preferring a pair whose
+   quote is the chain's native wrapper so the rail can read "1 native = N
+   token" straight from priceNative. priceUsd rides along for the USD line.
+   null = no pair / no finite rate → the caller shows an honest reason. */
+export interface SwapQuote {
+  token: string
+  quote: string
+  priceNative: number
+  priceUsd: number | null
+  url: string
+  dexId: string
+  liq: number
+}
+
+const SWAP_DS_CHAIN: Record<string, string> = {
+  sol: 'solana', bnb: 'bsc', base: 'base', hood: 'robinhood', hype: 'hyperevm',
+}
+const SWAP_WRAP: Record<string, string[]> = {
+  solana: ['SOL', 'WSOL'], bsc: ['WBNB', 'BNB'], base: ['WETH', 'ETH'],
+  robinhood: ['WETH', 'ETH'], hyperevm: ['WHYPE', 'HYPE'],
+}
+
+export async function fetchSwapQuote(chain: string, address: string): Promise<SwapQuote | null> {
+  const cid = SWAP_DS_CHAIN[chain]
+  if (!cid || !address) return null
+  const d = await jget(`${BASE}/latest/dex/tokens/${address}`)
+  const ps = pairsOf(d).filter((p) => p.chainId === cid)
+  if (!ps.length) return null
+  const wraps = SWAP_WRAP[cid] ?? []
+  const withLiq = ps.map((p) => ({ p, liq: p.liquidity?.usd ?? 0 }))
+  const native = withLiq.filter((x) => wraps.includes(String(x.p.quoteToken?.symbol ?? '')))
+  const pool = native.length ? native : withLiq
+  pool.sort((a, b) => b.liq - a.liq)
+  const pick = pool[0]
+  const pn = parseFloat(pick.p.priceNative ?? '')
+  if (!isFinite(pn) || pn <= 0) return null
+  return {
+    token: String(pick.p.baseToken?.symbol ?? '?'),
+    quote: String(pick.p.quoteToken?.symbol ?? '?'),
+    priceNative: pn,
+    priceUsd: parseFloat(pick.p.priceUsd ?? '') || null,
+    url: pick.p.url ?? '',
+    dexId: pick.p.dexId ?? '?',
+    liq: pick.liq,
+  }
+}
+
 /* ── Contract shared with the Scanner UI ────────────────────────────────
    risk/spark are null on live rows until the deterministic engine has
    actually assessed the token (per-row /api/scan, phase 2). UI must render
