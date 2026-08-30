@@ -81,7 +81,7 @@ def test_chains_route_golden_wire(client):
     assert r.status_code == 200
     j = r.json()
     assert j["data_mode"] == "static"        # config, not an observed response
-    assert j["sources"] == ["chains.py"]
+    assert j["sources"] == ["chains.py", "chains_map.py"]  # catalog + wiring
     assert j["note"] == "reflects verified provider support"
     assert datetime.fromisoformat(j["ts"]).utcoffset() == timedelta(0)
     assert j["schema_version"] == "1.0"
