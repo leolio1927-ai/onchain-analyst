@@ -24,7 +24,7 @@ import time
 import urllib.error
 import urllib.request
 
-BASE = "https://quote-api.jup.ag/v6"
+BASE = "https://lite-api.jup.ag/swap/v1"
 SOL_MINT = "So11111111111111111111111111111111111111112"
 _TIMEOUT_S = 10.0
 
