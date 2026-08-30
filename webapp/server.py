@@ -407,7 +407,11 @@ async def api_scan(body: ScanBody) -> dict:
     _validate(body.chain, body.address)
     out = await _get_scan(body.chain, body.address, body.refresh)
     _STATS["scans"] += 1  # real usage counter — cache hits count as served scans
-    ctx = await asyncio.to_thread(_enrich_scan, body.chain, body.address.strip().lower())
+    # context providers get the address AS GIVEN — solana mints are
+    # case-sensitive base58; lowercasing broke every helius call (probe:
+    # BONK answered no_asset/http_400 2026-08-30). DB idents are lowercased
+    # inside _persist_scan.
+    ctx = await asyncio.to_thread(_enrich_scan, body.chain, body.address.strip())
     out["context"] = ctx
     out["data_mode"] = "partial" if ctx["data_mode"] in ("live", "partial") else "live"
     await asyncio.to_thread(_persist_scan, body.chain, body.address, out, ctx)

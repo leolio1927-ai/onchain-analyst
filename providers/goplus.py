@@ -132,10 +132,12 @@ def security_flags(chain: str, token: str) -> tuple[dict | None, str | None]:
     row, note = token_security(chain, token)
     if row is None:
         return None, note
+    # lp_holders is NOT emitted: GoPlus ships it as a list of holder objects,
+    # but the RugFlags contract is scalar-only (Verbatim) — passing the list
+    # through 500'd /api/scan on response validation (AERO probe 2026-08-30).
     return {"is_honeypot": row.get("is_honeypot"),
             "buy_tax": row.get("buy_tax"),
             "sell_tax": row.get("sell_tax"),
             "mintable": row.get("mintable"),
             "freezable": row.get("freezable"),
-            "holder_count": row.get("holder_count"),
-            "lp_holders": row.get("lp_holders")}, None
+            "holder_count": row.get("holder_count")}, None
