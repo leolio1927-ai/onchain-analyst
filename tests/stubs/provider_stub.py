@@ -108,6 +108,9 @@ def _helius_live(monkeypatch) -> None:
     helius._cache.clear()
 
     def canned_call(url, body=None):
+        if body and body.get("method") == "getAsset":
+            return {"result": {"authorities": [{"address": "AUTH1", "scopes": ["full"]}],
+                               "mutable": False}}
         if body and body.get("method") == "getTokenLargestAccounts":
             return {"result": {"value": [
                 {"uiAmount": 900.0}, {"uiAmount": 50.0}]}}

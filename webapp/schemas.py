@@ -153,6 +153,22 @@ class DeployerLineage(BaseModel):
     labels: list[WalletLabel] = Field(default_factory=list)
 
 
+class RugFlags(BaseModel):
+    """Rug-relevant flags, COPIED VERBATIM from the source (sol: helius DAS
+    authorities + mutable; EVM: GoPlus security fields as their own strings).
+    Field values the source did not send stay absent — no cross-filling."""
+
+    update_authorities: list[str] = Field(default_factory=list)
+    mutable: bool | None = None
+    is_honeypot: Verbatim = None
+    buy_tax: Verbatim = None
+    sell_tax: Verbatim = None
+    mintable: Verbatim = None
+    freezable: Verbatim = None
+    holder_count: Verbatim = None
+    lp_holders: Verbatim = None
+
+
 class TokenContext(Envelope):
     """Trader-loop context block (BE-F5a-R) — renders BESIDE the verdict.
     The rug weights and score formula never read from here. Per-block
@@ -169,6 +185,7 @@ class TokenContext(Envelope):
     lineage: DeployerLineage | None = None
     top10_share: float | None = None
     sell_test: SellTest | None = None
+    rug_flags: RugFlags | None = None
     notes: list[str] = Field(default_factory=list)
     data_sources: list[str] = Field(default_factory=list)
 

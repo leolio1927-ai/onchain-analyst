@@ -176,6 +176,34 @@ def transfers(chain: str, token: str, limit: int = 100) -> tuple[dict | None, st
         return None, f"helius:{e}"
 
 
+def get_asset(chain: str, mint: str) -> tuple[dict | None, str | None]:
+    """DAS getAsset → the token's authority truth: {"update_authorities":
+    [addr…], "mutable": bool} copied verbatim (BONK live probe 2026-08-30:
+    authorities still set + mutable=true — revocable, stated as-is)."""
+    key = ("get_asset", chain, mint)
+    if (note := _guarded(chain)) is not None:
+        return None, note
+    cached = _cache_get(key)
+    if cached is not None:
+        return cached, None
+
+    def fetch():
+        out = _call(f"{BASE}/?api-key={_key()}",
+                    body={"jsonrpc": "2.0", "id": "ta", "method": "getAsset",
+                          "params": {"id": mint}})
+        result = out.get("result") or {}
+        if not result:
+            raise _HeliusError("no_asset")
+        auths = [a.get("address") for a in (result.get("authorities") or [])
+                 if a.get("address")]
+        return {"update_authorities": auths, "mutable": result.get("mutable")}
+
+    try:
+        return _single_flight(key, fetch), None
+    except _HeliusError as e:
+        return None, f"helius:{e}"
+
+
 def get_creation(chain: str, mint: str) -> tuple[dict | None, str | None]:
     """Creation tx of an SPL mint → fee_payer = deployer. Returns
     ({"tx", "fee_payer", "at"} | None, note). Empty result sets are honest

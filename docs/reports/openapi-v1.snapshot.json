@@ -1529,6 +1529,150 @@
     "title": "RugAssessment",
     "type": "object"
    },
+   "RugFlags": {
+    "description": "Rug-relevant flags, COPIED VERBATIM from the source (sol: helius DAS\nauthorities + mutable; EVM: GoPlus security fields as their own strings).\nField values the source did not send stay absent \u2014 no cross-filling.",
+    "properties": {
+     "buy_tax": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "number"
+       },
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Buy Tax"
+     },
+     "freezable": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "number"
+       },
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Freezable"
+     },
+     "holder_count": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "number"
+       },
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Holder Count"
+     },
+     "is_honeypot": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "number"
+       },
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Is Honeypot"
+     },
+     "lp_holders": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "number"
+       },
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Lp Holders"
+     },
+     "mintable": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "number"
+       },
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Mintable"
+     },
+     "mutable": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Mutable"
+     },
+     "sell_tax": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "number"
+       },
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Sell Tax"
+     },
+     "update_authorities": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Update Authorities",
+      "type": "array"
+     }
+    },
+    "title": "RugFlags",
+    "type": "object"
+   },
    "ScanBody": {
     "properties": {
      "address": {
@@ -1831,6 +1975,16 @@
       },
       "title": "Notes",
       "type": "array"
+     },
+     "rug_flags": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/RugFlags"
+       },
+       {
+        "type": "null"
+       }
+      ]
      },
      "schema_version": {
       "const": "1.0",

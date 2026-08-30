@@ -18,7 +18,7 @@ two disagree.
 """
 from __future__ import annotations
 
-from providers import evm_deployer, helius, jupiter, whales
+from providers import evm_deployer, goplus, helius, jupiter, whales
 from webapp.chains import CHAIN_CATALOG
 
 _EVM_NO_HOLDERS = ("probe 2026-08-30: top-holder enumeration needs an indexer "
@@ -30,11 +30,13 @@ _CAPABILITIES: dict[str, dict[str, dict]] = {
         "holders": {"source": "helius", "fn": helius.get_largest_accounts},
         "sell_test": {"source": "jupiter", "fn": jupiter.sell_quote},
         "whales": {"source": "helius", "fn": whales.whales},
+        "rug_flags": {"source": "helius", "fn": helius.get_asset},
     },
     "bnb": {
         # FASE-1 probe: goplus keyless creator (LIVE, CAKE) — the provider
         # ships no creation tx, so claims ride flagged unverified-tx
         "deployer": {"source": "goplus", "fn": evm_deployer.get_creation},
+        "rug_flags": {"source": "goplus", "fn": goplus.security_flags},
         "holders": {"source": None, "reason": _EVM_NO_HOLDERS},
         "sell_test": {"source": None,
                       "reason": "1inch quote requires an API key "
@@ -45,6 +47,7 @@ _CAPABILITIES: dict[str, dict[str, dict]] = {
         # FASE-1 probe: blockscout primary (LIVE, law-3 verified on AERO);
         # goplus fallback composed inside evm_deployer.get_creation
         "deployer": {"source": "blockscout", "fn": evm_deployer.get_creation},
+        "rug_flags": {"source": "goplus", "fn": goplus.security_flags},
         "holders": {"source": None, "reason": _EVM_NO_HOLDERS},
         "sell_test": {"source": None,
                       "reason": "1inch quote requires an API key "
@@ -62,6 +65,8 @@ _CAPABILITIES: dict[str, dict[str, dict]] = {
         "sell_test": {"source": None,
                       "reason": "DEX-less venues: no route concept"},
         "whales": {"source": None, "reason": "birdeye trade endpoints answer 404 on the free tier (probe 2026-08-30); no $0 trade feed"},
+        "rug_flags": {"source": None,
+                      "reason": "no security API covers robinhood at $0 (probe 2026-08-30)"},
     },
     "hype": {
         "deployer": {"source": None,
@@ -72,6 +77,8 @@ _CAPABILITIES: dict[str, dict[str, dict]] = {
         "sell_test": {"source": None,
                       "reason": "DEX-less venues: no route concept"},
         "whales": {"source": None, "reason": "birdeye trade endpoints answer 404 on the free tier (probe 2026-08-30); no $0 trade feed"},
+        "rug_flags": {"source": None,
+                      "reason": "no security API covers hyperevm at $0 (probe 2026-08-30)"},
     },
 }
 
@@ -87,7 +94,7 @@ _PROVIDER_CHAINS: dict[str, frozenset[str]] = {
     "jupiter": frozenset({"sol"}),
 }
 
-CAPABILITY_NAMES = ("deployer", "holders", "sell_test", "whales")
+CAPABILITY_NAMES = ("deployer", "holders", "sell_test", "whales", "rug_flags")
 
 
 def capabilities_for(chain: str) -> dict[str, dict]:

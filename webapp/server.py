@@ -386,6 +386,8 @@ def _enrich_scan(chain_key: str, ident: str) -> dict:
             ctx["sell_test"] = {"routable": data.get("routable"),
                                 "checked_via": data.get("checked_via"),
                                 "note": data.get("note")}
+        elif name == "rug_flags":
+            ctx["rug_flags"] = data
     # "live" means the WHOLE trader loop answered (all three capabilities);
     # a chain with fewer wired sources can only ever be "partial" — honest
     if live == len(chains_map.CAPABILITY_NAMES):

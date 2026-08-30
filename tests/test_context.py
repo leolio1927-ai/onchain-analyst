@@ -75,7 +75,7 @@ def test_live_enrichment_per_chain(client, db_path, monkeypatch):
         ctx = rows[c]["context"]
         assert ctx["deployer"] is None and ctx["top10_share"] is None
         assert ctx["sell_test"] is None and ctx["lineage"] is None
-        assert len(ctx["notes"]) == 4            # a sentence per capability
+        assert len(ctx["notes"]) == 5            # a sentence per capability
         assert ctx["data_mode"] == "unwired"
         assert rows[c]["data_mode"] == "live"    # verdict half fully live
 
