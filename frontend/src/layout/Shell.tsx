@@ -20,12 +20,12 @@ class PageBoundary extends Component<{ children: ReactNode }, { err: Error | nul
   }
 }
 
-const NAV: { id: string; icon: string; label: string; pill?: 'NEW' | number; soon?: boolean }[] = [
+const NAV: { id: string; icon: string; label: string; pill?: 'NEW' | 'LIVE' | number; soon?: boolean }[] = [
   { id: 'dashboard', icon: '▦', label: 'Dashboard' },
   { id: 'swap', icon: '⇅', label: 'Swap', pill: 'NEW' },
   { id: 'scanner', icon: '⌕', label: 'Token Scanner' },
-  { id: 'rugcheck', icon: '⛨', label: 'Rug Check', soon: true },
-  { id: 'whale', icon: '◍', label: 'Whale Tracker', soon: true },
+  { id: 'rugcheck', icon: '⛨', label: 'Rug Check', pill: 'LIVE' },
+  { id: 'whale', icon: '◍', label: 'Whale Tracker', pill: 'LIVE' },
   { id: 'cluster', icon: '❋', label: 'Cluster Analysis', soon: true },
   { id: 'ai', icon: '✦', label: 'AI Analyst', soon: true },
   { id: 'portfolio', icon: '▤', label: 'Portfolio Watch', soon: true },
@@ -103,6 +103,7 @@ export function Shell({ pages }: { pages: Record<string, ReactNode> }) {
               <span className="ico">{n.icon}</span>
               <span className="txt">{n.label}</span>
               {n.pill === 'NEW' && <span className="pill pill-new">NEW</span>}
+              {n.pill === 'LIVE' && <span className="pill pill-live">LIVE</span>}
               {typeof n.pill === 'number' && <span className="pill pill-n">{n.pill}</span>}
               {n.soon && (
                 <span className="pill" style={{ opacity: 0.55, border: '1px solid var(--border)' }}>

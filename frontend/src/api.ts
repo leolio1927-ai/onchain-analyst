@@ -61,7 +61,7 @@ export interface ScanResult {
   launch_venue: string | null
   data_mode: 'live' | 'partial'
   schema_version: string
-  context: Record<string, unknown>
+  context: ScanContext
   ts: string
 }
 
@@ -78,6 +78,92 @@ export interface WhaleBalance {
   address: string
   sol: number
   tokens: { mint: string | null; amount: number }[]
+}
+
+/* Rug flags ride the scan context block (BE-F5a-R). Every value is verbatim
+   from the source: sol = helius DAS (update_authorities + mutable), bnb/base
+   = GoPlus security fields as their own strings; absent fields stay null. */
+export interface RugFlags {
+  update_authorities: string[]
+  mutable: boolean | null
+  is_honeypot: string | number | null
+  buy_tax: string | number | null
+  sell_tax: string | number | null
+  mintable: string | number | null
+  freezable: string | number | null
+  holder_count: string | number | null
+}
+
+export interface ScanContext {
+  deployer: string | null
+  deployer_kind: string | null
+  deployer_source: string | null
+  top10_share: number | null
+  sell_test: { routable: boolean | null; checked_via: string | null; note: string | null } | null
+  rug_flags: RugFlags | null
+  notes: string[]
+  data_mode: string
+  sources: string[]
+  data_sources?: string[]
+  ts: string
+}
+
+/* BE-F4 chain capability catalog — the single source of truth for which
+   chain can do what. Parked chains (avax) never appear here. */
+export interface ChainCatalogRow {
+  chain: string
+  name: string
+  symbol: string | null
+  scan: boolean
+  clustering: boolean
+  socials: boolean
+  live_feed: boolean
+  venues: string[]
+}
+
+export interface ChainCapability {
+  source: string | null
+  reason?: string
+}
+
+/* BE-ALL-LIVE F3 whale tracker. data_mode: "live" = helius answered (an
+   empty transfers list is a quiet window, still live); "unwired" = the chain
+   has no $0 trade feed and data_sources carries the probe reason verbatim. */
+export interface WhaleTransfer {
+  wallet: string
+  amount: number
+  direction: string
+  ts: string | number | null
+  tx: string | null
+  usd: number | null
+}
+
+export interface WhaleNetflow {
+  wallet: string
+  net_amount: number
+  direction: string
+  net_usd: number | null
+}
+
+export interface WhalesResult {
+  chain: string
+  token: string
+  price_usd: number | null
+  threshold_usd: number
+  window_txs: number
+  transfers: WhaleTransfer[]
+  netflow: WhaleNetflow[]
+  data_mode: string
+  data_sources: string[]
+  sources: string[]
+  ts: string
+}
+
+export interface ChainsCatalog {
+  chains: ChainCatalogRow[]
+  capabilities: Record<string, Record<string, ChainCapability>>
+  data_mode: string
+  ts: string
 }
 
 export class ApiError extends Error {
@@ -110,11 +196,32 @@ async function post<T>(url: string, body: unknown): Promise<T> {
   return res.json() as Promise<T>
 }
 
+async function get<T>(url: string): Promise<T> {
+  let res: Response
+  try {
+    res = await fetch(url)
+  } catch {
+    throw new ApiError('Network error — is the API server running?', 0)
+  }
+  if (!res.ok) {
+    let detail = `HTTP ${res.status}`
+    try {
+      const j = await res.json()
+      if (typeof j.detail === 'string') detail = j.detail
+    } catch { /* keep HTTP code */ }
+    throw new ApiError(detail, res.status)
+  }
+  return res.json() as Promise<T>
+}
+
 export const api = {
   scan: (chain: Chain, address: string, refresh = false) =>
     post<ScanResult>('/api/scan', { chain, address, refresh }),
   explain: (chain: Chain, address: string, provider: string) =>
     post<ExplainResult>('/api/explain', { chain, address, provider }),
   whale: (address: string) => post<WhaleBalance>('/api/whale', { address }),
+  whales: (chain: string, token: string, thresholdUsd = 1000, limit = 25) =>
+    get<WhalesResult>(`/api/v1/whales/${encodeURIComponent(chain)}/${encodeURIComponent(token)}?threshold_usd=${thresholdUsd}&limit=${limit}`),
   health: () => fetch('/api/health').then((r) => r.json()),
+  chains: () => fetch('/api/v1/chains').then((r) => r.json()) as Promise<ChainsCatalog>,
 }

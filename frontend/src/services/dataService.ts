@@ -35,20 +35,6 @@ export interface LiveToken {
   dataSources: string[]
 }
 
-export interface WhalesPayload {
-  chain: string
-  token: string
-  price_usd: number | null
-  threshold_usd: number
-  window_txs: number
-  transfers: { wallet: string; amount: number; direction: string;
-               ts: string | number | null; tx: string | null; usd: number | null }[]
-  netflow: { wallet: string; net_amount: number; direction: string;
-             net_usd: number | null }[]
-  data_mode: string
-  data_sources: string[]
-}
-
 const num = (v: string | number | null | undefined): number | null => {
   if (typeof v === 'number') return v
   if (typeof v === 'string' && v !== '' && !isNaN(parseFloat(v))) return parseFloat(v)
@@ -123,18 +109,5 @@ export const dataService = {
   async getScan(chain: 'sol' | 'bnb' | 'base' | 'hood', address: string): Promise<LiveToken> {
     const r = await api.scan(chain, address)
     return toLiveToken(r)
-  },
-
-  /* Whale tracker (F3): sol = helius enhanced txs; other chains answer with
-     data_sources reason sentences — surfaced as-is, never masked. */
-  async getWhales(chain: string, token: string,
-                  thresholdUsd = 1000): Promise<WhalesPayload | null> {
-    try {
-      const r = await fetch(`/api/v1/whales/${chain}/${token}?threshold_usd=${thresholdUsd}`)
-      if (!r.ok) return null
-      return (await r.json()) as WhalesPayload
-    } catch {
-      return null
-    }
   },
 }

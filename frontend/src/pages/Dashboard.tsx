@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { dataService } from '../services/dataService'
-import type { LiveToken, WhalesPayload } from '../services/dataService'
+import type { LiveToken } from '../services/dataService'
 import { api, ApiError } from '../api'
+import type { ChainsCatalog, WhalesResult } from '../api'
 import { ScoreDial } from '../components/charts'
 import { Badge, Card, EmptyState, Skeleton } from '../components/ui'
 
@@ -78,17 +79,29 @@ export default function Dashboard() {
   const [query, setQuery] = useState('')
   const [chainSel, setChainSel] = useState('ALL CHAINS')
   const [analyzing, setAnalyzing] = useState(false)
-  const [whales, setWhales] = useState<WhalesPayload | null>(null)
+  const [whales, setWhales] = useState<WhalesResult | null>(null)
+  const [whalesErr, setWhalesErr] = useState<string | null>(null)
   const [health, setHealth] = useState<{ status: string; chains: string[] } | null>(null)
+  const [catalog, setCatalog] = useState<ChainsCatalog | null>(null)
 
   useEffect(() => {
     let on = true
     api.health().then((h) => { if (on) setHealth(h) }).catch(() => { if (on) setHealth(null) })
-    dataService.getWhales('sol', BONK, 10_000)
-      .then((w) => { if (on) setWhales(w) })
-      .catch(() => { if (on) setWhales(null) })
+    api.chains().then((c) => { if (on) setCatalog(c) }).catch(() => {})
     return () => { on = false }
   }, [])
+
+  // chain-aware whale read: follows the scanned token, defaults to sol/BONK
+  useEffect(() => {
+    const chain = token?.chain || 'sol'
+    const addr = token?.address || BONK
+    let on = true
+    setWhales(null); setWhalesErr(null)
+    api.whales(chain, addr, 10_000)
+      .then((w) => { if (on) setWhales(w) })
+      .catch((e) => { if (on) setWhalesErr(e instanceof ApiError ? e.message : 'whale route did not answer') })
+    return () => { on = false }
+  }, [token?.chain, token?.address])
 
   const analyze = () => {
     const address = query.trim()
@@ -256,23 +269,24 @@ export default function Dashboard() {
                         <span className="v">{s.evidence || '—'}</span>
                       </div>
                     ))}
-                    {token.clusteringEvidence && (
-                      <div className="rug-row">
-                        <span className="k">Wallet coordination</span>
-                        <span className={`v ${token.clusteringComputed ? 'ok-warn' : 'ok-warn'}`}>
-                          {token.clusteringComputed === false ? '⚠ not scored — ' : ''}{token.clusteringEvidence}
-                        </span>
-                      </div>
-                    )}
                   </div>
                 )}
               </Card>
 
-              <Card title="WHALE ACTIVITY (SOL · LIVE FEED)" right={<Badge color="green">LIVE</Badge>}>
-                {whales == null ? (
-                  <EmptyState title="Whale feed unavailable" hint="the /api/v1/whales route answers with its reason — nothing is invented" />
+              <Card
+                title={`WHALE ACTIVITY — ${(token?.symbol ?? 'BONK')} · ${(token?.chain ?? 'sol').toUpperCase()}`}
+                right={whalesErr ? <Badge color="red">ERR</Badge>
+                  : whales?.data_mode === 'live' ? <Badge color="green">LIVE</Badge>
+                  : whales?.data_mode === 'unwired' ? <Badge color="muted">DECLARED NULL</Badge>
+                  : <Badge color="muted">…</Badge>}>
+                {whalesErr ? (
+                  <EmptyState title="Whale route did not answer" hint={whalesErr} />
+                ) : whales == null ? (
+                  <Skeleton h={160} />
+                ) : whales.data_mode === 'unwired' ? (
+                  <EmptyState title="No $0 whale feed on this chain" hint={whales.data_sources.join(' · ') || 'declared null in the capability catalog'} />
                 ) : whales.transfers.length === 0 ? (
-                  <EmptyState title="No transfers over threshold in window" hint={`window: ${whales.window_txs} txs · threshold $${whales.threshold_usd}`} />
+                  <EmptyState title={`0 transfers ≥ $${whales.threshold_usd} in last ${whales.window_txs} txs window`} hint={whales.data_sources.join(' · ')} />
                 ) : (
                   <div className="whale-feed">
                     {whales.transfers.slice(0, 7).map((t, i) => (
@@ -302,7 +316,7 @@ export default function Dashboard() {
             <Card title={<span>TERMINAL STATUS <span style={{ color: 'var(--green)', fontWeight: 400, letterSpacing: 0, textTransform: 'none' }}>
               ● {health ? health.status.toUpperCase() : '—'}</span></span>}>
               <div className="sys-row"><span className="n"><i />Chains served</span>
-                <span className="s">{health ? health.chains.length : '—'} ({health ? health.chains.join(', ') : '—'})</span></div>
+                <span className="s">{catalog ? `${catalog.chains.length} (${catalog.chains.map((c) => c.chain).join(', ')})` : '—'}</span></div>
               <div className="sys-row"><span className="n"><i />Whale feed</span><span className="s">sol live · others declared null</span></div>
               <div className="sys-row"><span className="n"><i />Deployer (EVM)</span><span className="s">blockscout/goplus, on-chain gated</span></div>
               <div className="sys-foot">
