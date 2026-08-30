@@ -30,10 +30,17 @@ import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 HISTORY_LIMIT_MAX = 500
 
-_TABLES = ("price_points", "trades", "scan_snapshots", "ingest_run")
+_TABLES = ("price_points", "trades", "scan_snapshots", "ingest_run",
+           "tokens", "wallet_labels")
+
+# The honest kind set for wallet labels — enforced HERE, in code, never in SQL
+# (an open SQL CHECK would silently accept tomorrow's typo as a new category).
+# "unlabeled" is deliberately absent: the absence of a row IS the unlabeled
+# state — silence, never a row that guesses.
+LABEL_KINDS = frozenset({"deployer", "sniper", "bot", "cex", "team", "fund", "kols"})
 
 _DDL = """
 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -88,6 +95,41 @@ CREATE TABLE IF NOT EXISTS scan_snapshots (
 CREATE INDEX IF NOT EXISTS idx_scan_snapshots_ident ON scan_snapshots (chain, ident, ts);
 """
 
+# v2 (BE-F3) — entity layer: token registry + wallet labels
+_DDL_V2 = """
+CREATE TABLE IF NOT EXISTS tokens (
+    chain TEXT NOT NULL,
+    ident TEXT NOT NULL,
+    symbol TEXT,
+    name TEXT,
+    decimals INTEGER,
+    logo_ref TEXT,
+    tags_json TEXT NOT NULL DEFAULT '[]',
+    first_seen TEXT NOT NULL,
+    last_seen TEXT NOT NULL,
+    data_mode TEXT NOT NULL,
+    source TEXT NOT NULL,
+    ingested_at TEXT NOT NULL,
+    PRIMARY KEY (chain, ident)
+);
+CREATE INDEX IF NOT EXISTS idx_tokens_symbol ON tokens (symbol);
+CREATE TABLE IF NOT EXISTS wallet_labels (
+    chain TEXT NOT NULL,
+    address TEXT NOT NULL,
+    label TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    evidence TEXT,
+    verified INTEGER NOT NULL DEFAULT 0,
+    data_mode TEXT NOT NULL,
+    source TEXT NOT NULL,
+    ingested_at TEXT NOT NULL,
+    PRIMARY KEY (chain, address, label, source)
+);
+"""
+
+# ordered migrations; each applied at most once, recorded in schema_migrations
+_MIGRATIONS: tuple[tuple[int, str], ...] = ((1, _DDL), (2, _DDL_V2))
+
 
 def resolve_path() -> Path | None:
     """ALPHA_DB_PATH → an absolute-ready Path (parent mkdir'd); unset → None
@@ -109,11 +151,18 @@ def connect(path: Path | str) -> sqlite3.Connection:
 
 
 def init_schema(conn: sqlite3.Connection) -> None:
-    """Idempotent DDL + the schema_migrations row. Safe on every open."""
+    """Idempotent migrations: v1 base DDL always runs (CREATE IF NOT EXISTS),
+    then every migration not yet recorded in schema_migrations applies once.
+    Safe on every open, fresh or old database alike."""
     conn.executescript(_DDL)
-    conn.execute(
-        "INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)",
-        (SCHEMA_VERSION, datetime.now(UTC).isoformat()))
+    applied = {r[0] for r in conn.execute("SELECT version FROM schema_migrations")}
+    for version, ddl in _MIGRATIONS:
+        if version in applied:
+            continue
+        conn.executescript(ddl)
+        conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, ?)",
+            (version, datetime.now(UTC).isoformat()))
     conn.commit()
 
 
@@ -145,6 +194,117 @@ def write_scan_snapshot(path: Path, chain: str, ident: str, scan: dict) -> int:
              ",".join(scan.get("sources") or []), utc_now_iso()))
         conn.commit()
         return cur.lastrowid
+    finally:
+        conn.close()
+
+
+# ── entity layer (BE-F3: tokens + wallet labels) ────────────────────────
+
+def assert_label_kind(kind: str) -> None:
+    """The honest kind set, enforced in code. Unknown kinds (including
+    'unlabeled' — the absence of a row is that state) are refused, never
+    coerced into something adjacent."""
+    if kind not in LABEL_KINDS:
+        raise ValueError(
+            f"unknown label kind {kind!r} — pick {'|'.join(sorted(LABEL_KINDS))}"
+            " (unlabeled = no row, never a kind)")
+
+
+def upsert_token(conn: sqlite3.Connection, chain: str, ident: str, *,
+                 symbol: str | None, name: str | None, decimals: int | None,
+                 logo_ref: str | None, tags: list[str], data_mode: str,
+                 source: str, now_iso: str, first_seen: str | None = None,
+                 last_seen: str | None = None) -> None:
+    """Field-wise last-non-null-wins UPSERT (conflict rules):
+    - a NULL/absent field in the new row NEVER erases a richer stored value;
+    - tags: a non-empty list replaces, an empty/absent list keeps the old;
+    - first_seen keeps MIN(old, new), last_seen takes MAX(old, new) —
+      a reload can move a token forward, never backward or blank.
+    first_seen/last_seen args carry the source's own observation window;
+    they default to the ingest clock when the source doesn't know one."""
+    first = first_seen or now_iso
+    last = last_seen or now_iso
+    conn.execute(
+        """
+        INSERT INTO tokens (chain, ident, symbol, name, decimals, logo_ref,
+                            tags_json, first_seen, last_seen, data_mode,
+                            source, ingested_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (chain, ident) DO UPDATE SET
+            symbol = COALESCE(excluded.symbol, tokens.symbol),
+            name = COALESCE(excluded.name, tokens.name),
+            decimals = COALESCE(excluded.decimals, tokens.decimals),
+            logo_ref = COALESCE(excluded.logo_ref, tokens.logo_ref),
+            tags_json = CASE WHEN excluded.tags_json != '[]'
+                             THEN excluded.tags_json ELSE tokens.tags_json END,
+            first_seen = MIN(tokens.first_seen, excluded.first_seen),
+            last_seen = MAX(tokens.last_seen, excluded.last_seen),
+            data_mode = excluded.data_mode,
+            source = excluded.source,
+            ingested_at = excluded.ingested_at
+        """,
+        (chain, ident, symbol, name, decimals, logo_ref,
+         json.dumps(tags, ensure_ascii=False, separators=(",", ":")),
+         first, last, data_mode, source, now_iso))
+
+
+def upsert_label(conn: sqlite3.Connection, chain: str, address: str, *,
+                 label: str, kind: str, evidence: str | None, verified: bool,
+                 data_mode: str, source: str, now_iso: str) -> None:
+    """Label UPSERT on (chain, address, label, source). `verified` means
+    OPERATOR-checked — distinct from data provenance. Only the fixture
+    loaders call this today and they pass verified=False regardless of what
+    the payload claims; the operator writer does not exist yet by design."""
+    assert_label_kind(kind)
+    conn.execute(
+        """
+        INSERT INTO wallet_labels (chain, address, label, kind, evidence,
+                                   verified, data_mode, source, ingested_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (chain, address, label, source) DO UPDATE SET
+            kind = excluded.kind,
+            evidence = COALESCE(excluded.evidence, wallet_labels.evidence),
+            verified = excluded.verified,
+            data_mode = excluded.data_mode,
+            ingested_at = excluded.ingested_at
+        """,
+        (chain, address, label, kind, evidence, int(bool(verified)),
+         data_mode, source, now_iso))
+
+
+def get_token(path: Path, chain: str, ident: str) -> dict | None:
+    """One token row → TokenMeta-shaped dict, or None when unknown
+    (silence — the registry has no opinion on tokens it never saw)."""
+    conn = connect(path)
+    try:
+        r = conn.execute("SELECT * FROM tokens WHERE chain = ? AND ident = ?",
+                         (chain, ident)).fetchone()
+        if r is None:
+            return None
+        return {"chain": r["chain"], "address": r["ident"], "symbol": r["symbol"],
+                "name": r["name"], "decimals": r["decimals"], "logo_ref": r["logo_ref"],
+                "tags": json.loads(r["tags_json"] or "[]"),
+                "first_seen": r["first_seen"], "last_seen": r["last_seen"],
+                "data_mode": r["data_mode"], "schema_version": "1.0",
+                "sources": [r["source"]], "ts": utc_now_iso()}
+    finally:
+        conn.close()
+
+
+def get_wallet_labels(path: Path, address: str) -> dict:
+    """All labels for an address across chains — rows carry their own chain.
+    No rows = honest empty list (an unlabeled wallet is a fact, not an error)."""
+    conn = connect(path)
+    try:
+        rows = conn.execute(
+            "SELECT * FROM wallet_labels WHERE address = ? ORDER BY chain, label",
+            (address,)).fetchall()
+        labels = [{"chain": r["chain"], "address": r["address"], "label": r["label"],
+                   "kind": r["kind"], "evidence": r["evidence"],
+                   "verified": bool(r["verified"])} for r in rows]
+        return {"address": address, "labels": labels,
+                "data_mode": _page_mode(rows), "schema_version": "1.0",
+                "sources": sorted({r["source"] for r in rows}), "ts": utc_now_iso()}
     finally:
         conn.close()
 
