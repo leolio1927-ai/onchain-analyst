@@ -66,11 +66,12 @@ def _client() -> TestClient:
 
 def test_golden_scan_additive_no_renames(client, monkeypatch):
     stubs.install_scan(monkeypatch)
+    stubs.install_enrichment(monkeypatch, mode="nokey")  # sol: sell_test canned-live
     r = client.post("/api/scan", json={"chain": "sol", "address": stubs.address()})
     assert r.status_code == 200
     j = r.json()
     assert _LEGACY_SCAN_KEYS <= set(j)                      # nothing removed
-    assert set(j) == _LEGACY_SCAN_KEYS | {"data_mode", "schema_version"}  # only footer added
+    assert set(j) == _LEGACY_SCAN_KEYS | {"data_mode", "schema_version", "context"}
     assert set(j["pair"]) == _LEGACY_PAIR_KEYS == set(schemas.Pair.model_fields)
     assert set(j["assessment"]) == set(schemas.RugAssessment.model_fields)
     assert set(j["clustering"]) == set(schemas.ClusteringBlock.model_fields)
@@ -80,8 +81,12 @@ def test_golden_scan_additive_no_renames(client, monkeypatch):
     assert j["pair"]["priceUsd"] == "0.001"
     assert isinstance(j["pair"]["fdv"], int)
     # footer: live data from two contributing upstreams, UTC stamp, pinned version
-    assert j["data_mode"] == "live" and j["schema_version"] == "1.0"
+    # BE-F5a-R: the verdict half is fully live, the context block is
+    # enriched-but-partial (keyless sell_test live, keyed providers absent)
+    # → the envelope honestly says "partial"; the contract bumps to 1.1
+    assert j["data_mode"] == "partial" and j["schema_version"] == "1.1"
     assert set(j["sources"]) == {"dexscreener", "geckoterminal"}
+    assert set(j["context"]) == set(schemas.TokenContext.model_fields)
     assert datetime.fromisoformat(j["ts"]).utcoffset() == timedelta(0)
 
 
@@ -113,8 +118,9 @@ def test_clustering_degrade_counts_are_none_not_zero(client, monkeypatch):
     assert cl["wallets"] is None and cl["buys"] is None    # a failed fetch observed nothing
     assert 0 not in (cl["wallets"], cl["buys"])            # 0 must NOT appear
     assert "429" in cl["evidence"] and "unavailable" in cl["evidence"]
-    # the pair half is still real data — the payload as a whole stays live
-    assert j["data_mode"] == "live"
+    # the pair half is still real data, and the keyless sell_test context
+    # block is live (canned) → the envelope honestly reads "partial"
+    assert j["data_mode"] == "partial"
     assert j["pair"]["baseToken"]["symbol"] == "TEST"
 
 
