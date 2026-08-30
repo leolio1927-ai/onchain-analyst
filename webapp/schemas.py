@@ -245,13 +245,23 @@ class SnapshotFrame(Envelope):
 # ── planned surfaces (no engine yet → data_mode "unwired") ───────────────
 
 class TokenMeta(Envelope):
+    """Token registry entry (BE-F3) + the planned live token-page fields.
+    Registry-backed responses carry data_mode='fixture' today; fields the
+    registry does not know (socials, launchpad, …) stay None — absent stays
+    absent until a real upstream fills them."""
+
     data_mode: DataMode = "unwired"
 
     chain: str | None = None
     address: str | None = None
     symbol: str | None = None
     name: str | None = None
+    decimals: int | None = None
     logo: str | None = None
+    logo_ref: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    first_seen: str | None = None
+    last_seen: str | None = None
     socials: SocialLinks | None = None
     launchpad: str | None = None
     dex_id: str | None = None
@@ -358,6 +368,32 @@ class VersionResponse(BaseModel):
     fastapi: str | None = None
     uptime_s: int = 0
     db: DbInfo = Field(default_factory=DbInfo)
+
+
+# ── entity surface (BE-F3: wallet labels) ────────────────────────────────
+
+class WalletLabel(BaseModel):
+    """One labeled-wallet claim. `label`+`kind`+`evidence` are the claim;
+    `verified` means OPERATOR-checked and is distinct from data provenance —
+    fixture-loaded rows are always verified=false. No row is the honest
+    'unlabeled' state; there is no unlabeled kind."""
+
+    chain: str | None = None
+    address: str | None = None
+    label: str | None = None
+    kind: str | None = None
+    evidence: str | None = None
+    verified: bool = False
+
+
+class WalletLabelsResponse(Envelope):
+    """All claims for one wallet across chains. An unlabeled wallet is an
+    honest empty list — never synthesized, never a guess, never an error."""
+
+    data_mode: DataMode = "unwired"
+
+    address: str | None = None
+    labels: list[WalletLabel] = Field(default_factory=list)
 
 
 # ── ai surface ───────────────────────────────────────────────────────────
