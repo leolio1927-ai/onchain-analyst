@@ -97,8 +97,10 @@ def _rpc(chain: str, method: str, params: list) -> dict:
                     ".", "", 1).isdigit() else 2.0)
                 continue
             raise _AlchemyError(f"http_{e.code}") from e
-        except (urllib.error.URLError, TimeoutError, OSError) as e:
-            raise _AlchemyError(f"transport:{str(e)[:60]}") from e
+        except TimeoutError as e:
+            raise _AlchemyError("timeout") from e
+        except (urllib.error.URLError, OSError) as e:
+            raise _AlchemyError(f"unreachable:{str(e)[:60]}") from e
         if "error" in out:
             raise _AlchemyError(f"rpc_{out['error'].get('code')}")
         return out.get("result") or {}
