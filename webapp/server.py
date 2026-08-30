@@ -31,8 +31,9 @@ from pydantic import BaseModel
 import ai_analyst
 from access import token_gate
 from heuristics import clustering, rug_check
-from providers import dexscreener, discovery, geckoterminal, helius, live
+from providers import chains_map, dexscreener, discovery, geckoterminal, helius, live
 from webapp import chains, db, schemas
+from webapp import lineage as lineage_mod
 
 CACHE_TTL_S = 30.0
 SCAN_CACHE_MAX = 512  # hard cap — every /api/scan key would otherwise live forever (memory DoS)
@@ -218,22 +219,28 @@ async def _get_scan(chain_key: str, address: str, refresh: bool = False) -> dict
     if result is None:
         raise HTTPException(404, f"no pair found for {address} on {chain_key} — check address/chain")
     _cache_put(key, now, result)
-    _persist_scan(chain_key, address, result)
     return result
 
 
-def _persist_scan(chain_key: str, address: str, result: dict) -> None:
-    """BE-F2 write-through: append a scan_snapshot when persistence is on
-    (ALPHA_DB_PATH). Best-effort by design — a storage hiccup must never
-    break a scan; the miss is visible as a missing row, never wrong data."""
+def _persist_scan(chain_key: str, address: str, result: dict,
+                  ctx: dict | None = None) -> None:
+    """BE-F2/F5a write-through: append a scan_snapshot when persistence is
+    on (ALPHA_DB_PATH), with the deployer provenance columns riding the SAME
+    INSERT (lineage can see its own scan the moment it is served).
+    Best-effort by design — a storage hiccup must never fail a scan; the
+    miss is visible as a missing row, never wrong data."""
     import sqlite3
     path = db.resolve_path()
     if path is None:
         return
     pair = result.get("pair") or {}
     ident = (pair.get("pairAddress") or address).strip().lower()
+    ctx = ctx or {}
     try:
-        db.write_scan_snapshot(path, chain_key, ident, result)
+        db.write_scan_snapshot(path, chain_key, ident, result,
+                               deployer=ctx.get("deployer"),
+                               deployer_kind=ctx.get("deployer_kind"),
+                               deployer_source=ctx.get("deployer_source"))
     except sqlite3.Error:
         pass
 
@@ -322,14 +329,71 @@ async def metrics() -> dict:
             "chains": len(chains.CHAIN_CATALOG)}
 
 
+def _enrich_scan(chain_key: str, ident: str) -> dict:
+    """BE-F5a-R trader-loop context: best-effort per wired capability, one
+    try/except PER provider fn — a single failure never degrades the
+    existing verdict, it becomes an honest None + reason note. Context is
+    built per request (never cached): lineage must be current, and a cached
+    context would grow stale silently."""
+    ctx: dict = {"deployer": None, "deployer_kind": None, "deployer_source": None,
+                 "lineage": None, "top10_share": None, "sell_test": None,
+                 "notes": [], "data_mode": "unwired", "schema_version": "1.0",
+                 "sources": [], "ts": schemas._utc_now_iso()}
+    caps = chains_map.capabilities_for(chain_key)
+    wired = [c for c in chains_map.CAPABILITY_NAMES if caps[c]["source"]]
+    live = 0
+    for name in chains_map.CAPABILITY_NAMES:
+        cap = caps[name]
+        if cap["source"] is None:
+            ctx["notes"].append(f"{chain_key} {name}: {cap['reason']}")
+            continue
+        try:
+            data, note = cap["fn"](chain_key, ident)
+        except Exception as e:  # noqa: BLE001 — a provider failure is a note, not a 500
+            data, note = None, f"{cap['source']}:failed ({str(e)[:40]})"
+        if note:
+            ctx["notes"].append(f"{chain_key} {name}: {note}")
+        if data is None:
+            continue
+        live += 1
+        ctx["sources"].append(cap["source"])
+        if name == "deployer":
+            ctx["deployer"] = data.get("deployer")
+            ctx["deployer_kind"] = data.get("deployer_kind")
+            ctx["deployer_source"] = cap["source"]
+            db_path = db.resolve_path()
+            if db_path is None:
+                ctx["notes"].append(f"{chain_key} lineage: ALPHA_DB_PATH not "
+                                    f"configured on this deployment")
+            else:
+                ctx["lineage"] = lineage_mod.resolve(db_path, ctx["deployer"])
+        elif name == "holders":
+            ctx["top10_share"] = data.get("top10_share")
+        elif name == "sell_test":
+            ctx["sell_test"] = {"routable": data.get("routable"),
+                                "checked_via": data.get("checked_via"),
+                                "note": data.get("note")}
+    if wired and live == len(wired):
+        ctx["data_mode"] = "live"
+    elif live:
+        ctx["data_mode"] = "partial"
+    return ctx
+
+
 @app.post("/api/v1/scan", response_model=schemas.ScanResponse, tags=["market"])
 @app.post("/api/scan", response_model=schemas.ScanResponse, tags=["market"], deprecated=True)
 async def api_scan(body: ScanBody) -> dict:
-    """Full evidence scan: pair view + weighted risk assessment + clustering.
+    """Full evidence scan: pair view + weighted risk assessment + clustering,
+    plus the best-effort trader-loop `context` block (BE-F5a-R — context
+    renders beside the verdict; the score formula never reads it).
     `refresh: true` bypasses the 30s TTL cache and forces a fresh fetch."""
     _validate(body.chain, body.address)
     out = await _get_scan(body.chain, body.address, body.refresh)
     _STATS["scans"] += 1  # real usage counter — cache hits count as served scans
+    ctx = await asyncio.to_thread(_enrich_scan, body.chain, body.address.strip().lower())
+    out["context"] = ctx
+    out["data_mode"] = "partial" if ctx["data_mode"] in ("live", "partial") else "live"
+    await asyncio.to_thread(_persist_scan, body.chain, body.address, out, ctx)
     return out
 
 
@@ -533,9 +597,10 @@ async def api_chains() -> dict:
         "chains": [{"chain": cid, **info}
                    for cid, info in chains.CHAIN_CATALOG.items()],
         "note": "reflects verified provider support",
+        "capabilities": chains_map.capabilities_view(),
         "data_mode": "static",
         "schema_version": "1.0",
-        "sources": ["chains.py"],
+        "sources": ["chains.py", "chains_map.py"],
         "ts": schemas._utc_now_iso(),
     }
 
