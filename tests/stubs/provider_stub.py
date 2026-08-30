@@ -12,6 +12,8 @@ from __future__ import annotations
 import urllib.error
 from datetime import UTC, datetime, timedelta
 
+from providers import alchemy, helius, jupiter
+
 _ADDRESS = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"
 
 
@@ -94,3 +96,103 @@ def install_live(monkeypatch) -> None:
     live._socials_cache.clear()
     monkeypatch.setattr(gt, "_get", lambda path: gt_feed_raw())
     monkeypatch.setattr(live, "_ds_get", lambda path: [])
+
+
+# ── BE-F5a-R: trader-loop enrichment stubs (helius / alchemy / jupiter) ──
+# Modes: "live" (canned payloads through the real parse paths),
+# "nokey" (env keys removed → the honest not_configured notes),
+# "timeout" (transport raises → the honest timeout notes). No network.
+
+def _helius_live(monkeypatch) -> None:
+    monkeypatch.setenv("HELIUS_API_KEY", "stub-helius-key")
+    helius._cache.clear()
+
+    def canned_call(url, body=None):
+        if body and body.get("method") == "getTokenLargestAccounts":
+            return {"result": {"value": [
+                {"uiAmount": 900.0}, {"uiAmount": 50.0}]}}
+        if body and body.get("method") == "getTokenSupply":
+            return {"result": {"value": {"uiAmount": 1000.0}}}
+        return [{"type": "CREATE", "signature": "SIG1", "feePayer": "DEP1",
+                 "timestamp": 1_700_000_000}]
+
+    monkeypatch.setattr(helius, "_call", canned_call)
+
+
+def _alchemy_live(monkeypatch) -> None:
+    monkeypatch.setenv("ALCHEMY_API_KEY", "stub-alchemy-key")
+    alchemy._cache.clear()
+
+    def canned_rpc(chain, method, params):
+        if method == "alchemy_getAssetTransfers":
+            return {"transfers": [{"fromAddress": "DEPEVM",
+                                   "metadata": {"blockTimestamp": "2026-08-01T00:00:00Z"}}]}
+        if method == "eth_getCode":
+            return "0x"      # deployer is an EOA
+        raise AssertionError(f"unexpected rpc {method}")
+
+    monkeypatch.setattr(alchemy, "_rpc", canned_rpc)
+
+
+def _jupiter_live(monkeypatch, *, routable: bool = True) -> None:
+    jupiter._cache.clear()
+    if routable:
+        monkeypatch.setattr(jupiter, "_get",
+                            lambda path: {"outAmount": "282271"})
+    else:
+        def no_route(path):
+            raise jupiter._JupiterError("no-route:Could not find any route")
+        monkeypatch.setattr(jupiter, "_get", no_route)
+
+
+def install_enrichment(monkeypatch, *, mode: str = "live",
+                       jupiter_mode: str | None = None) -> None:
+    """Patch all three provider transports at once.
+
+    mode:        "live" | "nokey" | "timeout"          (helius + alchemy)
+    jupiter_mode: None → follows `mode` with "live" meaning routable;
+                  or "routable" | "unroutable" | "timeout" | "nokey".
+    """
+    from providers import alchemy, helius, jupiter
+
+    helius._cache.clear()
+    alchemy._cache.clear()
+    jupiter._cache.clear()
+
+    jmode = jupiter_mode or {"live": "routable", "nokey": "routable",
+                             "timeout": "timeout"}[mode]
+    # jupiter is keyless: "nokey" does not exist for it — the canned
+    # routable path keeps the suite network-free in every mode
+
+    if mode == "nokey":
+        monkeypatch.delenv("HELIUS_API_KEY", raising=False)
+        monkeypatch.delenv("ALCHEMY_API_KEY", raising=False)
+    elif mode == "live":
+        _helius_live(monkeypatch)
+        _alchemy_live(monkeypatch)
+    elif mode == "timeout":
+        monkeypatch.setenv("HELIUS_API_KEY", "stub-helius-key")
+        monkeypatch.setenv("ALCHEMY_API_KEY", "stub-alchemy-key")
+
+        def timeout_call(url, body=None):
+            raise helius._HeliusError("transport:timed out")
+        monkeypatch.setattr(helius, "_call", timeout_call)
+
+        def timeout_rpc(chain, method, params):
+            raise alchemy._AlchemyError("transport:timed out")
+        monkeypatch.setattr(alchemy, "_rpc", timeout_rpc)
+    else:
+        raise ValueError(f"unknown enrichment mode {mode!r}")
+
+    if jmode == "nokey":
+        pass  # jupiter is keyless — nothing to remove
+    elif jmode == "routable":
+        _jupiter_live(monkeypatch, routable=True)
+    elif jmode == "unroutable":
+        _jupiter_live(monkeypatch, routable=False)
+    elif jmode == "timeout":
+        def timeout_get(path):
+            raise jupiter._JupiterError("transport:timed out")
+        monkeypatch.setattr(jupiter, "_get", timeout_get)
+    else:
+        raise ValueError(f"unknown jupiter mode {jmode!r}")
