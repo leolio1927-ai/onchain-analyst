@@ -24,11 +24,20 @@ avax (tested). Every FE chain count/card/pill/list now iterates the 5-chain line
 ## Module states (founder's six-word mandate honored)
 - Dashboard: **LIVE** — real /api/scan verdicts, real whale feed, real health; never-wired
   surfaces (candles, cluster graph, AI narrative, alerts) render declared-SOON empty states.
+  Whale panel is chain-aware (follows the scanned token; LIVE vs DECLARED NULL vs quiet-window
+  are three distinct states). "Chains served" is derived from the `/api/v1/chains` catalog
+  (parked avax can never leak). Evidence card no longer duplicates the clustering row.
 - Rug check: **LIVE** engine unchanged (weights/score bitwise guarded by tests) + rug_flags
-  context beside it.
-- Token Scanner: **LIVE** 5-chain (hype refused by catalog).
+  context beside it. **FE page LIVE (UI-1)**: chain-aware — sol renders Helius authorities +
+  mutable, bnb/base render GoPlus flags verbatim, hood/hype render the catalog reason.
+- Token Scanner: **LIVE** 5-chain (hype refused by catalog); scanner pill row now shows a
+  grayed "HYPE (SOON)" chip matching the dashboard.
 - Whale Tracker: **LIVE on sol**; bnb/base = null + probe reason (no $0 trade feed).
-- Swap: was already running (SIMULATED surface per TA-006 — unchanged).
+  **FE page LIVE (UI-2)**: live-empty ("0 transfers ≥ $X in last N txs window") and
+  declared-null (reason verbatim) are two distinct visual states; threshold + window shown.
+- Swap: **rail quote is LIVE (UI-3)** — a real DexScreener native-quoted pair rate
+  (e.g. 1 SOL = 35,727,045 BONK @ orca, probed 2026-08-30) with an external "open pair" link;
+  the terminal never executes. Chart/trades/hero remain the SIMULATED surface (TA-006).
 - Cluster / AI analyst / Alerts / Portfolio / Token Gate: **SOON — untouched**, exactly as mandated.
 
 ## Verification & honesty mechanics shipped this mandate
