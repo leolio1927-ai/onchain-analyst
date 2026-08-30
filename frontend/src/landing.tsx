@@ -367,10 +367,10 @@ function Nav() {
               <a key={href} className="boxed" href={href}>{l}</a>
             ))}
             <span className="lv-clock" title="UTC">◉ {clock} UTC</span>
-            <span className="lv-cta boxed off" aria-disabled="true"
+            <a className="lv-cta boxed" href="/terminal"
               title="The terminal ships in phases — watch the roadmap ledger">
               Terminal · In Build
-            </span>
+            </a>
           </div>
           <button className="lv-burger" aria-label="Menu" onClick={() => setOpen(!open)}><i /><i /><i /></button>
         </div>
@@ -434,10 +434,10 @@ function Hero() {
         <div className="lv-hero-cta">
           <Magnetic href="/live" className="lv-cta neon mag boxed">Open Live Board →</Magnetic>
           <a className="lv-cta ghost" href="/docs">Read the Docs →</a>
-          <span className="lv-cta boxed off" aria-disabled="true"
+          <a className="lv-cta boxed" href="/terminal"
             title="The terminal ships in phases — watch the roadmap ledger">
             Launch Terminal · In Build
-          </span>
+          </a>
         </div>
         <p style={{ margin: '10px 0 0', fontFamily: 'var(--fm)', fontSize: 9.5, letterSpacing: '.18em', color: 'var(--dim)' }}>
           THE TERMINAL SHIPS IN PHASES — EVERY SHIP IS DATED IN THE <a href="/roadmap" style={{ color: 'var(--g)' }}>PUBLIC LEDGER →</a>
@@ -1186,10 +1186,10 @@ function Final() {
           <Magnetic href="/live" className="lv-cta neon mag boxed">
             <span className="lv-final-cta">Open Live Board →</span>
           </Magnetic>
-          <span className="lv-cta boxed off" aria-disabled="true"
+          <a className="lv-cta boxed" href="/terminal"
             title="The terminal ships in phases — watch the roadmap ledger">
             Launch Terminal · In Build
-          </span>
+          </a>
         </div>
         <p style={{ marginTop: 30, fontSize: 12.5, fontFamily: 'var(--fm)', color: 'var(--dim)' }}>
           LIVE BOARD · <a href="/live" style={{ color: 'var(--g)' }}>/live</a> &nbsp;·&nbsp; DOCS · <a href="/docs" style={{ color: 'var(--g)' }}>/docs</a> &nbsp;·&nbsp; ROADMAP · <a href="/roadmap" style={{ color: 'var(--g)' }}>/roadmap</a>
