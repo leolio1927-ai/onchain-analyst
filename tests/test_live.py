@@ -372,6 +372,10 @@ def test_socials_mapped_from_dexscreener(monkeypatch):
 def test_socials_fail_soft_and_hype_skipped(monkeypatch):
     import urllib.error
 
+    # offline feed too — without this the GT fetch was a REAL network call
+    # (the test silently depended on upstream availability and burned quota)
+    _patch(monkeypatch)
+
     def boom(path):
         raise urllib.error.URLError("ds down")
 
