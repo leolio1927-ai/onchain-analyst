@@ -1,0 +1,26 @@
+{
+  "kind": "be-f3 fixture — deterministic wallet label set",
+  "notes": "Read by webapp/ingest.py --labels only. Rows are force-stamped data_mode='fixture' AND verified=0: the first row CLAIMS verified:1 and the loader must override it — verified means operator-checked, and no operator path exists yet. Addresses are shape-valid (base58 without 0OIl, or 0x + 40 hex). evidence is per-claim provenance; one row leaves it null on purpose.",
+  "labels": [
+    { "chain": "sol", "address": "F1xTUREWa11etoooooooooooooooooooooooooo1",
+      "label": "FXT deployer", "kind": "deployer",
+      "evidence": "created the FXT fixture pair pool",
+      "verified": 1 },
+    { "chain": "sol", "address": "F1xTUREWa11etnnnnnnnnnnnnnnnnnnnnnnnnnn1",
+      "label": "first-60s burst buyer", "kind": "sniper",
+      "evidence": "3 buys inside the first burst window",
+      "verified": 0 },
+    { "chain": "sol", "address": "F1xTUREWa11etbbbbbbbbbbbbbbbbbbbbbbbbbb1",
+      "label": "uniform-size swapper", "kind": "bot",
+      "evidence": null,
+      "verified": 0 },
+    { "chain": "base", "address": "0xcafebabecafebabecafebabecafebabecafebabe",
+      "label": "hot wallet (community claim)", "kind": "cex",
+      "evidence": "clustered deposit addresses",
+      "verified": 0 },
+    { "chain": "base", "address": "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+      "label": "treasury fund", "kind": "fund",
+      "evidence": "receives launch-fee flows",
+      "verified": 0 }
+  ]
+}
