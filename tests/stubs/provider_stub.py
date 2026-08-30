@@ -175,11 +175,11 @@ def install_enrichment(monkeypatch, *, mode: str = "live",
         monkeypatch.setenv("ALCHEMY_API_KEY", "stub-alchemy-key")
 
         def timeout_call(url, body=None):
-            raise helius._HeliusError("transport:timed out")
+            raise helius._HeliusError("timeout")
         monkeypatch.setattr(helius, "_call", timeout_call)
 
         def timeout_rpc(chain, method, params):
-            raise alchemy._AlchemyError("transport:timed out")
+            raise alchemy._AlchemyError("timeout")
         monkeypatch.setattr(alchemy, "_rpc", timeout_rpc)
     else:
         raise ValueError(f"unknown enrichment mode {mode!r}")
@@ -192,7 +192,7 @@ def install_enrichment(monkeypatch, *, mode: str = "live",
         _jupiter_live(monkeypatch, routable=False)
     elif jmode == "timeout":
         def timeout_get(path):
-            raise jupiter._JupiterError("transport:timed out")
+            raise jupiter._JupiterError("timeout")
         monkeypatch.setattr(jupiter, "_get", timeout_get)
     else:
         raise ValueError(f"unknown jupiter mode {jmode!r}")
