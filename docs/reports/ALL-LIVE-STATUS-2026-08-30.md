@@ -22,7 +22,7 @@ avax (tested). Every FE chain count/card/pill/list now iterates the 5-chain line
 | dead providers (probed, never wired) | — | Routescan (chain not supported), Etherscan V2 free (founder-proven dead), alchemy transfers (category 'contract' rejected) | same | — | — |
 
 ## Module states (founder's six-word mandate honored)
-- Dashboard: **LIVE** — real /api/scan verdicts, real whale feed, real health; mock-only
+- Dashboard: **LIVE** — real /api/scan verdicts, real whale feed, real health; never-wired
   surfaces (candles, cluster graph, AI narrative, alerts) render declared-SOON empty states.
 - Rug check: **LIVE** engine unchanged (weights/score bitwise guarded by tests) + rug_flags
   context beside it.

@@ -51,3 +51,21 @@ Still assumptions (DO NOT quote to users/marketing): the figures "AUC 0.9098", "
 
 ## 12. Product Disclaimer (mandatory in UI/marketing)
 Tool for analysis & education. AI output is NOT financial advice. The risk score is an automated heuristic, not an official audit. DYOR. Trading memecoins is very risky.
+
+
+## 13. ALL-LIVE $0 status — 2026-08-30 (founder mandate executed)
+Lineup: 5 chains (sol/bnb/base/hood/hype). avax DISABLED everywhere (parked, never deleted):
+providers CHAIN_IDS/NETWORKS/CHAINS, catalog DISABLED_CHAINS, FE cards/pills/counts.
+Live modules: scanner (5-chain, verdict + provenance-stamped context), rug flags (sol helius
+DAS authorities; bnb/base goplus security — verbatim values), whale tracker (sol transfers +
+netflow; bnb/base = probe reason), dashboard (real scan/whales/health; never-wired panels are
+declared-SOON empty states). Swap stays the SIMULATED surface (TA-006). Cluster / AI analyst /
+Alerts / Portfolio / Token Gate: SOON — untouched per mandate.
+Deployer truth: base = Blockscout primary, law-3 on-chain verified (to=null && from=claim;
+AERO matched); bnb = GoPlus keyless (creator claim flagged unverified-tx — provider ships no
+creation tx). Dead at $0 (probed, never wired): Routescan (chain not supported), Etherscan V2
+free (founder-proven), alchemy transfers (category 'contract' rejected), Birdeye trades/token_
+security (404/401 on free tier — only token_overview is free, 300 req/min paced).
+Gates: pytest 198P (+ snapshot), ruff 0, tsc 0, build OK. Probe reports:
+docs/reports/capability-probe-2026-08-30.md + phase1-probe-2026-08-30.md +
+ALL-LIVE-STATUS-2026-08-30.md.
