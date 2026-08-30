@@ -59,13 +59,12 @@ def test_live_enrichment_per_chain(client, db_path, monkeypatch):
     assert sol["lineage"]["launches"] == 0       # watched, launched nothing YET
     for c in ("bnb", "base", "avax"):
         ctx = rows[c]["context"]
-        assert ctx["deployer"] == "DEPEVM" and ctx["deployer_kind"] == "eoa"
-        assert ctx["deployer_source"] == "alchemy"
+        assert ctx["deployer"] is None           # probe: no $0 deployer on EVM
         assert ctx["top10_share"] is None        # catalog null → stays None
         assert ctx["sell_test"] is None
-        assert any("1inch" in n for n in ctx["notes"])
-        assert ctx["data_mode"] == "partial"     # one of one wired blocks
-        assert rows[c]["data_mode"] == "partial"
+        assert len(ctx["notes"]) == 3            # a sentence per capability
+        assert ctx["data_mode"] == "unwired"     # nothing wired on EVM yet
+        assert rows[c]["data_mode"] == "live"    # verdict half fully live
     for c in ("hood",):            # hype is unscannable (catalog scan=False)
         ctx = rows[c]["context"]
         assert ctx["deployer"] is None and ctx["top10_share"] is None
@@ -84,10 +83,9 @@ def test_not_configured_is_honest_not_zero(client, monkeypatch):
     assert any("helius:not_configured" in n for n in sol["notes"])
     assert sol["sell_test"]["routable"] is True  # keyless path unaffected
     assert sol["data_mode"] == "partial"
-    for c in ("bnb", "base", "avax"):
+    for c in ("bnb", "base", "avax", "hood"):
         ctx = rows[c]["context"]
         assert ctx["deployer"] is None and ctx["deployer_source"] is None
-        assert any("alchemy:not_configured" in n for n in ctx["notes"])
         assert ctx["data_mode"] == "unwired"
     for c in ("hood",):            # hype is unscannable (catalog scan=False)
         assert rows[c]["context"]["data_mode"] == "unwired"
