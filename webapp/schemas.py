@@ -27,7 +27,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-DataMode = Literal["live", "fixture", "unwired"]
+DataMode = Literal["live", "fixture", "unwired", "static"]
 SchemaVersion = Literal["1.0"]
 
 # Upstream-copied scalar: GeckoTerminal/DexScreener send numbers as strings;
@@ -394,6 +394,35 @@ class WalletLabelsResponse(Envelope):
 
     address: str | None = None
     labels: list[WalletLabel] = Field(default_factory=list)
+
+
+# ── chain capability catalog (BE-F4) ─────────────────────────────────────
+
+class ChainInfo(BaseModel):
+    """One chain's verified provider support (webapp/chains.py CHAIN_CATALOG).
+    A False cell is a stated absence — e.g. hood clustering is impossible
+    today because GeckoTerminal has no robinhood network."""
+
+    chain: str | None = None
+    name: str | None = None
+    symbol: str | None = None
+    scan: bool = False
+    clustering: bool = False
+    socials: bool = False
+    live_feed: bool = False
+    venues: list[str] = Field(default_factory=list)
+    logo_ref: str | None = None
+
+
+class ChainsResponse(Envelope):
+    """The full catalog, config-not-observed: data_mode='static' marks that
+    these are maintained capability flags, not a response observed from an
+    upstream at request time. The `note` travels with the payload."""
+
+    data_mode: DataMode = "static"
+
+    chains: list[ChainInfo] = Field(default_factory=list)
+    note: str | None = None
 
 
 # ── ai surface ───────────────────────────────────────────────────────────
