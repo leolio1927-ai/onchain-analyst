@@ -340,7 +340,6 @@ def _enrich_scan(chain_key: str, ident: str) -> dict:
                  "notes": [], "data_mode": "unwired", "schema_version": "1.0",
                  "sources": [], "ts": schemas._utc_now_iso()}
     caps = chains_map.capabilities_for(chain_key)
-    wired = [c for c in chains_map.CAPABILITY_NAMES if caps[c]["source"]]
     live = 0
     for name in chains_map.CAPABILITY_NAMES:
         cap = caps[name]
@@ -356,9 +355,13 @@ def _enrich_scan(chain_key: str, ident: str) -> dict:
         if data is None:
             continue
         live += 1
-        ctx["sources"].append(cap["source"])
+        if cap["source"] not in ctx["sources"]:
+            ctx["sources"].append(cap["source"])
         if name == "deployer":
-            ctx["deployer"] = data.get("deployer")
+            # helius speaks "fee_payer" (the creation-tx fee payer IS the
+            # deployer), alchemy speaks "deployer" — normalized here so the
+            # contract stays uniform across chains
+            ctx["deployer"] = data.get("deployer") or data.get("fee_payer")
             ctx["deployer_kind"] = data.get("deployer_kind")
             ctx["deployer_source"] = cap["source"]
             db_path = db.resolve_path()
@@ -373,7 +376,9 @@ def _enrich_scan(chain_key: str, ident: str) -> dict:
             ctx["sell_test"] = {"routable": data.get("routable"),
                                 "checked_via": data.get("checked_via"),
                                 "note": data.get("note")}
-    if wired and live == len(wired):
+    # "live" means the WHOLE trader loop answered (all three capabilities);
+    # a chain with fewer wired sources can only ever be "partial" — honest
+    if live == len(chains_map.CAPABILITY_NAMES):
         ctx["data_mode"] = "live"
     elif live:
         ctx["data_mode"] = "partial"
