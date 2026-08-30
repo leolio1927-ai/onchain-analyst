@@ -193,7 +193,7 @@ export function DocsPage() {
           {/* ── 1 · THESIS ───────────────────────────────────── */}
           <Sec id="thesis" n="1" title="THESIS — WHY THIS EXISTS">
             <p className="dd-p">
-              Memecoin discovery is fragmented across six chain ecosystems, poisoned by fabricated
+              Memecoin discovery is fragmented across five chain ecosystems, poisoned by fabricated
               volume displays, scored by opaque third-party ratings, and monetized through
               interfaces that quietly hold user custody risk. Terminal Alpha answers with one
               surface: verified multichain data through an auditable pipeline, every decision rule
@@ -316,7 +316,7 @@ export function DocsPage() {
                     <td>One read-only additive route: honest 400/404/502, and <code>live:false</code> with an empty item list for networks GeckoTerminal does not serve — never fabricated data.</td>
                     <td className="path">webapp/server.py · api_live()</td></tr>
                   <tr><td>4.6 · Board client</td>
-                    <td>Client-rendered React surfaces: six chain cards and three columns per chain, fetched staggered ≥1s apart; per-card failure with a 60s retry cool-down.</td>
+                    <td>Client-rendered React surfaces: five chain cards and three columns per chain, fetched staggered ≥1s apart; per-card failure with a 60s retry cool-down.</td>
                     <td className="path">src/pages/LiveBoard.tsx · src/pages/ChainLive.tsx</td></tr>
                   <tr><td>4.7 · Token cards</td>
                     <td>Bordered cards — logo tile with initial fallback, semantic +/− colors, copy-address control, launchpad badge from observed dex ids only.</td>
@@ -591,17 +591,17 @@ export function DocsPage() {
               <li><span className="d">2026-08-29 · INTEGRITY</span> <span className="h">f44b162 · 3ffff05 · b094da2 · 319e36c · d2a3ec7</span>
                 <p><b>Data integrity pass:</b> junk-numeric guard (impossible values → “–”), verbatim negative changes kept, per-token dedupe, X/website social chips + the EVM case-insensitive match fix.</p></li>
               <li><span className="d">2026-08-29 · MARKS</span> <span className="h">86be5e4 · 6b21fac · 7a56b68</span>
-                <p><b>Chain marks + token cards:</b> hand-crafted inline SVG chain marks (sol bars, bnb diamonds, base notch, hype ring, hood feather, avax split), token-card bordir.</p></li>
+                <p><b>Chain marks + token cards:</b> hand-crafted inline SVG chain marks (sol bars, bnb diamonds, base notch, hype ring, hood feather, avax split — avax parked 2026-08-30), token-card bordir.</p></li>
               <li><span className="d">2026-08-29 · SWAP SURFACE</span> <span className="h">5fbed95 · 6943d7d</span>
                 <p><b>Token detail + swap desk</b> <Chip kind="sim">simulated</Chip> — deterministic simulated data set, no session, no wallet, no chain calls.</p></li>
               <li><span className="d">2026-08-28 · REALTIME</span> <span className="h">3741173 · 5428dfd</span>
                 <p><b>WebSocket plane:</b> /ws/snap honest snapshot ticker + /ws/tape additive trade-tape deltas over real GeckoTerminal trades.</p></li>
               <li><span className="d">2026-08-28 · BOARD</span> <span className="h">55898f4 · a53eea1</span>
-                <p><b>Multichain board frontend:</b> six chain cards + three staggered columns per chain, honest 404/400/502 rendering, 60s retry cool-down.</p></li>
+                <p><b>Multichain board frontend:</b> six chain cards + three staggered columns per chain (avax parked 2026-08-30), honest 404/400/502 rendering, 60s retry cool-down.</p></li>
               <li><span className="d">2026-08-28 · BORDIR</span> <span className="h">f007ae1 · c47e10b</span>
                 <p><b>2px border/glow system:</b> accent borders, dashed inset hairlines, semantic pos/neg colors.</p></li>
               <li><span className="d">2026-08-28 · FEED ENGINE</span> <span className="h">642296d · 95d7ade · f53bac4</span>
-                <p><b>Live feed backend:</b> 6 chains × 4 modes, TTL 180s (env-clamped 60–600), deterministic α ranking, stale-safe serving.</p></li>
+                <p><b>Live feed backend:</b> 6 chains × 4 modes (avax parked 2026-08-30), TTL 180s (env-clamped 60–600), deterministic α ranking, stale-safe serving.</p></li>
               <li><span className="d">2026-08-27 · FOUNDATIONS</span> <span className="h">d38f78e · fee1c93 · 3095cba · 8f860bb · d5faea2</span>
                 <p><b>Foundations:</b> TUI research engine, weighted risk heuristics v0, wallet clustering, multi-provider evidence-first AI, FastAPI read-only API, GeckoTerminal trade feed verified live.</p></li>
             </ul>

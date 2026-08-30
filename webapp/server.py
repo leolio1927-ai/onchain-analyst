@@ -674,7 +674,9 @@ code{color:#ffb000}</style></head><body><div><p>Frontend not built yet.</p>
 def _page(name: str) -> FileResponse | HTMLResponse:
     f = _dist_dir() / name
     if f.is_file():
-        return FileResponse(f)
+        # HTML always revalidates: after a rebuild the hashed chunk names
+        # change, and a cached index kept serving dead chunks (2026-08-30).
+        return FileResponse(f, headers={"cache-control": "no-cache"})
     return HTMLResponse(_NO_BUILD, status_code=503)
 
 
@@ -723,7 +725,9 @@ async def assets(subpath: str):
     f = (base / subpath).resolve()
     if not f.is_relative_to(base) or not f.is_file():
         raise HTTPException(404, "asset not found — is the frontend built?")
-    return FileResponse(f)
+    # content-hashed filenames → safe to cache forever; a rebuilt asset
+    # always ships under a new hash (index.html is the no-cache entry point)
+    return FileResponse(f, headers={"cache-control": "public, max-age=31536000, immutable"})
 
 
 # ── B4a: live snapshot feed (real data only — the frontend fake-walk dies here) ──

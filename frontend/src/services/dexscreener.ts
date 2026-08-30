@@ -3,8 +3,9 @@
    mock data alive. Backend :8000 stays the judge for /api/scan (heuristics +
    clustering must not run in a browser). */
 const BASE = 'https://api.dexscreener.com'
-const UI_CHAIN: Record<string, string> = { solana: 'sol', bsc: 'bnb', base: 'base', hyperevm: 'hype',
-  'avalanche': 'avax' }
+/* 'avalanche' → 'avax' parked 2026-08-30 (founder: 5-chain lineup) — re-add
+   the mapping (plus its NATIVE row below) to re-enable the browser tape. */
+const UI_CHAIN: Record<string, string> = { solana: 'sol', bsc: 'bnb', base: 'base', hyperevm: 'hype' }
 
 export interface LiveRow {
   symbol: string; chain: string; pair: string; url: string; iconUrl: string;
@@ -77,7 +78,7 @@ export function dedupe(rows: LiveRow[], perToken = 12): LiveRow[] {
 }
 
 /* Trending: per-chain balanced. Boost addresses grouped by chainId; a chain
-   with no boost coverage falls back to native-asset search (SOL/BNB/ETH/AVAX)
+   with no boost coverage falls back to native-asset search (SOL/BNB/ETH/HYPE)
    so EVERY target chain always contributes its top-3 deepest pairs. */
 export async function fetchTrending(): Promise<LiveRow[] | null> {
   const boosts = await jget(`${BASE}/token-boosts/top/v1`)
@@ -86,7 +87,7 @@ export async function fetchTrending(): Promise<LiveRow[] | null> {
     const c = b.chainId, a = b.tokenAddress
     if (c && a && UI_CHAIN[c]) (byChain[c] ??= []).push(a)
   }
-  const nat: Record<string, string> = { solana: 'SOL', bsc: 'BNB', base: 'ETH', avalanche: 'AVAX', hyperevm: 'HYPE' }
+  const nat: Record<string, string> = { solana: 'SOL', bsc: 'BNB', base: 'ETH', hyperevm: 'HYPE' }
   const lists = await Promise.all(Object.keys(UI_CHAIN).map(async (c) => {
     const addrs = (byChain[c] ?? []).slice(0, 8)
     const d = addrs.length
@@ -101,13 +102,12 @@ export async function fetchTrending(): Promise<LiveRow[] | null> {
 /* ── Chain cards v2: native wrapper contracts, probed live 2026-08-28 ───
    /tokens/{wrapper} beats symbol search: search returns wrapped cross-chain
    fakes (BNB "on solana", liq $721M). HYPE's deepest pair is USDC/WHYPE —
-   wrapper as QUOTE, so price = base.priceUsd / priceNative (inverted);
-   AVAX /tokens returned null once → search fallback, avalanche-only. */
+   wrapper as QUOTE, so price = base.priceUsd / priceNative (inverted); a
+   null /tokens answer falls back to the fb symbol search, same chain only. */
 const NATIVE: Array<{ cid: string; addr: string; sym: string; fb: string[] }> = [
   { cid: 'solana',    addr: 'So11111111111111111111111111111111111111112', sym: 'SOL',  fb: [] },
   { cid: 'bsc',       addr: '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c', sym: 'BNB',  fb: [] },
   { cid: 'base',      addr: '0x4200000000000000000000000000000000000006', sym: 'ETH',  fb: [] },
-  { cid: 'avalanche', addr: '0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7', sym: 'AVAX', fb: ['WAVAX', 'AVAX'] },
   { cid: 'hyperevm',  addr: '0x5555555555555555555555555555555555555555', sym: 'HYPE', fb: [] },
 ]
 

@@ -5,7 +5,7 @@ import { CHAINS as API_CHAINS } from '../api'
 
 export interface TokenTick {
   sym: string
-  chain: 'SOL' | 'BNB' | 'BASE' | 'AVAX' | 'HOOD'
+  chain: 'SOL' | 'BNB' | 'BASE' | 'HOOD'
   address?: string
   px: number | null
   chg: number | null

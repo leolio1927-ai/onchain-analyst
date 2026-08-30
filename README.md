@@ -15,6 +15,13 @@ uv run pytest                 # test suite
 ```
 TUI commands: `/load <chain> <address>` · `/verify` · `/cluster` · `/explain [claude|glm|kimi]` · `/whale <address>` · `/help`
 
+## Runtime
+
+Founder-ratified runtime (WSL): node 24.20 via nvm — never apt's node 22; server is
+`uv run python -m webapp --port 8000`. ONE instance per port: run `ss -ltnp` and check the
+port before starting, and because there is no `--reload`, restarting means killing the old
+PID first. Frontend build: `cd frontend && npm run build` (served from `frontend/dist/`).
+
 ## Web — landing + web terminal
 
 React+Vite+TypeScript frontend (`frontend/`) + FastAPI backend (`webapp/`) serving the

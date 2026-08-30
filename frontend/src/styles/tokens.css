@@ -12,10 +12,10 @@
   --border: #16352a; --border-soft: #0f2419;
   --text: #e9fef4; --muted: #9cc3b2; --muted-deep: #649580;
   --amber: #fbbf24;  /* caution / risk score / BNB */
-  --rose: #fb7185;   /* danger / AVAX */
+  --rose: #fb7185;   /* danger */
   --blue: #60a5fa;   /* info / BASE */
   --violet: #a78bfa; /* AI-panel / hype / HYPE — retired as brand */
-  --bnb: var(--amber); --base: var(--blue); --hype: var(--violet); --avax: var(--rose);
+  --bnb: var(--amber); --base: var(--blue); --hype: var(--violet);
   --font-display: 'Space Grotesk', 'Inter', sans-serif;
   --font-ui: 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;

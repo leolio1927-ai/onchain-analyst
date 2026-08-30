@@ -67,7 +67,7 @@ const SHIPPED: { id: string; tag: string; letter: string; title: string; date: s
   {
     id: 'ta-004', tag: 'TA-004', letter: 'W', title: 'Chain marks + token cards', date: '2026-08-29',
     points: [
-      'Six hand-crafted SVG marks — sol bars, bnb diamonds, base notch, hype ring, hood feather, avax split',
+      'Six hand-crafted SVG marks — sol bars, bnb diamonds, base notch, hype ring, hood feather, avax split (avax mark parked 2026-08-30)',
       'One token = one bordered card; square logo tiles with initial fallback',
     ],
     evi: 'EVIDENCE · 86be5e4 · 6b21fac · 7a56b68 · src/pages/chainLogos.tsx',
@@ -83,7 +83,7 @@ const SHIPPED: { id: string; tag: string; letter: string; title: string; date: s
   {
     id: 'ta-002', tag: 'TA-002', letter: 'M', title: 'Memecoin Live frontend', date: '2026-08-28',
     points: [
-      'Board: six chain cards in founder-locked order, staggered trending previews',
+      'Board: six chain cards in founder-locked order, staggered trending previews (avax parked 2026-08-30)',
       'Chain pages: three staggered columns NEW | TRENDING | VOLUME·ALPHA with α-ranks',
       'Honest 404/400/502 rendering; per-card failure with a 60s retry cool-down',
     ],
@@ -139,7 +139,7 @@ const QUEUE: { id: string; tag: string; title: string; kind: ChipKind; why: stri
   },
   {
     id: 'ta-102', tag: 'TA-102', title: 'Watchlist', kind: 'design',
-    why: 'Track tokens across the six chains; account-less first (local storage) — no accounts until there is a reason for keys.',
+    why: 'Track tokens across the five chains; account-less first (local storage) — no accounts until there is a reason for keys.',
     proof: 'PROOF · watchlist state survives reload with zero server session · surfaces index updated',
   },
   {

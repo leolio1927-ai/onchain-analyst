@@ -2,13 +2,13 @@
 /* ═══════════════════════════════════════════════════════════════
    LANDING v4 — level 4 ultra premium. Scanner signature: NEON GREEN.
    Green dominant + chain-color embroidery (BNB amber · BASE blue ·
-   HYPE purple · AVAX rose). Zero-dep canvas engines + bloom pipeline.
+   HYPE purple · HOOD green). Zero-dep canvas engines + bloom pipeline.
    ═══════════════════════════════════════════════════════════════ */
 
 .lv { --p: #8b5cf6; --p2: #a78bfa; --c: #00ffa3; --g: #00ffa3; --g2: #34d399; --y: #fbbf24; --r: #fb7185;
   --bg: #051009; --panel: #0a1410; --line: #16352a; --line2: #0f2419;
   --text: #e9fef4; --mut: #9cc3b2; --dim: #649580;
-  --bnb: #fbbf24; --base: #60a5fa; --hype: #a78bfa; --avax: #fb7185;
+  --bnb: #fbbf24; --base: #60a5fa; --hype: #a78bfa; --hood: #00c805;
   --fd: 'Space Grotesk', 'Inter', sans-serif; --fm: 'JetBrains Mono', monospace;
   background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh;
   overflow-x: clip; }
@@ -56,7 +56,7 @@ a { color: inherit; text-decoration: none; }
     repeating-linear-gradient(90deg,
       var(--g) 0 44px, var(--g) 44px 58px,
       var(--bnb) 58px 68px, var(--base) 68px 78px,
-      var(--hype) 78px 88px, var(--avax) 88px 98px);
+      var(--hype) 78px 88px, var(--hood) 88px 98px);
   background-size: 240px 100%, 100% 100%;
   opacity: .3;
   animation: lvstitch 9s linear infinite; }

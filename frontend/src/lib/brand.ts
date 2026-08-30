@@ -17,4 +17,4 @@ export const BRAND_LEGAL =
 export const BRAND_DATA = 'DATA: GECKOTERMINAL + DEXSCREENER'
 
 /* the founder-locked five chains — mirrors lib/liveApi.ts LIVE_CHAINS order (avax parked 2026-08-30) */
-export const BRAND_CHAINS = ['SOL', 'BNB', 'BASE', 'HYPE', 'HOOD', 'AVAX'] as const
+export const BRAND_CHAINS = ['SOL', 'BNB', 'BASE', 'HYPE', 'HOOD'] as const

@@ -81,20 +81,9 @@ function HoodMark({ size }: MarkProps) {
   )
 }
 
-/* PARKED 2026-08-30 (founder: 5-chain lineup) — kept verbatim for re-enable;
-   exported so tsc keeps it alive without a live chain key. */
-export function AvaxMark({ size }: MarkProps) {
-  return (
-    <svg className="lx-chainlogo" width={size} height={size} viewBox="0 0 64 64" role="img"
-      aria-label="Avalanche (simplified mark)">
-      <rect x="1" y="1" width="62" height="62" rx="14" fill="#E84142" />
-      <path d="M28.5 15.5 L43 42 H14 Z" fill="#fff" />
-      <path d="M45.5 42 L51.5 30.5 L57.5 42 Z" fill="#fff" />
-    </svg>
-  )
-}
-
-// avax mark parked 2026-08-30 (founder: 5-chain lineup) — AvaxMark kept above
+/* avax mark parked 2026-08-30 (founder: 5-chain lineup) — removed from the
+   active surface with the parking; git history (86be5e4) keeps the SVG
+   verbatim for a re-enable. */
 const MARKS: Record<LiveChain, (p: MarkProps) => ReturnType<typeof SolMark>> = {
   sol: SolMark,
   bnb: BnbMark,

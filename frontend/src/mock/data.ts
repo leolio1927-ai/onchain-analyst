@@ -13,7 +13,7 @@ export interface ChainInfo {
 /* Single source of truth is the backend chain allowlist via api.ts — the mock
    layer only decorates it with colors and never invents its own chain list. */
 const CHAIN_COLOR: Record<string, string> = {
-  sol: '#22d3ee', bnb: '#fbbf24', base: '#3b82f6', avax: '#fb7185',
+  sol: '#22d3ee', bnb: '#fbbf24', base: '#3b82f6',
 }
 
 export const CHAINS: ChainInfo[] = API_CHAINS.map((id) => ({
@@ -193,7 +193,6 @@ export const SCANNER_ROWS = [
   { symbol: 'WOJAK2.0', chain: 'sol', pair: 'Fg9H…bond / SOL', price: 0.00000871, chg: -12.4, liq: 61_200, vol: 890_000, risk: 81, age: '9h', spark: 7 },
   { symbol: 'PEPEKING', chain: 'bnb', pair: '0x3a…d91f / WBNB', price: 0.00000031, chg: 41.2, liq: 88_400, vol: 1_240_000, risk: 57, age: '1d 3h', spark: 91 },
   { symbol: 'BASEDGOD', chain: 'base', pair: '0x91…c04a / ETH', price: 0.0000412, chg: 8.9, liq: 231_000, vol: 2_100_000, risk: 34, age: '5d 6h', spark: 66 },
-  { symbol: 'SNOWBALL', chain: 'avax', pair: '0x7c…b2e8 / WAVAX', price: 0.0021, chg: -3.1, liq: 45_800, vol: 310_000, risk: 72, age: '3d', spark: 23 },
   { symbol: 'HYPERCAT', chain: 'hype', pair: '0xfe…11aa / WHYPE', price: 0.0000917, chg: 63.7, liq: 19_900, vol: 640_000, risk: 88, age: '4h', spark: 99 },
   { symbol: 'MOONBOI', chain: 'sol', pair: 'Kk2P…moon / SOL', price: 0.0000210, chg: 5.2, liq: 77_700, vol: 980_000, risk: 49, age: '1d 18h', spark: 55 },
 ]

@@ -16,7 +16,6 @@
   --acc-base: #4d8dff;
   --acc-hype: #2dd4bf;
   --acc-hood: #00c805;
-  --acc-avax: #e84142;
 
   /* deepened panels so the bordir pops against the page bg */
   --panel: #071410;
@@ -46,7 +45,6 @@
 .lvx [data-chain='base'] { --chain-accent: var(--acc-base); }
 .lvx [data-chain='hype'] { --chain-accent: var(--acc-hype); }
 .lvx [data-chain='hood'] { --chain-accent: var(--acc-hood); }
-.lvx [data-chain='avax'] { --chain-accent: var(--acc-avax); }
 
 /* ── top bar — title CENTERED (grid: logo | title | links), no clash ── */
 .lx-top { position: sticky; top: 0; z-index: 40; background: rgba(4, 12, 9, .86);

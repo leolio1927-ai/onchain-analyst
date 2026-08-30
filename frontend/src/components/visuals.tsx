@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useCallback } from 'react'
-import { NET_CHAINS } from '../lib/netChains'
+import { ARCS, NET_CHAINS, NODE_LL, colorOf } from '../lib/netChains'
 
 /* ═══ Landing v6 visual engine — glowing dark-green neon, zero deps.
    Level 6: dual-pass render (glow layer + crisp layer — text/lines never soften),
@@ -29,7 +29,8 @@ function useSceneCanvas(draw: (ctx: CanvasRenderingContext2D, w: number, h: numb
     const ctx = cv.getContext('2d')
     if (!ctx) return
     const scene = document.createElement('canvas')
-    const sctx = scene.getContext('2d')!
+    const sctx = scene.getContext('2d')
+    if (!sctx) return
     const b1 = document.createElement('canvas')
     const b2 = document.createElement('canvas')
     let raf = 0
@@ -57,7 +58,8 @@ function useSceneCanvas(draw: (ctx: CanvasRenderingContext2D, w: number, h: numb
       ctx.clearRect(0, 0, w, h)
       ctx.drawImage(scene, 0, 0, w, h)
       if (bloom) {
-        const b1ctx = b1.getContext('2d')!
+        const b1ctx = b1.getContext('2d')
+        if (!b1ctx) return
         b1ctx.clearRect(0, 0, b1.width, b1.height)
         b1ctx.drawImage(scene, 0, 0, b1.width, b1.height)
         ctx.save()
@@ -123,20 +125,22 @@ export function PageBackground() {
 
 /* ─────────── HERO radar — dark glowing platform, chain colors, lock story ─────────── */
 
+/* orbiting chain accents — one per NET_CHAINS entry, colored by the single
+   source of truth (never a hand-copied palette) */
 const ORBITS = [
-  { color: '#8dffcf', r: 0.52, speed: 0.11, size: 3 },
-  { color: '#ffd98a', r: 0.72, speed: -0.08, size: 2.7 },
-  { color: '#93c5fd', r: 0.86, speed: 0.065, size: 2.4 },
-  { color: '#cbb8ff', r: 0.40, speed: -0.13, size: 2.2 },
-  { color: '#ffabab', r: 0.64, speed: 0.09, size: 2.7 },
-]
+  { r: 0.52, speed: 0.11, size: 3 },
+  { r: 0.72, speed: -0.08, size: 2.7 },
+  { r: 0.86, speed: 0.065, size: 2.4 },
+  { r: 0.40, speed: -0.13, size: 2.2 },
+  { r: 0.64, speed: 0.09, size: 2.7 },
+].map((o, i) => ({ ...o, color: NET_CHAINS[i % NET_CHAINS.length].color }))
 
-/* the radar sweeps the real feed universe — the five founder-locked chains,
-   colored with their exact accents (mirrors pages/liveParts CHAIN_ACCENT) */
-const SCANCHAINS: readonly (readonly [string, string, string])[] = [
-  ['SOL', 'SOLANA', '#14F195'], ['BNB', 'BNB CHAIN', '#F0B90B'], ['BASE', 'BASE', '#4D8DFF'],
-  ['HYPE', 'HYPEREVM', '#2DD4BF'], ['HOOD', 'ROBINHOOD', '#00C805'], ['AVAX', 'AVALANCHE', '#E84142'],
-]
+/* the radar sweeps the real feed universe — derived from NET_CHAINS so the
+   board can never show a chain the feed does not serve (the six-chain
+   literal list was deleted with the 2026-08-30 parking) */
+const SCANCHAINS: readonly (readonly [string, string, string])[] = NET_CHAINS.map(
+  (c) => [c.id.toUpperCase(), c.label, c.color] as const,
+)
 
 const BLIPS = Array.from({ length: 12 }, (_, i) => ({
   a: (i / 12) * TAU + i * 0.83,
@@ -366,13 +370,9 @@ export function RadarScanner() {
 }
 
 /* ─────────── multi-chain globe — glowing dark neon orb ─────────── */
-/* chain metadata moved to lib/netChains.ts (fast-refresh: keep this file
-   component-only); NODE_LL/ARCS below reference its ids. */
-
-const NODE_LL: Record<string, [number, number]> = {
-  sol: [0.38, 0.7], bnb: [-0.2, 2.6], base: [0.55, 4.4], hype: [-0.55, 5.5], avax: [0.02, 3.4], hood: [-0.42, 1.6],
-}
-const ARCS: [string, string][] = [['sol', 'bnb'], ['bnb', 'base'], ['base', 'sol'], ['sol', 'hype'], ['avax', 'sol'], ['avax', 'base'], ['hood', 'sol'], ['hood', 'bnb'], ['hype', 'hood']]
+/* chain metadata AND globe geometry (NODE_LL/ARCS) live in lib/netChains.ts,
+   typed against ChainId: a parked id in an arc or node is a compile error,
+   never a frame-0 `find() → undefined → .color` throw. */
 
 const STARS = Array.from({ length: 70 }, (_, i) => ({ x: (i * 0.618) % 1, y: (i * 0.382) % 1, tw: (i * 0.9) % 6 }))
 
@@ -445,7 +445,7 @@ export function ChainGlobe({ hovered, onHover }: { hovered: string | null; onHov
       const B = project(NODE_LL[bId][0], NODE_LL[bId][1], rot)
       const vis = Math.max(A.z, B.z)
       if (vis < -0.05) return
-      const col = NET_CHAINS.find((c) => c.id === aId)!.color
+      const col = colorOf[aId]
       ctx.strokeStyle = col
       ctx.globalAlpha = 0.1 + Math.max(0, vis) * 0.22
       ctx.lineWidth = 0.8 + Math.max(0, vis) * 0.6
@@ -645,7 +645,7 @@ export function ChainGlobe({ hovered, onHover }: { hovered: string | null; onHov
 interface FlowBox { t: string; s: string; accent: string; live?: boolean; chains?: boolean }
 const FLOW: FlowBox[] = [
   { t: 'DATA LAYER', s: 'DEXSCREENER · GECKO · HELIUS', accent: '#8dffcf' },
-  { t: 'MULTI-CHAIN SCANNER', s: 'SOL · BNB · BASE · HYPE · HOOD · AVAX', accent: '#ffd98a', chains: true },
+  { t: 'MULTI-CHAIN SCANNER', s: 'SOL · BNB · BASE · HYPE · HOOD', accent: '#ffd98a', chains: true },
   { t: 'RUG CHECK', s: 'LIQUIDITY · MINT · LP · OWNER', accent: '#ff9d9d' },
   { t: 'WALLET CLUSTERING', s: 'COORDINATED WALLETS', accent: '#93c5fd' },
   { t: 'WHALE TRACKING', s: 'NET FLOW · ACCUMULATION', accent: '#cbb8ff' },
@@ -745,7 +745,7 @@ export function SystemDiagram() {
         ctx.fillStyle = 'rgba(120,190,165,0.95)'
         ctx.fillText(f.s, x + 22, y + 39)
         if (f.chains) {
-          const dots = ['#8dffcf', '#ffd98a', '#93c5fd', '#cbb8ff', '#ffabab']
+          const dots = NET_CHAINS.map((c) => c.color)
           dots.forEach((dc, k) => {
             ctx.fillStyle = dc
             ctx.beginPath(); ctx.arc(x + bw - 14 - k * 9, y + 17, 2, 0, TAU); ctx.fill()

@@ -937,7 +937,7 @@ function Chains() {
       <div className="lv-sec-head lv-center rv">
         <div className="lv-k2">MULTI-CHAIN</div>
         <h2 className="lv-h2">One Terminal. <span className="a">All Five Chains.</span></h2>
-        <p className="lv-lead">Solana, BNB Chain, Base, HyperEVM, Robinhood Chain, Avalanche — every one live on the keyless feed today.</p>
+        <p className="lv-lead">Solana, BNB Chain, Base, HyperEVM and Robinhood Chain — all five live on the keyless feed today.</p>
       </div>
       <div className="lv-net-wrap rv">
         <ChainGlobe hovered={hover} onHover={setHover} />
@@ -1262,8 +1262,13 @@ export default function Landing() {
   )
 }
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <Landing />
-  </StrictMode>,
-)
+/* mount only when a #root actually exists — importing the module (tests,
+   tooling) must stay side-effect-free */
+const rootEl = document.getElementById('root')
+if (rootEl) {
+  createRoot(rootEl).render(
+    <StrictMode>
+      <Landing />
+    </StrictMode>,
+  )
+}

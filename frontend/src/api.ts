@@ -109,7 +109,7 @@ export interface ScanContext {
 }
 
 /* BE-F4 chain capability catalog — the single source of truth for which
-   chain can do what. Parked chains (avax) never appear here. */
+   chain can do what. parked chains (avax) never appear here. */
 export interface ChainCatalogRow {
   chain: string
   name: string
