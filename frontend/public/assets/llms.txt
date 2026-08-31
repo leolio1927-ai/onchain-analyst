@@ -127,6 +127,16 @@ brackets) and was last re-verified 2026-08-29.
 - GET /api/v1/whales/{chain}/{token} — large transfers + per-wallet netflow
   (sol = Helius enhanced txs; other chains = probe reason; USD via DexScreener
   price, null when absent) [providers/whales.py].
+- GET /api/v1/rug/sol/{mint} — Solana rug summary via RugCheck.xyz
+  (score, score_normalised, lp_locked_pct, risks[] verbatim; TTL 300s,
+  single-flight; a missing report ships empty risks + a degraded reason)
+  [providers/rugcheck.py]. Probed 2026-08-31: BONK 200 @1.03s.
+- GET /api/v1/rug/evm/{chain}/{token} — GoPlus token_security rows for
+  bnb(56)/base(8453), verbatim 0/1-string values with provider chip per row
+  (TTL 300s). hype/hood → HTTP 400 with the documented no-coverage reason;
+  the FE renders the honest limited panel instead of calling it
+  [providers/goplus.py, docs/rug-coverage-matrix.md]. Probed 2026-08-31:
+  CAKE bnb 200 @0.50s.
 - GET /api/v1/tokens/{chain}/{ident} + /api/v1/wallets/{address} — token
   registry + wallet label claims (fixture-stamped, verified=false).
 - OpenAPI surface: /api/docs (Swagger) and /api/redoc.

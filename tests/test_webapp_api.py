@@ -218,7 +218,7 @@ def test_discovery_upstream_fail_is_502(client, monkeypatch):
 
 def test_version_and_metrics_real_values(client):
     j = client.get("/api/version").json()
-    assert j["name"] == "Terminal Alpha" and j["version"] == server.APP_VERSION
+    assert j["name"] == "VILMEI" and j["version"] == server.APP_VERSION
     assert j["python"].startswith("3.") and j["fastapi"]
     assert isinstance(j["uptime_s"], int) and j["uptime_s"] >= 0
 
@@ -230,7 +230,7 @@ def test_version_and_metrics_real_values(client):
 
 def test_openapi_premium_surface(client):
     spec = client.get("/openapi.json").json()
-    assert spec["info"]["title"] == "Terminal Alpha"
+    assert spec["info"]["title"] == "VILMEI"
     assert spec["info"]["version"] == server.APP_VERSION
     assert spec["info"]["license"]["identifier"] == "MIT"
     assert spec["info"]["description"].startswith("Read-only multichain memecoin")
@@ -246,4 +246,4 @@ def test_openapi_premium_surface(client):
     assert client.get("/api/docs").status_code == 200   # Swagger (moved off /docs)
     assert client.get("/api/redoc").status_code == 200
     assert client.get("/docs").status_code == 200       # human Docs page serves here
-    assert "TERMINAL" in client.get("/docs").text.upper()
+    assert "VILMEI" in client.get("/docs").text.upper()

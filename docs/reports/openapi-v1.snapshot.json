@@ -1,9 +1,1169 @@
 {
+  "openapi": "3.1.0",
+  "info": {
+    "title": "VILMEI",
+    "summary": "Evidence-first multichain memecoin risk terminal",
+    "description": "Read-only multichain memecoin research terminal — reduce noise, add context.\n\n- **POST /api/scan** — DexScreener pair + GeckoTerminal trade clustering → deterministic, weighted risk assessment\n- **GET /api/v1/discovery** — keyless trending/new pool radar (GeckoTerminal free tier)\n- **POST /api/explain** — evidence-first AI narrative; `provider: \"local\"` serves a deterministic heuristic narrative with zero API keys\n- **POST /api/whale** — Helius wallet balances (key required)\n- **WS /ws/snap** — full honest snapshot ticker · **WS /ws/tape** — live trade-tape deltas for the active pool\n\nEvery value is copied verbatim from the upstream APIs; absent fields stay absent —\nnothing is simulated, zero-filled or random-walked. Heuristic thresholds are public\nand auditable (heuristics/).",
+    "license": {
+      "name": "MIT",
+      "identifier": "MIT"
+    },
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Health",
+        "description": "Liveness + served chains + active tier + which AI providers have keys.",
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Health Api Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/version": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Version",
+        "description": "Build identity — real toolchain versions, nothing invented. The db\nblock reports measured persistence facts (path_kind, schema version,\nrows per table, last run, oldest row) — never the raw filesystem path.",
+        "operationId": "version_api_version_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/metrics": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Metrics",
+        "description": "Live process counters — every number is measured, none estimated.\ntokens/labels are measured persistence row counts (0 when persistence\nis off — off is a fact, not an estimate).",
+        "operationId": "metrics_api_metrics_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Metrics Api Metrics Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/scan": {
+      "post": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Api Scan",
+        "description": "Full evidence scan: pair view + weighted risk assessment + clustering,\nplus the best-effort trader-loop `context` block (BE-F5a-R — context\nrenders beside the verdict; the score formula never reads it).\n`refresh: true` bypasses the 30s TTL cache and forces a fresh fetch.",
+        "operationId": "api_scan_api_scan_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "deprecated": true
+      }
+    },
+    "/api/v1/scan": {
+      "post": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Api Scan",
+        "description": "Full evidence scan: pair view + weighted risk assessment + clustering,\nplus the best-effort trader-loop `context` block (BE-F5a-R — context\nrenders beside the verdict; the score formula never reads it).\n`refresh: true` bypasses the 30s TTL cache and forces a fresh fetch.",
+        "operationId": "api_scan_api_v1_scan_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/explain": {
+      "post": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Api Explain",
+        "description": "Evidence-first narrative. `provider`: claude|glm|kimi (LLM, rate-limited,\nneeds its key) or `local` (deterministic heuristics, keyless, unlimited).\nEvidence is always re-fetched and re-assessed server-side.",
+        "operationId": "api_explain_api_explain_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExplainBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExplainResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "deprecated": true
+      }
+    },
+    "/api/v1/explain": {
+      "post": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Api Explain",
+        "description": "Evidence-first narrative. `provider`: claude|glm|kimi (LLM, rate-limited,\nneeds its key) or `local` (deterministic heuristics, keyless, unlimited).\nEvidence is always re-fetched and re-assessed server-side.",
+        "operationId": "api_explain_api_v1_explain_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExplainBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExplainResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/whale": {
+      "post": {
+        "tags": [
+          "whale"
+        ],
+        "summary": "Api Whale",
+        "description": "Solana wallet balances via Helius (needs HELIUS_API_KEY).",
+        "operationId": "api_whale_api_whale_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WhaleBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhaleResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "deprecated": true
+      }
+    },
+    "/api/v1/whale": {
+      "post": {
+        "tags": [
+          "whale"
+        ],
+        "summary": "Api Whale",
+        "description": "Solana wallet balances via Helius (needs HELIUS_API_KEY).",
+        "operationId": "api_whale_api_v1_whale_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WhaleBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhaleResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/discovery": {
+      "get": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Api Discovery",
+        "description": "Keyless radar feed (G.3): trending or new pools via GeckoTerminal free\ntier. Validation → 400; upstream failure → honest 502. Items carry only\nwhat the API returned — absent fields stay absent (None).",
+        "operationId": "api_discovery_api_v1_discovery_get",
+        "parameters": [
+          {
+            "name": "chain",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "sol",
+              "title": "Chain"
+            }
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "trending",
+              "title": "Mode"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoveryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/market/ohlcv": {
+      "get": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Api Market Ohlcv",
+        "description": "GT candles for a pool (Fase 4 chart/volume/indicator source). Keyless,\nTTL-cached 60s, verbatim floats oldest→newest — no gap-filling, no\nrounding. An empty candle list ships with a degraded reason, never a\nsynthesized series. The browser never calls GT directly (zero\nthird-party-host claim); this route is the only door.",
+        "operationId": "api_market_ohlcv_api_v1_market_ohlcv_get",
+        "parameters": [
+          {
+            "name": "chain",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chain"
+            }
+          },
+          {
+            "name": "pair",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Pair"
+            }
+          },
+          {
+            "name": "resolution",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "15m",
+              "title": "Resolution"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 200,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OhlcvResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/socials": {
+      "get": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Api Socials",
+        "description": "Official links for a token (Fase 4 SOCIALS tab) from DexScreener\ntoken-pairs info, TTL-cached 300s. Param is the TOKEN address (CA): DS\nanswers 0 pairs for a pair address (probed 2026-08-30) — the FE passes\nthe CA from the active-pair identity context. Empty lists = 'no official\nlinks in feed'; links are never invented.",
+        "operationId": "api_socials_api_v1_socials_get",
+        "parameters": [
+          {
+            "name": "chain",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chain"
+            }
+          },
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SocialsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/detect": {
+      "get": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Api Detect",
+        "description": "Auto-detect (Fase 3): pasted CA or $TICKER → one candidate pair per\nfounder chain where DS lists it (deepest pool), liquidity-ranked. The\nclient MUST present the candidate set on >1 — silently defaulting to one\nchain is the identity bug this surface exists to prevent. DS search only:\nGT /api/v2/search does not exist (probed 404, 2026-08-30).",
+        "operationId": "api_detect_api_v1_detect_get",
+        "parameters": [
+          {
+            "name": "address",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Address"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetectResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rug/sol/{mint}": {
+      "get": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Api Rug Sol",
+        "description": "Solana rug summary (RugCheck.xyz), TTL-cached 300s, provenance\nattached. A missing report ships empty risks + a degraded reason —\nan unindexed token is a fact, never an invented verdict.",
+        "operationId": "api_rug_sol_api_v1_rug_sol__mint__get",
+        "parameters": [
+          {
+            "name": "mint",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Mint"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RugSolResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/rug/evm/{chain}/{token}": {
+      "get": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Api Rug Evm",
+        "description": "EVM rug rows (GoPlus) for bnb/base — verbatim values, provider chip\nper row, TTL-cached 300s (the provider module owns its cache).",
+        "operationId": "api_rug_evm_api_v1_rug_evm__chain___token__get",
+        "parameters": [
+          {
+            "name": "chain",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chain"
+            }
+          },
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RugEvmResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/live/{chain}": {
+      "get": {
+        "tags": [
+          "live"
+        ],
+        "summary": "Api Live",
+        "description": "Live memecoin feed per chain (G.7) — modes: new | trending | volume | alpha.\n\nKeyless GeckoTerminal only, TTL-cached ≥120s per (chain, mode) — the free\ntier is ~10 calls/min and `alpha` re-ranks the volume feed with zero extra\ncalls. A chain without a GT network answers live:false with an empty item\nlist — never fabricated. Unknown chain → 404; bad mode/limit → 400;\nupstream failure without a cache fallback → 502 (a warm expired cache is\nserved with stale:true instead).",
+        "operationId": "api_live_api_v1_live__chain__get",
+        "parameters": [
+          {
+            "name": "chain",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chain"
+            }
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "new",
+              "title": "Mode"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/history/prices/{chain}/{ident}": {
+      "get": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Api History Prices",
+        "description": "Point-in-time price history from the local persistence layer (BE-F2).\n\nlimit clamped to 1..500 · opaque cursor is None-terminated · window\nfilters since/until take timezone-aware ISO-8601. data_mode = the union\nof the page's rows (fixture|live), never hardcoded. Rows are point\nobservations: open/high/low stay None, close = the observed price —\ncandles are never synthesized.",
+        "operationId": "api_history_prices_api_v1_history_prices__chain___ident__get",
+        "parameters": [
+          {
+            "name": "chain",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chain"
+            }
+          },
+          {
+            "name": "ident",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ident"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Until"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryPage_OhlcvPoint_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/history/trades/{chain}/{ident}": {
+      "get": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Api History Trades",
+        "description": "Trade history from the local persistence layer (BE-F2) — same cursor,\nwindow and data_mode contract as the prices page.",
+        "operationId": "api_history_trades_api_v1_history_trades__chain___ident__get",
+        "parameters": [
+          {
+            "name": "chain",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chain"
+            }
+          },
+          {
+            "name": "ident",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ident"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Until"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryPage_TradeRow_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tokens/{chain}/{ident}": {
+      "get": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Api Token Meta",
+        "description": "One registry token. 404 only when the registry never saw it — the\nregistry is silent on unknowns, never guesses. Registry-backed pages\ncarry data_mode='fixture' today; fields no upstream filled stay None.",
+        "operationId": "api_token_meta_api_v1_tokens__chain___ident__get",
+        "parameters": [
+          {
+            "name": "chain",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chain"
+            }
+          },
+          {
+            "name": "ident",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ident"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenMeta"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/wallets/{address}": {
+      "get": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Api Wallet Labels",
+        "description": "Wallet label claims across chains. 200 + [] for a valid address with\nno labels (unlabeled = silence, never a guess); 404 only on a malformed\naddress shape. Labels are claims with provenance — verified=false unless\nan operator path (none exists yet) checked them.",
+        "operationId": "api_wallet_labels_api_v1_wallets__address__get",
+        "parameters": [
+          {
+            "name": "address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Address"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WalletLabelsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chains": {
+      "get": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Api Chains",
+        "description": "What each chain can honestly do today, per provider. This is the\naudit-§2 provider matrix as a structured, importable constant — the\nguard in webapp/chains.py keeps it equivalent to the provider modules,\nso a capability change fails the catalog test until updated.",
+        "operationId": "api_chains_api_v1_chains_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChainsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/whales/{chain}/{token}": {
+      "get": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Api Whales",
+        "description": "Large recent transfers + per-wallet netflow for one token. Solana =\nHelius enhanced transactions (keyed); bnb/base/hood/hype carry the probe\nreason — no $0 trade feed exists there. USD sizing uses the DexScreener\npair price; when absent, `usd` stays None and token amounts stand alone.",
+        "operationId": "api_whales_api_v1_whales__chain___token__get",
+        "parameters": [
+          {
+            "name": "chain",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chain"
+            }
+          },
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          },
+          {
+            "name": "threshold_usd",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 1000.0,
+              "title": "Threshold Usd"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 25,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhalesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mcp": {
+      "post": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Mcp Rpc",
+        "description": "Read-only Model Context Protocol endpoint — JSON-RPC 2.0 (spec rev\n2026-07-28): initialize / ping / tools/list / tools/call over four\nread-only tools (trending, scan, rug, whale_windows). Nothing here\ntrades, custodies, or writes.",
+        "operationId": "mcp_rpc_mcp_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
   "components": {
     "schemas": {
       "CacheInfo": {
-        "description": "Provenance footer: was this served from the TTL cache, and how old.",
         "properties": {
+          "cached": {
+            "type": "boolean",
+            "title": "Cached",
+            "default": false
+          },
           "age_s": {
             "anyOf": [
               {
@@ -15,34 +1175,18 @@
             ],
             "title": "Age S"
           },
-          "cached": {
-            "default": false,
-            "title": "Cached",
-            "type": "boolean"
-          },
           "ttl_s": {
-            "default": 0,
+            "type": "integer",
             "title": "Ttl S",
-            "type": "integer"
+            "default": 0
           }
         },
+        "type": "object",
         "title": "CacheInfo",
-        "type": "object"
+        "description": "Provenance footer: was this served from the TTL cache, and how old."
       },
       "CapabilityRow": {
-        "description": "One capability\u00d7chain wiring row: either a source (a fn is wired) or\nan explicit reason why nobody computes it at $0.",
         "properties": {
-          "reason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reason"
-          },
           "source": {
             "anyOf": [
               {
@@ -53,13 +1197,24 @@
               }
             ],
             "title": "Source"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
           }
         },
+        "type": "object",
         "title": "CapabilityRow",
-        "type": "object"
+        "description": "One capability×chain wiring row: either a source (a fn is wired) or\nan explicit reason why nobody computes it at $0."
       },
       "ChainInfo": {
-        "description": "One chain's verified provider support (webapp/chains.py CHAIN_CATALOG).\nA False cell is a stated absence \u2014 e.g. hood clustering is impossible\ntoday because GeckoTerminal has no robinhood network.",
         "properties": {
           "chain": {
             "anyOf": [
@@ -72,27 +1227,6 @@
             ],
             "title": "Chain"
           },
-          "clustering": {
-            "default": false,
-            "title": "Clustering",
-            "type": "boolean"
-          },
-          "live_feed": {
-            "default": false,
-            "title": "Live Feed",
-            "type": "boolean"
-          },
-          "logo_ref": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Logo Ref"
-          },
           "name": {
             "anyOf": [
               {
@@ -103,16 +1237,6 @@
               }
             ],
             "title": "Name"
-          },
-          "scan": {
-            "default": false,
-            "title": "Scan",
-            "type": "boolean"
-          },
-          "socials": {
-            "default": false,
-            "title": "Socials",
-            "type": "boolean"
           },
           "symbol": {
             "anyOf": [
@@ -125,39 +1249,53 @@
             ],
             "title": "Symbol"
           },
+          "scan": {
+            "type": "boolean",
+            "title": "Scan",
+            "default": false
+          },
+          "clustering": {
+            "type": "boolean",
+            "title": "Clustering",
+            "default": false
+          },
+          "socials": {
+            "type": "boolean",
+            "title": "Socials",
+            "default": false
+          },
+          "live_feed": {
+            "type": "boolean",
+            "title": "Live Feed",
+            "default": false
+          },
           "venues": {
             "items": {
               "type": "string"
             },
-            "title": "Venues",
-            "type": "array"
+            "type": "array",
+            "title": "Venues"
+          },
+          "logo_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Ref"
           }
         },
+        "type": "object",
         "title": "ChainInfo",
-        "type": "object"
+        "description": "One chain's verified provider support (webapp/chains.py CHAIN_CATALOG).\nA False cell is a stated absence — e.g. hood clustering is impossible\ntoday because GeckoTerminal has no robinhood network."
       },
       "ChainsResponse": {
-        "description": "The full catalog, config-not-observed: data_mode='static' marks that\nthese are maintained capability flags, not a response observed from an\nupstream at request time. The `note` travels with the payload.\n`capabilities` renders the wiring map (BE-F5a-R): who computes what per\nchain \u2014 a source name, or an explicit reason sentence.",
         "properties": {
-          "capabilities": {
-            "additionalProperties": {
-              "additionalProperties": {
-                "$ref": "#/components/schemas/CapabilityRow"
-              },
-              "type": "object"
-            },
-            "title": "Capabilities",
-            "type": "object"
-          },
-          "chains": {
-            "items": {
-              "$ref": "#/components/schemas/ChainInfo"
-            },
-            "title": "Chains",
-            "type": "array"
-          },
           "data_mode": {
-            "default": "static",
+            "type": "string",
             "enum": [
               "live",
               "fixture",
@@ -166,7 +1304,31 @@
               "partial"
             ],
             "title": "Data Mode",
-            "type": "string"
+            "default": "static"
+          },
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version",
+            "default": "1.0"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "ts": {
+            "type": "string",
+            "title": "Ts"
+          },
+          "chains": {
+            "items": {
+              "$ref": "#/components/schemas/ChainInfo"
+            },
+            "type": "array",
+            "title": "Chains"
           },
           "note": {
             "anyOf": [
@@ -179,30 +1341,34 @@
             ],
             "title": "Note"
           },
-          "schema_version": {
-            "const": "1.0",
-            "default": "1.0",
-            "title": "Schema Version",
-            "type": "string"
-          },
-          "sources": {
-            "items": {
-              "type": "string"
+          "capabilities": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/CapabilityRow"
+              },
+              "type": "object"
             },
-            "title": "Sources",
-            "type": "array"
-          },
-          "ts": {
-            "title": "Ts",
-            "type": "string"
+            "type": "object",
+            "title": "Capabilities"
           }
         },
+        "type": "object",
         "title": "ChainsResponse",
-        "type": "object"
+        "description": "The full catalog, config-not-observed: data_mode='static' marks that\nthese are maintained capability flags, not a response observed from an\nupstream at request time. The `note` travels with the payload.\n`capabilities` renders the wiring map (BE-F5a-R): who computes what per\nchain — a source name, or an explicit reason sentence."
       },
       "ClusteringBlock": {
-        "description": "Wallet-coordination result. On upstream failure the counts are None\n(never 0 \u2014 a failed fetch observed no wallets); severity None with real\ncounts = sample too small, honestly not scored.",
         "properties": {
+          "wallets": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wallets"
+          },
           "buys": {
             "anyOf": [
               {
@@ -213,22 +1379,6 @@
               }
             ],
             "title": "Buys"
-          },
-          "computed": {
-            "default": false,
-            "title": "Computed",
-            "type": "boolean"
-          },
-          "evidence": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Evidence"
           },
           "severity": {
             "anyOf": [
@@ -241,7 +1391,41 @@
             ],
             "title": "Severity"
           },
-          "wallets": {
+          "evidence": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence"
+          },
+          "computed": {
+            "type": "boolean",
+            "title": "Computed",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "ClusteringBlock",
+        "description": "Wallet-coordination result. On upstream failure the counts are None\n(never 0 — a failed fetch observed no wallets); severity None with real\ncounts = sample too small, honestly not scored."
+      },
+      "DbInfo": {
+        "properties": {
+          "path_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path Kind"
+          },
+          "schema_version": {
             "anyOf": [
               {
                 "type": "integer"
@@ -250,15 +1434,15 @@
                 "type": "null"
               }
             ],
-            "title": "Wallets"
-          }
-        },
-        "title": "ClusteringBlock",
-        "type": "object"
-      },
-      "DbInfo": {
-        "description": "/api/version db block \u2014 measured facts about the persistence layer.",
-        "properties": {
+            "title": "Schema Version"
+          },
+          "rows_by_table": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Rows By Table"
+          },
           "last_run_at": {
             "anyOf": [
               {
@@ -280,68 +1464,39 @@
               }
             ],
             "title": "Oldest Row Ts"
-          },
-          "path_kind": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Path Kind"
-          },
-          "rows_by_table": {
-            "additionalProperties": {
-              "type": "integer"
-            },
-            "title": "Rows By Table",
-            "type": "object"
-          },
-          "schema_version": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Schema Version"
           }
         },
+        "type": "object",
         "title": "DbInfo",
-        "type": "object"
+        "description": "/api/version db block — measured facts about the persistence layer."
       },
       "DeployerLineage": {
-        "description": "What THIS registry observed about a deployer \u2014 DB-local, zero\nprovider calls. launches=0 is DATA (watched, launched nothing so far);\nan absent deployer has no lineage block at all.",
         "properties": {
-          "labels": {
-            "items": {
-              "$ref": "#/components/schemas/WalletLabel"
-            },
-            "title": "Labels",
-            "type": "array"
-          },
           "launches": {
-            "default": 0,
+            "type": "integer",
             "title": "Launches",
-            "type": "integer"
+            "default": 0
           },
           "tokens": {
             "items": {
               "$ref": "#/components/schemas/LineageToken"
             },
-            "title": "Tokens",
-            "type": "array"
+            "type": "array",
+            "title": "Tokens"
+          },
+          "labels": {
+            "items": {
+              "$ref": "#/components/schemas/WalletLabel"
+            },
+            "type": "array",
+            "title": "Labels"
           }
         },
+        "type": "object",
         "title": "DeployerLineage",
-        "type": "object"
+        "description": "What THIS registry observed about a deployer — DB-local, zero\nprovider calls. launches=0 is DATA (watched, launched nothing so far);\nan absent deployer has no lineage block at all."
       },
       "DetectCandidate": {
-        "description": "One candidate pair on one founder chain \u2014 the deepest pool DS returned\nfor that chainId. `chain` is the founder key (sol|bnb|base|hype|hood).",
         "properties": {
           "chain": {
             "anyOf": [
@@ -365,6 +1520,50 @@
             ],
             "title": "Chain Id"
           },
+          "symbol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symbol"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "token_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Address"
+          },
+          "pair_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pair Address"
+          },
           "dex_id": {
             "anyOf": [
               {
@@ -387,28 +1586,6 @@
             ],
             "title": "Liquidity Usd"
           },
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          },
-          "pair_address": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pair Address"
-          },
           "price_usd": {
             "anyOf": [
               {
@@ -425,28 +1602,6 @@
               }
             ],
             "title": "Price Usd"
-          },
-          "symbol": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Symbol"
-          },
-          "token_address": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Token Address"
           },
           "url": {
             "anyOf": [
@@ -460,20 +1615,14 @@
             "title": "Url"
           }
         },
+        "type": "object",
         "title": "DetectCandidate",
-        "type": "object"
+        "description": "One candidate pair on one founder chain — the deepest pool DS returned\nfor that chainId. `chain` is the founder key (sol|bnb|base|hype|hood)."
       },
       "DetectResponse": {
         "properties": {
-          "candidates": {
-            "items": {
-              "$ref": "#/components/schemas/DetectCandidate"
-            },
-            "title": "Candidates",
-            "type": "array"
-          },
           "data_mode": {
-            "default": "live",
+            "type": "string",
             "enum": [
               "live",
               "fixture",
@@ -482,21 +1631,24 @@
               "partial"
             ],
             "title": "Data Mode",
-            "type": "string"
+            "default": "live"
           },
-          "kind": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Kind"
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version",
+            "default": "1.0"
           },
-          "provenance": {
-            "$ref": "#/components/schemas/Provenance"
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "ts": {
+            "type": "string",
+            "title": "Ts"
           },
           "query": {
             "anyOf": [
@@ -509,48 +1661,34 @@
             ],
             "title": "Query"
           },
-          "schema_version": {
-            "const": "1.0",
-            "default": "1.0",
-            "title": "Schema Version",
-            "type": "string"
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
           },
-          "sources": {
+          "candidates": {
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/DetectCandidate"
             },
-            "title": "Sources",
-            "type": "array"
+            "type": "array",
+            "title": "Candidates"
           },
-          "ts": {
-            "title": "Ts",
-            "type": "string"
+          "provenance": {
+            "$ref": "#/components/schemas/Provenance"
           }
         },
-        "title": "DetectResponse",
-        "type": "object"
+        "type": "object",
+        "title": "DetectResponse"
       },
       "DiscoveryItem": {
-        "description": "providers/discovery.py FIELDS key set, exact.",
         "properties": {
-          "change_24h": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              },
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Change 24H"
-          },
-          "created_at": {
+          "pool_address": {
             "anyOf": [
               {
                 "type": "string"
@@ -559,35 +1697,7 @@
                 "type": "null"
               }
             ],
-            "title": "Created At"
-          },
-          "dex": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Dex"
-          },
-          "fdv_usd": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              },
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fdv Usd"
+            "title": "Pool Address"
           },
           "pair": {
             "anyOf": [
@@ -600,7 +1710,7 @@
             ],
             "title": "Pair"
           },
-          "pool_address": {
+          "dex": {
             "anyOf": [
               {
                 "type": "string"
@@ -609,7 +1719,7 @@
                 "type": "null"
               }
             ],
-            "title": "Pool Address"
+            "title": "Dex"
           },
           "price_usd": {
             "anyOf": [
@@ -644,198 +1754,7 @@
               }
             ],
             "title": "Volume 24H"
-          }
-        },
-        "title": "DiscoveryItem",
-        "type": "object"
-      },
-      "DiscoveryResponse": {
-        "properties": {
-          "chain": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Chain"
           },
-          "count": {
-            "default": 0,
-            "title": "Count",
-            "type": "integer"
-          },
-          "data_mode": {
-            "default": "live",
-            "enum": [
-              "live",
-              "fixture",
-              "unwired",
-              "static",
-              "partial"
-            ],
-            "title": "Data Mode",
-            "type": "string"
-          },
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/DiscoveryItem"
-            },
-            "title": "Items",
-            "type": "array"
-          },
-          "mode": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mode"
-          },
-          "schema_version": {
-            "const": "1.0",
-            "default": "1.0",
-            "title": "Schema Version",
-            "type": "string"
-          },
-          "sources": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Sources",
-            "type": "array"
-          },
-          "ts": {
-            "title": "Ts",
-            "type": "string"
-          }
-        },
-        "title": "DiscoveryResponse",
-        "type": "object"
-      },
-      "ExplainBody": {
-        "properties": {
-          "address": {
-            "title": "Address",
-            "type": "string"
-          },
-          "chain": {
-            "title": "Chain",
-            "type": "string"
-          },
-          "provider": {
-            "default": "claude",
-            "title": "Provider",
-            "type": "string"
-          }
-        },
-        "required": [
-          "chain",
-          "address"
-        ],
-        "title": "ExplainBody",
-        "type": "object"
-      },
-      "ExplainResponse": {
-        "description": "Evidence-first narrative (LLM provider or the deterministic local tier).\n`limitations` keeps the wire's string type \u2014 typing it as a list would\n500 every explain call; widening it is a deliberate contract change.",
-        "properties": {
-          "data_mode": {
-            "default": "live",
-            "enum": [
-              "live",
-              "fixture",
-              "unwired",
-              "static",
-              "partial"
-            ],
-            "title": "Data Mode",
-            "type": "string"
-          },
-          "key_signals": {
-            "items": {
-              "$ref": "#/components/schemas/KeySignal"
-            },
-            "title": "Key Signals",
-            "type": "array"
-          },
-          "limitations": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Limitations"
-          },
-          "parse_ok": {
-            "default": false,
-            "title": "Parse Ok",
-            "type": "boolean"
-          },
-          "provider": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Provider"
-          },
-          "schema_version": {
-            "const": "1.0",
-            "default": "1.0",
-            "title": "Schema Version",
-            "type": "string"
-          },
-          "sources": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Sources",
-            "type": "array"
-          },
-          "summary": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Summary"
-          },
-          "tier": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tier"
-          },
-          "ts": {
-            "title": "Ts",
-            "type": "string"
-          }
-        },
-        "title": "ExplainResponse",
-        "type": "object"
-      },
-      "FeedItem": {
-        "description": "providers/live.py FIELDS key set, exact \u2014 absent stays None.",
-        "properties": {
           "change_24h": {
             "anyOf": [
               {
@@ -852,6 +1771,376 @@
               }
             ],
             "title": "Change 24H"
+          },
+          "fdv_usd": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fdv Usd"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "title": "DiscoveryItem",
+        "description": "providers/discovery.py FIELDS key set, exact."
+      },
+      "DiscoveryResponse": {
+        "properties": {
+          "data_mode": {
+            "type": "string",
+            "enum": [
+              "live",
+              "fixture",
+              "unwired",
+              "static",
+              "partial"
+            ],
+            "title": "Data Mode",
+            "default": "live"
+          },
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version",
+            "default": "1.0"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "ts": {
+            "type": "string",
+            "title": "Ts"
+          },
+          "chain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chain"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mode"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count",
+            "default": 0
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DiscoveryItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "title": "DiscoveryResponse"
+      },
+      "ExplainBody": {
+        "properties": {
+          "chain": {
+            "type": "string",
+            "title": "Chain"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "default": "claude"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chain",
+          "address"
+        ],
+        "title": "ExplainBody"
+      },
+      "ExplainResponse": {
+        "properties": {
+          "data_mode": {
+            "type": "string",
+            "enum": [
+              "live",
+              "fixture",
+              "unwired",
+              "static",
+              "partial"
+            ],
+            "title": "Data Mode",
+            "default": "live"
+          },
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version",
+            "default": "1.0"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "ts": {
+            "type": "string",
+            "title": "Ts"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "key_signals": {
+            "items": {
+              "$ref": "#/components/schemas/KeySignal"
+            },
+            "type": "array",
+            "title": "Key Signals"
+          },
+          "limitations": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limitations"
+          },
+          "parse_ok": {
+            "type": "boolean",
+            "title": "Parse Ok",
+            "default": false
+          },
+          "tier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
+          }
+        },
+        "type": "object",
+        "title": "ExplainResponse",
+        "description": "Evidence-first narrative (LLM provider or the deterministic local tier).\n`limitations` keeps the wire's string type — typing it as a list would\n500 every explain call; widening it is a deliberate contract change."
+      },
+      "FeedItem": {
+        "properties": {
+          "pool_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pool Address"
+          },
+          "token_symbol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Symbol"
+          },
+          "token_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Name"
+          },
+          "pair": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pair"
+          },
+          "logo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo"
+          },
+          "price_usd": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Usd"
+          },
+          "volume_24h": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volume 24H"
+          },
+          "change_24h": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change 24H"
+          },
+          "liquidity_usd": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Liquidity Usd"
+          },
+          "txns_24h": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Txns 24H"
+          },
+          "fdv_usd": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fdv Usd"
           },
           "created_at": {
             "anyOf": [
@@ -875,23 +2164,6 @@
             ],
             "title": "Dex Id"
           },
-          "fdv_usd": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              },
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fdv Usd"
-          },
           "launchpad": {
             "anyOf": [
               {
@@ -902,83 +2174,6 @@
               }
             ],
             "title": "Launchpad"
-          },
-          "liquidity_usd": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              },
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Liquidity Usd"
-          },
-          "logo": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Logo"
-          },
-          "pair": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pair"
-          },
-          "pool_address": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pool Address"
-          },
-          "price_usd": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              },
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Price Usd"
-          },
-          "socials": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/SocialLinks"
-              },
-              {
-                "type": "null"
-              }
-            ]
           },
           "token_address": {
             "anyOf": [
@@ -991,59 +2186,20 @@
             ],
             "title": "Token Address"
           },
-          "token_name": {
+          "socials": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/SocialLinks"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Token Name"
-          },
-          "token_symbol": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Token Symbol"
-          },
-          "txns_24h": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Txns 24H"
-          },
-          "volume_24h": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              },
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Volume 24H"
+            ]
           }
         },
+        "type": "object",
         "title": "FeedItem",
-        "type": "object"
+        "description": "providers/live.py FIELDS key set, exact — absent stays None."
       },
       "HTTPValidationError": {
         "properties": {
@@ -1051,17 +2207,17 @@
             "items": {
               "$ref": "#/components/schemas/ValidationError"
             },
-            "title": "Detail",
-            "type": "array"
+            "type": "array",
+            "title": "Detail"
           }
         },
-        "title": "HTTPValidationError",
-        "type": "object"
+        "type": "object",
+        "title": "HTTPValidationError"
       },
       "HistoryPage_OhlcvPoint_": {
         "properties": {
           "data_mode": {
-            "default": "unwired",
+            "type": "string",
             "enum": [
               "live",
               "fixture",
@@ -1070,14 +2226,31 @@
               "partial"
             ],
             "title": "Data Mode",
-            "type": "string"
+            "default": "unwired"
+          },
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version",
+            "default": "1.0"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "ts": {
+            "type": "string",
+            "title": "Ts"
           },
           "items": {
             "items": {
               "$ref": "#/components/schemas/OhlcvPoint"
             },
-            "title": "Items",
-            "type": "array"
+            "type": "array",
+            "title": "Items"
           },
           "next_cursor": {
             "anyOf": [
@@ -1089,32 +2262,15 @@
               }
             ],
             "title": "Next Cursor"
-          },
-          "schema_version": {
-            "const": "1.0",
-            "default": "1.0",
-            "title": "Schema Version",
-            "type": "string"
-          },
-          "sources": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Sources",
-            "type": "array"
-          },
-          "ts": {
-            "title": "Ts",
-            "type": "string"
           }
         },
-        "title": "HistoryPage[OhlcvPoint]",
-        "type": "object"
+        "type": "object",
+        "title": "HistoryPage[OhlcvPoint]"
       },
       "HistoryPage_TradeRow_": {
         "properties": {
           "data_mode": {
-            "default": "unwired",
+            "type": "string",
             "enum": [
               "live",
               "fixture",
@@ -1123,14 +2279,31 @@
               "partial"
             ],
             "title": "Data Mode",
-            "type": "string"
+            "default": "unwired"
+          },
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version",
+            "default": "1.0"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "ts": {
+            "type": "string",
+            "title": "Ts"
           },
           "items": {
             "items": {
               "$ref": "#/components/schemas/TradeRow"
             },
-            "title": "Items",
-            "type": "array"
+            "type": "array",
+            "title": "Items"
           },
           "next_cursor": {
             "anyOf": [
@@ -1142,42 +2315,13 @@
               }
             ],
             "title": "Next Cursor"
-          },
-          "schema_version": {
-            "const": "1.0",
-            "default": "1.0",
-            "title": "Schema Version",
-            "type": "string"
-          },
-          "sources": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Sources",
-            "type": "array"
-          },
-          "ts": {
-            "title": "Ts",
-            "type": "string"
           }
         },
-        "title": "HistoryPage[TradeRow]",
-        "type": "object"
+        "type": "object",
+        "title": "HistoryPage[TradeRow]"
       },
       "KeySignal": {
-        "description": "One quoted signal inside an explain narrative ({label, evidence}).",
         "properties": {
-          "evidence": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Evidence"
-          },
           "label": {
             "anyOf": [
               {
@@ -1188,15 +2332,8 @@
               }
             ],
             "title": "Label"
-          }
-        },
-        "title": "KeySignal",
-        "type": "object"
-      },
-      "LineageToken": {
-        "description": "One prior scan_snapshots row for this deployer (DB-local view).",
-        "properties": {
-          "chain": {
+          },
+          "evidence": {
             "anyOf": [
               {
                 "type": "string"
@@ -1205,8 +2342,15 @@
                 "type": "null"
               }
             ],
-            "title": "Chain"
-          },
+            "title": "Evidence"
+          }
+        },
+        "type": "object",
+        "title": "KeySignal",
+        "description": "One quoted signal inside an explain narrative ({label, evidence})."
+      },
+      "LineageToken": {
+        "properties": {
           "mint": {
             "anyOf": [
               {
@@ -1218,7 +2362,7 @@
             ],
             "title": "Mint"
           },
-          "rug": {
+          "chain": {
             "anyOf": [
               {
                 "type": "string"
@@ -1227,7 +2371,7 @@
                 "type": "null"
               }
             ],
-            "title": "Rug"
+            "title": "Chain"
           },
           "score": {
             "anyOf": [
@@ -1240,6 +2384,17 @@
             ],
             "title": "Score"
           },
+          "rug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rug"
+          },
           "ts": {
             "anyOf": [
               {
@@ -1252,21 +2407,40 @@
             "title": "Ts"
           }
         },
+        "type": "object",
         "title": "LineageToken",
-        "type": "object"
+        "description": "One prior scan_snapshots row for this deployer (DB-local view)."
       },
       "LiveResponse": {
         "properties": {
-          "cached": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
+          "data_mode": {
+            "type": "string",
+            "enum": [
+              "live",
+              "fixture",
+              "unwired",
+              "static",
+              "partial"
             ],
-            "title": "Cached"
+            "title": "Data Mode",
+            "default": "live"
+          },
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version",
+            "default": "1.0"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "ts": {
+            "type": "string",
+            "title": "Ts"
           },
           "chain": {
             "anyOf": [
@@ -1279,17 +2453,21 @@
             ],
             "title": "Chain"
           },
-          "data_mode": {
-            "default": "live",
-            "enum": [
-              "live",
-              "fixture",
-              "unwired",
-              "static",
-              "partial"
+          "network_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Data Mode",
-            "type": "string"
+            "title": "Network Id"
+          },
+          "live": {
+            "type": "boolean",
+            "title": "Live",
+            "default": false
           },
           "generated_at": {
             "anyOf": [
@@ -1302,41 +2480,16 @@
             ],
             "title": "Generated At"
           },
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/FeedItem"
-            },
-            "title": "Items",
-            "type": "array"
-          },
-          "live": {
-            "default": false,
-            "title": "Live",
-            "type": "boolean"
-          },
-          "network_id": {
+          "cached": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "boolean"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Network Id"
-          },
-          "schema_version": {
-            "const": "1.0",
-            "default": "1.0",
-            "title": "Schema Version",
-            "type": "string"
-          },
-          "sources": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Sources",
-            "type": "array"
+            "title": "Cached"
           },
           "stale": {
             "anyOf": [
@@ -1349,18 +2502,20 @@
             ],
             "title": "Stale"
           },
-          "ts": {
-            "title": "Ts",
-            "type": "string"
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FeedItem"
+            },
+            "type": "array",
+            "title": "Items"
           }
         },
-        "title": "LiveResponse",
-        "type": "object"
+        "type": "object",
+        "title": "LiveResponse"
       },
       "NetflowRow": {
-        "description": "Per-wallet net over the same window as the transfers shown.",
         "properties": {
-          "direction": {
+          "wallet": {
             "anyOf": [
               {
                 "type": "string"
@@ -1369,7 +2524,7 @@
                 "type": "null"
               }
             ],
-            "title": "Direction"
+            "title": "Wallet"
           },
           "net_amount": {
             "anyOf": [
@@ -1382,6 +2537,17 @@
             ],
             "title": "Net Amount"
           },
+          "direction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Direction"
+          },
           "net_usd": {
             "anyOf": [
               {
@@ -1392,50 +2558,40 @@
               }
             ],
             "title": "Net Usd"
-          },
-          "wallet": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Wallet"
           }
         },
+        "type": "object",
         "title": "NetflowRow",
-        "type": "object"
+        "description": "Per-wallet net over the same window as the transfers shown."
       },
       "OhlcvCandle": {
-        "description": "One GT candle, verbatim floats (no rounding, no gap-filling). ts is\nunix seconds UTC of the bucket OPEN.",
         "properties": {
-          "c": {
-            "title": "C",
-            "type": "number"
-          },
-          "h": {
-            "title": "H",
-            "type": "number"
-          },
-          "l": {
-            "title": "L",
-            "type": "number"
+          "ts": {
+            "type": "integer",
+            "title": "Ts"
           },
           "o": {
-            "title": "O",
-            "type": "number"
+            "type": "number",
+            "title": "O"
           },
-          "ts": {
-            "title": "Ts",
-            "type": "integer"
+          "h": {
+            "type": "number",
+            "title": "H"
+          },
+          "l": {
+            "type": "number",
+            "title": "L"
+          },
+          "c": {
+            "type": "number",
+            "title": "C"
           },
           "v": {
-            "title": "V",
-            "type": "number"
+            "type": "number",
+            "title": "V"
           }
         },
+        "type": "object",
         "required": [
           "ts",
           "o",
@@ -1445,65 +2601,20 @@
           "v"
         ],
         "title": "OhlcvCandle",
-        "type": "object"
+        "description": "One GT candle, verbatim floats (no rounding, no gap-filling). ts is\nunix seconds UTC of the bucket OPEN."
       },
       "OhlcvPoint": {
-        "description": "Point-in-time quote mapped onto the OHLCV shape: open/high/low stay\nNone (a candle that was never observed is never synthesized), close =\nthe observed price, volume = the observed 24h volume.",
         "properties": {
-          "close": {
+          "ts": {
             "anyOf": [
               {
-                "type": "number"
+                "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Close"
-          },
-          "fdv": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fdv"
-          },
-          "high": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "High"
-          },
-          "liquidity": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Liquidity"
-          },
-          "low": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Low"
+            "title": "Ts"
           },
           "open": {
             "anyOf": [
@@ -1516,16 +2627,38 @@
             ],
             "title": "Open"
           },
-          "ts": {
+          "high": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "number"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Ts"
+            "title": "High"
+          },
+          "low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low"
+          },
+          "close": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Close"
           },
           "volume": {
             "anyOf": [
@@ -1537,13 +2670,120 @@
               }
             ],
             "title": "Volume"
+          },
+          "liquidity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Liquidity"
+          },
+          "fdv": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fdv"
           }
         },
+        "type": "object",
         "title": "OhlcvPoint",
-        "type": "object"
+        "description": "Point-in-time quote mapped onto the OHLCV shape: open/high/low stay\nNone (a candle that was never observed is never synthesized), close =\nthe observed price, volume = the observed 24h volume."
       },
       "OhlcvResponse": {
         "properties": {
+          "data_mode": {
+            "type": "string",
+            "enum": [
+              "live",
+              "fixture",
+              "unwired",
+              "static",
+              "partial"
+            ],
+            "title": "Data Mode",
+            "default": "live"
+          },
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version",
+            "default": "1.0"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "ts": {
+            "type": "string",
+            "title": "Ts"
+          },
+          "chain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chain"
+          },
+          "network_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Network Id"
+          },
+          "pair": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pair"
+          },
+          "resolution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolution"
+          },
+          "timeframe": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timeframe"
+          },
           "aggregate": {
             "anyOf": [
               {
@@ -1554,6 +2794,13 @@
               }
             ],
             "title": "Aggregate"
+          },
+          "candles": {
+            "items": {
+              "$ref": "#/components/schemas/OhlcvCandle"
+            },
+            "type": "array",
+            "title": "Candles"
           },
           "base_token": {
             "anyOf": [
@@ -1576,118 +2823,25 @@
             ],
             "title": "Base Token"
           },
-          "candles": {
-            "items": {
-              "$ref": "#/components/schemas/OhlcvCandle"
-            },
-            "title": "Candles",
-            "type": "array"
-          },
-          "chain": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Chain"
-          },
-          "data_mode": {
-            "default": "live",
-            "enum": [
-              "live",
-              "fixture",
-              "unwired",
-              "static",
-              "partial"
-            ],
-            "title": "Data Mode",
-            "type": "string"
-          },
-          "network_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Network Id"
-          },
-          "pair": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pair"
-          },
           "provenance": {
             "$ref": "#/components/schemas/Provenance"
-          },
-          "resolution": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Resolution"
-          },
-          "schema_version": {
-            "const": "1.0",
-            "default": "1.0",
-            "title": "Schema Version",
-            "type": "string"
-          },
-          "sources": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Sources",
-            "type": "array"
-          },
-          "timeframe": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Timeframe"
-          },
-          "ts": {
-            "title": "Ts",
-            "type": "string"
           }
         },
-        "title": "OhlcvResponse",
-        "type": "object"
+        "type": "object",
+        "title": "OhlcvResponse"
       },
       "Pair": {
-        "description": "DexScreener pair projection (webapp.server._pair_view key set, exact).",
         "properties": {
-          "baseToken": {
+          "pairAddress": {
             "anyOf": [
               {
-                "additionalProperties": true,
-                "type": "object"
+                "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Basetoken"
+            "title": "Pairaddress"
           },
           "chainId": {
             "anyOf": [
@@ -1711,24 +2865,7 @@
             ],
             "title": "Dexid"
           },
-          "fdv": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              },
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fdv"
-          },
-          "liquidity": {
+          "baseToken": {
             "anyOf": [
               {
                 "additionalProperties": true,
@@ -1738,54 +2875,9 @@
                 "type": "null"
               }
             ],
-            "title": "Liquidity"
+            "title": "Basetoken"
           },
-          "marketCap": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              },
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Marketcap"
-          },
-          "pairAddress": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pairaddress"
-          },
-          "pairCreatedAt": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              },
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Paircreatedat"
-          },
-          "priceChange": {
+          "quoteToken": {
             "anyOf": [
               {
                 "additionalProperties": true,
@@ -1795,7 +2887,18 @@
                 "type": "null"
               }
             ],
-            "title": "Pricechange"
+            "title": "Quotetoken"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
           },
           "priceUsd": {
             "anyOf": [
@@ -1814,7 +2917,7 @@
             ],
             "title": "Priceusd"
           },
-          "quoteToken": {
+          "liquidity": {
             "anyOf": [
               {
                 "additionalProperties": true,
@@ -1824,7 +2927,65 @@
                 "type": "null"
               }
             ],
-            "title": "Quotetoken"
+            "title": "Liquidity"
+          },
+          "fdv": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fdv"
+          },
+          "marketCap": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Marketcap"
+          },
+          "volume": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volume"
+          },
+          "priceChange": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pricechange"
           },
           "txns": {
             "anyOf": [
@@ -1838,40 +2999,31 @@
             ],
             "title": "Txns"
           },
-          "url": {
+          "pairCreatedAt": {
             "anyOf": [
               {
                 "type": "string"
               },
               {
-                "type": "null"
-              }
-            ],
-            "title": "Url"
-          },
-          "volume": {
-            "anyOf": [
+                "type": "number"
+              },
               {
-                "additionalProperties": true,
-                "type": "object"
+                "type": "integer"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Volume"
+            "title": "Paircreatedat"
           }
         },
+        "type": "object",
         "title": "Pair",
-        "type": "object"
+        "description": "DexScreener pair projection (webapp.server._pair_view key set, exact)."
       },
       "Provenance": {
-        "description": "The FAKTA envelope law (2026-08-30): every new route carries WHERE a\npayload came from and HOW fresh it is. `degraded` is None on a healthy\npayload and a reason sentence otherwise \u2014 a degraded payload still ships\nreal data (or honest empties), never fabricated values.",
         "properties": {
-          "cache": {
-            "$ref": "#/components/schemas/CacheInfo"
-          },
-          "degraded": {
+          "source": {
             "anyOf": [
               {
                 "type": "string"
@@ -1880,12 +3032,7 @@
                 "type": "null"
               }
             ],
-            "title": "Degraded"
-          },
-          "freshness": {
-            "additionalProperties": true,
-            "title": "Freshness",
-            "type": "object"
+            "title": "Source"
           },
           "host": {
             "anyOf": [
@@ -1898,7 +3045,15 @@
             ],
             "title": "Host"
           },
-          "source": {
+          "cache": {
+            "$ref": "#/components/schemas/CacheInfo"
+          },
+          "freshness": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Freshness"
+          },
+          "degraded": {
             "anyOf": [
               {
                 "type": "string"
@@ -1907,11 +3062,12 @@
                 "type": "null"
               }
             ],
-            "title": "Source"
+            "title": "Degraded"
           }
         },
+        "type": "object",
         "title": "Provenance",
-        "type": "object"
+        "description": "The FAKTA envelope law (2026-08-30): every new route carries WHERE a\npayload came from and HOW fresh it is. `degraded` is None on a healthy\npayload and a reason sentence otherwise — a degraded payload still ships\nreal data (or honest empties), never fabricated values."
       },
       "RugAssessment": {
         "properties": {
@@ -1937,13 +3093,6 @@
             ],
             "title": "Level Label"
           },
-          "notes": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Notes",
-            "type": "array"
-          },
           "score": {
             "anyOf": [
               {
@@ -1959,16 +3108,189 @@
             "items": {
               "$ref": "#/components/schemas/SignalRow"
             },
-            "title": "Signals",
-            "type": "array"
+            "type": "array",
+            "title": "Signals"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Notes"
           }
         },
-        "title": "RugAssessment",
-        "type": "object"
+        "type": "object",
+        "title": "RugAssessment"
+      },
+      "RugEvmResponse": {
+        "properties": {
+          "data_mode": {
+            "type": "string",
+            "enum": [
+              "live",
+              "fixture",
+              "unwired",
+              "static",
+              "partial"
+            ],
+            "title": "Data Mode",
+            "default": "live"
+          },
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version",
+            "default": "1.0"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "ts": {
+            "type": "string",
+            "title": "Ts"
+          },
+          "chain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chain"
+          },
+          "chain_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chain Id"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token"
+          },
+          "token_symbol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Symbol"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/RugEvmRow"
+            },
+            "type": "array",
+            "title": "Rows"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/Provenance"
+          }
+        },
+        "type": "object",
+        "title": "RugEvmResponse",
+        "description": "EVM rug surface via GoPlus token_security (bnb=56, base=8453). Rows\nare the verbatim mapping of the fields we display; provider chip rides\non every row ('GoPlus'). 'context not audit' stays the standing law."
+      },
+      "RugEvmRow": {
+        "properties": {
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "field"
+        ],
+        "title": "RugEvmRow",
+        "description": "One GoPlus field → one panel row, verbatim string value (GoPlus sends\n0/1 and '0.05' style strings — no coercion, the FE renders them as-is)."
       },
       "RugFlags": {
-        "description": "Rug-relevant flags, COPIED VERBATIM from the source (sol: helius DAS\nauthorities + mutable; EVM: GoPlus security fields as their own strings).\nField values the source did not send stay absent \u2014 no cross-filling.",
         "properties": {
+          "update_authorities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Update Authorities"
+          },
+          "mutable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mutable"
+          },
+          "is_honeypot": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Honeypot"
+          },
           "buy_tax": {
             "anyOf": [
               {
@@ -1985,6 +3307,40 @@
               }
             ],
             "title": "Buy Tax"
+          },
+          "sell_tax": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sell Tax"
+          },
+          "mintable": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mintable"
           },
           "freezable": {
             "anyOf": [
@@ -2020,23 +3376,6 @@
             ],
             "title": "Holder Count"
           },
-          "is_honeypot": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              },
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Is Honeypot"
-          },
           "lp_holders": {
             "anyOf": [
               {
@@ -2053,100 +3392,73 @@
               }
             ],
             "title": "Lp Holders"
-          },
-          "mintable": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              },
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mintable"
-          },
-          "mutable": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mutable"
-          },
-          "sell_tax": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "number"
-              },
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Sell Tax"
-          },
-          "update_authorities": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Update Authorities",
-            "type": "array"
           }
         },
+        "type": "object",
         "title": "RugFlags",
-        "type": "object"
+        "description": "Rug-relevant flags, COPIED VERBATIM from the source (sol: helius DAS\nauthorities + mutable; EVM: GoPlus security fields as their own strings).\nField values the source did not send stay absent — no cross-filling."
       },
-      "ScanBody": {
+      "RugRiskRow": {
         "properties": {
-          "address": {
-            "title": "Address",
-            "type": "string"
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
           },
-          "chain": {
-            "title": "Chain",
-            "type": "string"
+          "level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
           },
-          "refresh": {
-            "default": false,
-            "title": "Refresh",
-            "type": "boolean"
+          "score": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
           }
         },
-        "required": [
-          "chain",
-          "address"
-        ],
-        "title": "ScanBody",
-        "type": "object"
+        "type": "object",
+        "title": "RugRiskRow",
+        "description": "One RugCheck.xyz risk entry, verbatim (name/level/score/description)."
       },
-      "ScanResponse": {
-        "description": "scan contract v1.1 \u2014 everything v1.0 served, unchanged, plus the\nbest-effort `context` block (BE-F5a-R). The rug weights and score\nformula are NOT part of this bump: context renders beside the verdict,\nnever inside it. schema_version is bumped on THIS model only.",
+      "RugSolResponse": {
         "properties": {
-          "assessment": {
-            "$ref": "#/components/schemas/RugAssessment"
-          },
-          "clustering": {
-            "$ref": "#/components/schemas/ClusteringBlock"
-          },
-          "context": {
-            "$ref": "#/components/schemas/TokenContext"
-          },
           "data_mode": {
-            "default": "live",
+            "type": "string",
             "enum": [
               "live",
               "fixture",
@@ -2155,7 +3467,167 @@
               "partial"
             ],
             "title": "Data Mode",
-            "type": "string"
+            "default": "live"
+          },
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version",
+            "default": "1.0"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "ts": {
+            "type": "string",
+            "title": "Ts"
+          },
+          "mint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mint"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "score_normalised": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Normalised"
+          },
+          "lp_locked_pct": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lp Locked Pct"
+          },
+          "risks": {
+            "items": {
+              "$ref": "#/components/schemas/RugRiskRow"
+            },
+            "type": "array",
+            "title": "Risks"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/Provenance"
+          }
+        },
+        "type": "object",
+        "title": "RugSolResponse",
+        "description": "Solana rug summary via RugCheck.xyz — proxied server-side so the\nbrowser never calls a third-party host (zero-third-party law)."
+      },
+      "ScanBody": {
+        "properties": {
+          "chain": {
+            "type": "string",
+            "title": "Chain"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "refresh": {
+            "type": "boolean",
+            "title": "Refresh",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "chain",
+          "address"
+        ],
+        "title": "ScanBody"
+      },
+      "ScanResponse": {
+        "properties": {
+          "data_mode": {
+            "type": "string",
+            "enum": [
+              "live",
+              "fixture",
+              "unwired",
+              "static",
+              "partial"
+            ],
+            "title": "Data Mode",
+            "default": "live"
+          },
+          "schema_version": {
+            "type": "string",
+            "enum": [
+              "1.0",
+              "1.1"
+            ],
+            "title": "Schema Version",
+            "default": "1.1"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "ts": {
+            "type": "string",
+            "title": "Ts"
+          },
+          "pair": {
+            "$ref": "#/components/schemas/Pair"
+          },
+          "assessment": {
+            "$ref": "#/components/schemas/RugAssessment"
+          },
+          "clustering": {
+            "$ref": "#/components/schemas/ClusteringBlock"
           },
           "launch_venue": {
             "anyOf": [
@@ -2168,36 +3640,27 @@
             ],
             "title": "Launch Venue"
           },
-          "pair": {
-            "$ref": "#/components/schemas/Pair"
-          },
-          "schema_version": {
-            "default": "1.1",
-            "enum": [
-              "1.0",
-              "1.1"
-            ],
-            "title": "Schema Version",
-            "type": "string"
-          },
-          "sources": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Sources",
-            "type": "array"
-          },
-          "ts": {
-            "title": "Ts",
-            "type": "string"
+          "context": {
+            "$ref": "#/components/schemas/TokenContext"
           }
         },
+        "type": "object",
         "title": "ScanResponse",
-        "type": "object"
+        "description": "scan contract v1.1 — everything v1.0 served, unchanged, plus the\nbest-effort `context` block (BE-F5a-R). The rug weights and score\nformula are NOT part of this bump: context renders beside the verdict,\nnever inside it. schema_version is bumped on THIS model only."
       },
       "SellTest": {
-        "description": "Sell-side simulation, tri-state: routable True / False / None.\nNone = \"sell simulation unavailable\" (timeout etc.) \u2014 NEVER implied safe;\nFalse = a recognized no-route answer, a loud honeypot signal.",
         "properties": {
+          "routable": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Routable"
+          },
           "checked_via": {
             "anyOf": [
               {
@@ -2219,52 +3682,14 @@
               }
             ],
             "title": "Note"
-          },
-          "routable": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Routable"
           }
         },
+        "type": "object",
         "title": "SellTest",
-        "type": "object"
+        "description": "Sell-side simulation, tri-state: routable True / False / None.\nNone = \"sell simulation unavailable\" (timeout etc.) — NEVER implied safe;\nFalse = a recognized no-route answer, a loud honeypot signal."
       },
       "SignalRow": {
-        "description": "One rug_check signal. `computed` (added by BE-F1) separates \"attempted\nbut not scored\" (severity None \u2014 honest) from scored; `detail` is the\nplanned richer explanation slot and stays None until that engine exists.",
         "properties": {
-          "computed": {
-            "default": false,
-            "title": "Computed",
-            "type": "boolean"
-          },
-          "detail": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Detail"
-          },
-          "evidence": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Evidence"
-          },
           "key": {
             "anyOf": [
               {
@@ -2287,6 +3712,17 @@
             ],
             "title": "Label"
           },
+          "weight": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weight"
+          },
           "severity": {
             "anyOf": [
               {
@@ -2298,23 +3734,44 @@
             ],
             "title": "Severity"
           },
-          "weight": {
+          "evidence": {
             "anyOf": [
               {
-                "type": "number"
+                "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Weight"
+            "title": "Evidence"
+          },
+          "computed": {
+            "type": "boolean",
+            "title": "Computed",
+            "default": false
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
           }
         },
+        "type": "object",
         "title": "SignalRow",
-        "type": "object"
+        "description": "One rug_check signal. `computed` (added by BE-F1) separates \"attempted\nbut not scored\" (severity None — honest) from scored; `detail` is the\nplanned richer explanation slot and stays None until that engine exists."
       },
       "SocialLink": {
         "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
           "type": {
             "anyOf": [
               {
@@ -2325,17 +3782,13 @@
               }
             ],
             "title": "Type"
-          },
-          "url": {
-            "title": "Url",
-            "type": "string"
           }
         },
+        "type": "object",
         "required": [
           "url"
         ],
-        "title": "SocialLink",
-        "type": "object"
+        "title": "SocialLink"
       },
       "SocialLinks": {
         "properties": {
@@ -2362,12 +3815,40 @@
             "title": "Website"
           }
         },
-        "title": "SocialLinks",
-        "type": "object"
+        "type": "object",
+        "title": "SocialLinks"
       },
       "SocialsResponse": {
-        "description": "DS token-pairs info for a TOKEN address. Empty websites+links is the\nhonest 'no official links in feed' state \u2014 links are never invented.",
         "properties": {
+          "data_mode": {
+            "type": "string",
+            "enum": [
+              "live",
+              "fixture",
+              "unwired",
+              "static",
+              "partial"
+            ],
+            "title": "Data Mode",
+            "default": "live"
+          },
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version",
+            "default": "1.0"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "ts": {
+            "type": "string",
+            "title": "Ts"
+          },
           "chain": {
             "anyOf": [
               {
@@ -2378,96 +3859,6 @@
               }
             ],
             "title": "Chain"
-          },
-          "data_mode": {
-            "default": "live",
-            "enum": [
-              "live",
-              "fixture",
-              "unwired",
-              "static",
-              "partial"
-            ],
-            "title": "Data Mode",
-            "type": "string"
-          },
-          "dex_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Dex Id"
-          },
-          "header_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Header Url"
-          },
-          "image_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Image Url"
-          },
-          "links": {
-            "items": {
-              "$ref": "#/components/schemas/SocialLink"
-            },
-            "title": "Links",
-            "type": "array"
-          },
-          "liquidity_usd": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Liquidity Usd"
-          },
-          "pair_address": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pair Address"
-          },
-          "provenance": {
-            "$ref": "#/components/schemas/Provenance"
-          },
-          "schema_version": {
-            "const": "1.0",
-            "default": "1.0",
-            "title": "Schema Version",
-            "type": "string"
-          },
-          "sources": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Sources",
-            "type": "array"
           },
           "token": {
             "anyOf": [
@@ -2480,26 +3871,87 @@
             ],
             "title": "Token"
           },
-          "ts": {
-            "title": "Ts",
-            "type": "string"
+          "image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Url"
+          },
+          "header_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Header Url"
           },
           "websites": {
             "items": {
               "$ref": "#/components/schemas/WebsiteLink"
             },
-            "title": "Websites",
-            "type": "array"
+            "type": "array",
+            "title": "Websites"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/SocialLink"
+            },
+            "type": "array",
+            "title": "Links"
+          },
+          "pair_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pair Address"
+          },
+          "dex_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dex Id"
+          },
+          "liquidity_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Liquidity Usd"
+          },
+          "provenance": {
+            "$ref": "#/components/schemas/Provenance"
           }
         },
+        "type": "object",
         "title": "SocialsResponse",
-        "type": "object"
+        "description": "DS token-pairs info for a TOKEN address. Empty websites+links is the\nhonest 'no official links in feed' state — links are never invented."
       },
       "TokenContext": {
-        "description": "Trader-loop context block (BE-F5a-R) \u2014 renders BESIDE the verdict.\nThe rug weights and score formula never read from here. Per-block\nprovenance: deployer_source names the provider that said it,\nsell_test.checked_via names the quote path, and notes carry the honest\nreason for every absent capability (\"<provider>:not_configured\",\n\"<provider>:timeout\", or a catalog reason sentence).",
         "properties": {
           "data_mode": {
-            "default": "unwired",
+            "type": "string",
             "enum": [
               "live",
               "fixture",
@@ -2508,14 +3960,24 @@
               "partial"
             ],
             "title": "Data Mode",
-            "type": "string"
+            "default": "unwired"
           },
-          "data_sources": {
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version",
+            "default": "1.0"
+          },
+          "sources": {
             "items": {
               "type": "string"
             },
-            "title": "Data Sources",
-            "type": "array"
+            "type": "array",
+            "title": "Sources"
+          },
+          "ts": {
+            "type": "string",
+            "title": "Ts"
           },
           "deployer": {
             "anyOf": [
@@ -2560,46 +4022,6 @@
               }
             ]
           },
-          "notes": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Notes",
-            "type": "array"
-          },
-          "rug_flags": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/RugFlags"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "schema_version": {
-            "const": "1.0",
-            "default": "1.0",
-            "title": "Schema Version",
-            "type": "string"
-          },
-          "sell_test": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/SellTest"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "sources": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Sources",
-            "type": "array"
-          },
           "top10_share": {
             "anyOf": [
               {
@@ -2611,27 +4033,75 @@
             ],
             "title": "Top10 Share"
           },
-          "ts": {
-            "title": "Ts",
-            "type": "string"
-          }
-        },
-        "title": "TokenContext",
-        "type": "object"
-      },
-      "TokenMeta": {
-        "description": "Token registry entry (BE-F3) + the planned live token-page fields.\nRegistry-backed responses carry data_mode='fixture' today; fields the\nregistry does not know (socials, launchpad, \u2026) stay None \u2014 absent stays\nabsent until a real upstream fills them.",
-        "properties": {
-          "address": {
+          "sell_test": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/SellTest"
               },
               {
                 "type": "null"
               }
+            ]
+          },
+          "rug_flags": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RugFlags"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Notes"
+          },
+          "data_sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Data Sources"
+          }
+        },
+        "type": "object",
+        "title": "TokenContext",
+        "description": "Trader-loop context block (BE-F5a-R) — renders BESIDE the verdict.\nThe rug weights and score formula never read from here. Per-block\nprovenance: deployer_source names the provider that said it,\nsell_test.checked_via names the quote path, and notes carry the honest\nreason for every absent capability (\"<provider>:not_configured\",\n\"<provider>:timeout\", or a catalog reason sentence)."
+      },
+      "TokenMeta": {
+        "properties": {
+          "data_mode": {
+            "type": "string",
+            "enum": [
+              "live",
+              "fixture",
+              "unwired",
+              "static",
+              "partial"
             ],
-            "title": "Address"
+            "title": "Data Mode",
+            "default": "unwired"
+          },
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version",
+            "default": "1.0"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "ts": {
+            "type": "string",
+            "title": "Ts"
           },
           "chain": {
             "anyOf": [
@@ -2644,17 +4114,38 @@
             ],
             "title": "Chain"
           },
-          "data_mode": {
-            "default": "unwired",
-            "enum": [
-              "live",
-              "fixture",
-              "unwired",
-              "static",
-              "partial"
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
             ],
-            "title": "Data Mode",
-            "type": "string"
+            "title": "Address"
+          },
+          "symbol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symbol"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
           },
           "decimals": {
             "anyOf": [
@@ -2666,50 +4157,6 @@
               }
             ],
             "title": "Decimals"
-          },
-          "dex_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Dex Id"
-          },
-          "first_seen": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "First Seen"
-          },
-          "last_seen": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Last Seen"
-          },
-          "launchpad": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Launchpad"
           },
           "logo": {
             "anyOf": [
@@ -2733,7 +4180,14 @@
             ],
             "title": "Logo Ref"
           },
-          "name": {
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          },
+          "first_seen": {
             "anyOf": [
               {
                 "type": "string"
@@ -2742,13 +4196,18 @@
                 "type": "null"
               }
             ],
-            "title": "Name"
+            "title": "First Seen"
           },
-          "schema_version": {
-            "const": "1.0",
-            "default": "1.0",
-            "title": "Schema Version",
-            "type": "string"
+          "last_seen": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen"
           },
           "socials": {
             "anyOf": [
@@ -2760,14 +4219,7 @@
               }
             ]
           },
-          "sources": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Sources",
-            "type": "array"
-          },
-          "symbol": {
+          "launchpad": {
             "anyOf": [
               {
                 "type": "string"
@@ -2776,27 +4228,27 @@
                 "type": "null"
               }
             ],
-            "title": "Symbol"
+            "title": "Launchpad"
           },
-          "tags": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Tags",
-            "type": "array"
-          },
-          "ts": {
-            "title": "Ts",
-            "type": "string"
+          "dex_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dex Id"
           }
         },
+        "type": "object",
         "title": "TokenMeta",
-        "type": "object"
+        "description": "Token registry entry (BE-F3) + the planned live token-page fields.\nRegistry-backed responses carry data_mode='fixture' today; fields the\nregistry does not know (socials, launchpad, …) stay None — absent stays\nabsent until a real upstream fills them."
       },
       "TradeRow": {
-        "description": "Normalized GeckoTerminal trade (providers.geckoterminal.fetch_trades).",
         "properties": {
-          "base_token": {
+          "wallet": {
             "anyOf": [
               {
                 "type": "string"
@@ -2805,7 +4257,7 @@
                 "type": "null"
               }
             ],
-            "title": "Base Token"
+            "title": "Wallet"
           },
           "kind": {
             "anyOf": [
@@ -2829,17 +4281,6 @@
             ],
             "title": "Ts"
           },
-          "tx_hash": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Tx Hash"
-          },
           "usd": {
             "anyOf": [
               {
@@ -2851,7 +4292,7 @@
             ],
             "title": "Usd"
           },
-          "wallet": {
+          "base_token": {
             "anyOf": [
               {
                 "type": "string"
@@ -2860,21 +4301,26 @@
                 "type": "null"
               }
             ],
-            "title": "Wallet"
+            "title": "Base Token"
+          },
+          "tx_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tx Hash"
           }
         },
+        "type": "object",
         "title": "TradeRow",
-        "type": "object"
+        "description": "Normalized GeckoTerminal trade (providers.geckoterminal.fetch_trades)."
       },
       "ValidationError": {
         "properties": {
-          "ctx": {
-            "title": "Context",
-            "type": "object"
-          },
-          "input": {
-            "title": "Input"
-          },
           "loc": {
             "items": {
               "anyOf": [
@@ -2886,42 +4332,35 @@
                 }
               ]
             },
-            "title": "Location",
-            "type": "array"
+            "type": "array",
+            "title": "Location"
           },
           "msg": {
-            "title": "Message",
-            "type": "string"
+            "type": "string",
+            "title": "Message"
           },
           "type": {
-            "title": "Error Type",
-            "type": "string"
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
           }
         },
+        "type": "object",
         "required": [
           "loc",
           "msg",
           "type"
         ],
-        "title": "ValidationError",
-        "type": "object"
+        "title": "ValidationError"
       },
       "VersionResponse": {
         "properties": {
-          "db": {
-            "$ref": "#/components/schemas/DbInfo"
-          },
-          "fastapi": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fastapi"
-          },
           "name": {
             "anyOf": [
               {
@@ -2932,6 +4371,17 @@
               }
             ],
             "title": "Name"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
           },
           "python": {
             "anyOf": [
@@ -2944,12 +4394,7 @@
             ],
             "title": "Python"
           },
-          "uptime_s": {
-            "default": 0,
-            "title": "Uptime S",
-            "type": "integer"
-          },
-          "version": {
+          "fastapi": {
             "anyOf": [
               {
                 "type": "string"
@@ -2958,26 +4403,22 @@
                 "type": "null"
               }
             ],
-            "title": "Version"
+            "title": "Fastapi"
+          },
+          "uptime_s": {
+            "type": "integer",
+            "title": "Uptime S",
+            "default": 0
+          },
+          "db": {
+            "$ref": "#/components/schemas/DbInfo"
           }
         },
-        "title": "VersionResponse",
-        "type": "object"
+        "type": "object",
+        "title": "VersionResponse"
       },
       "WalletLabel": {
-        "description": "One labeled-wallet claim. `label`+`kind`+`evidence` are the claim;\n`verified` means OPERATOR-checked and is distinct from data provenance \u2014\nfixture-loaded rows are always verified=false. No row is the honest\n'unlabeled' state; there is no unlabeled kind.",
         "properties": {
-          "address": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Address"
-          },
           "chain": {
             "anyOf": [
               {
@@ -2989,7 +4430,7 @@
             ],
             "title": "Chain"
           },
-          "evidence": {
+          "address": {
             "anyOf": [
               {
                 "type": "string"
@@ -2998,7 +4439,18 @@
                 "type": "null"
               }
             ],
-            "title": "Evidence"
+            "title": "Address"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
           },
           "kind": {
             "anyOf": [
@@ -3011,7 +4463,7 @@
             ],
             "title": "Kind"
           },
-          "label": {
+          "evidence": {
             "anyOf": [
               {
                 "type": "string"
@@ -3020,20 +4472,49 @@
                 "type": "null"
               }
             ],
-            "title": "Label"
+            "title": "Evidence"
           },
           "verified": {
-            "default": false,
+            "type": "boolean",
             "title": "Verified",
-            "type": "boolean"
+            "default": false
           }
         },
+        "type": "object",
         "title": "WalletLabel",
-        "type": "object"
+        "description": "One labeled-wallet claim. `label`+`kind`+`evidence` are the claim;\n`verified` means OPERATOR-checked and is distinct from data provenance —\nfixture-loaded rows are always verified=false. No row is the honest\n'unlabeled' state; there is no unlabeled kind."
       },
       "WalletLabelsResponse": {
-        "description": "All claims for one wallet across chains. An unlabeled wallet is an\nhonest empty list \u2014 never synthesized, never a guess, never an error.",
         "properties": {
+          "data_mode": {
+            "type": "string",
+            "enum": [
+              "live",
+              "fixture",
+              "unwired",
+              "static",
+              "partial"
+            ],
+            "title": "Data Mode",
+            "default": "unwired"
+          },
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version",
+            "default": "1.0"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "ts": {
+            "type": "string",
+            "title": "Ts"
+          },
           "address": {
             "anyOf": [
               {
@@ -3045,48 +4526,24 @@
             ],
             "title": "Address"
           },
-          "data_mode": {
-            "default": "unwired",
-            "enum": [
-              "live",
-              "fixture",
-              "unwired",
-              "static",
-              "partial"
-            ],
-            "title": "Data Mode",
-            "type": "string"
-          },
           "labels": {
             "items": {
               "$ref": "#/components/schemas/WalletLabel"
             },
-            "title": "Labels",
-            "type": "array"
-          },
-          "schema_version": {
-            "const": "1.0",
-            "default": "1.0",
-            "title": "Schema Version",
-            "type": "string"
-          },
-          "sources": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Sources",
-            "type": "array"
-          },
-          "ts": {
-            "title": "Ts",
-            "type": "string"
+            "type": "array",
+            "title": "Labels"
           }
         },
+        "type": "object",
         "title": "WalletLabelsResponse",
-        "type": "object"
+        "description": "All claims for one wallet across chains. An unlabeled wallet is an\nhonest empty list — never synthesized, never a guess, never an error."
       },
       "WebsiteLink": {
         "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
           "label": {
             "anyOf": [
               {
@@ -3097,34 +4554,40 @@
               }
             ],
             "title": "Label"
-          },
-          "url": {
-            "title": "Url",
-            "type": "string"
           }
         },
+        "type": "object",
         "required": [
           "url"
         ],
-        "title": "WebsiteLink",
-        "type": "object"
+        "title": "WebsiteLink"
       },
       "WhaleBody": {
         "properties": {
           "address": {
-            "title": "Address",
-            "type": "string"
+            "type": "string",
+            "title": "Address"
           }
         },
+        "type": "object",
         "required": [
           "address"
         ],
-        "title": "WhaleBody",
-        "type": "object"
+        "title": "WhaleBody"
       },
       "WhaleEntry": {
-        "description": "One large transfer: signed token delta (in/out) + USD at the window\nprice. usd stays None when no pair price exists \u2014 never fabricated.",
         "properties": {
+          "wallet": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wallet"
+          },
           "amount": {
             "anyOf": [
               {
@@ -3146,17 +4609,6 @@
               }
             ],
             "title": "Direction"
-          },
-          "price_usd": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Price Usd"
           },
           "ts": {
             "anyOf": [
@@ -3194,23 +4646,53 @@
             ],
             "title": "Usd"
           },
-          "wallet": {
+          "price_usd": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "number"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Wallet"
+            "title": "Price Usd"
           }
         },
+        "type": "object",
         "title": "WhaleEntry",
-        "type": "object"
+        "description": "One large transfer: signed token delta (in/out) + USD at the window\nprice. usd stays None when no pair price exists — never fabricated."
       },
       "WhaleResponse": {
         "properties": {
+          "data_mode": {
+            "type": "string",
+            "enum": [
+              "live",
+              "fixture",
+              "unwired",
+              "static",
+              "partial"
+            ],
+            "title": "Data Mode",
+            "default": "live"
+          },
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version",
+            "default": "1.0"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "ts": {
+            "type": "string",
+            "title": "Ts"
+          },
           "address": {
             "anyOf": [
               {
@@ -3221,24 +4703,6 @@
               }
             ],
             "title": "Address"
-          },
-          "data_mode": {
-            "default": "live",
-            "enum": [
-              "live",
-              "fixture",
-              "unwired",
-              "static",
-              "partial"
-            ],
-            "title": "Data Mode",
-            "type": "string"
-          },
-          "schema_version": {
-            "const": "1.0",
-            "default": "1.0",
-            "title": "Schema Version",
-            "type": "string"
           },
           "sol": {
             "anyOf": [
@@ -3251,41 +4715,19 @@
             ],
             "title": "Sol"
           },
-          "sources": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Sources",
-            "type": "array"
-          },
           "tokens": {
             "items": {
               "$ref": "#/components/schemas/WhaleToken"
             },
-            "title": "Tokens",
-            "type": "array"
-          },
-          "ts": {
-            "title": "Ts",
-            "type": "string"
+            "type": "array",
+            "title": "Tokens"
           }
         },
-        "title": "WhaleResponse",
-        "type": "object"
+        "type": "object",
+        "title": "WhaleResponse"
       },
       "WhaleToken": {
         "properties": {
-          "amount": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Amount"
-          },
           "mint": {
             "anyOf": [
               {
@@ -3296,14 +4738,53 @@
               }
             ],
             "title": "Mint"
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
           }
         },
-        "title": "WhaleToken",
-        "type": "object"
+        "type": "object",
+        "title": "WhaleToken"
       },
       "WhalesResponse": {
-        "description": "Whale tracker (BE-ALL-LIVE F3). A quiet token is an honest empty\nlist; an unwired chain carries the probe reason sentence in data_sources.",
         "properties": {
+          "data_mode": {
+            "type": "string",
+            "enum": [
+              "live",
+              "fixture",
+              "unwired",
+              "static",
+              "partial"
+            ],
+            "title": "Data Mode",
+            "default": "unwired"
+          },
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version",
+            "default": "1.0"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "ts": {
+            "type": "string",
+            "title": "Ts"
+          },
           "chain": {
             "anyOf": [
               {
@@ -3314,67 +4795,6 @@
               }
             ],
             "title": "Chain"
-          },
-          "data_mode": {
-            "default": "unwired",
-            "enum": [
-              "live",
-              "fixture",
-              "unwired",
-              "static",
-              "partial"
-            ],
-            "title": "Data Mode",
-            "type": "string"
-          },
-          "data_sources": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Data Sources",
-            "type": "array"
-          },
-          "netflow": {
-            "items": {
-              "$ref": "#/components/schemas/NetflowRow"
-            },
-            "title": "Netflow",
-            "type": "array"
-          },
-          "price_usd": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Price Usd"
-          },
-          "schema_version": {
-            "const": "1.0",
-            "default": "1.0",
-            "title": "Schema Version",
-            "type": "string"
-          },
-          "sources": {
-            "items": {
-              "type": "string"
-            },
-            "title": "Sources",
-            "type": "array"
-          },
-          "threshold_usd": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Threshold Usd"
           },
           "token": {
             "anyOf": [
@@ -3387,1093 +4807,85 @@
             ],
             "title": "Token"
           },
+          "price_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Usd"
+          },
+          "threshold_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threshold Usd"
+          },
+          "window_txs": {
+            "type": "integer",
+            "title": "Window Txs",
+            "default": 0
+          },
           "transfers": {
             "items": {
               "$ref": "#/components/schemas/WhaleEntry"
             },
-            "title": "Transfers",
-            "type": "array"
+            "type": "array",
+            "title": "Transfers"
           },
-          "ts": {
-            "title": "Ts",
-            "type": "string"
+          "netflow": {
+            "items": {
+              "$ref": "#/components/schemas/NetflowRow"
+            },
+            "type": "array",
+            "title": "Netflow"
           },
-          "window_txs": {
-            "default": 0,
-            "title": "Window Txs",
-            "type": "integer"
+          "data_sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Data Sources"
           }
         },
+        "type": "object",
         "title": "WhalesResponse",
-        "type": "object"
-      }
-    }
-  },
-  "info": {
-    "description": "Read-only multichain memecoin research terminal \u2014 reduce noise, add context.\n\n- **POST /api/scan** \u2014 DexScreener pair + GeckoTerminal trade clustering \u2192 deterministic, weighted risk assessment\n- **GET /api/v1/discovery** \u2014 keyless trending/new pool radar (GeckoTerminal free tier)\n- **POST /api/explain** \u2014 evidence-first AI narrative; `provider: \"local\"` serves a deterministic heuristic narrative with zero API keys\n- **POST /api/whale** \u2014 Helius wallet balances (key required)\n- **WS /ws/snap** \u2014 full honest snapshot ticker \u00b7 **WS /ws/tape** \u2014 live trade-tape deltas for the active pool\n\nEvery value is copied verbatim from the upstream APIs; absent fields stay absent \u2014\nnothing is simulated, zero-filled or random-walked. Heuristic thresholds are public\nand auditable (heuristics/).",
-    "license": {
-      "identifier": "MIT",
-      "name": "MIT"
-    },
-    "summary": "Evidence-first multichain memecoin risk terminal",
-    "title": "Terminal Alpha",
-    "version": "0.1.0"
-  },
-  "openapi": "3.1.0",
-  "paths": {
-    "/api/explain": {
-      "post": {
-        "deprecated": true,
-        "description": "Evidence-first narrative. `provider`: claude|glm|kimi (LLM, rate-limited,\nneeds its key) or `local` (deterministic heuristics, keyless, unlimited).\nEvidence is always re-fetched and re-assessed server-side.",
-        "operationId": "api_explain_api_explain_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ExplainBody"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ExplainResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Api Explain",
-        "tags": [
-          "ai"
-        ]
-      }
-    },
-    "/api/health": {
-      "get": {
-        "description": "Liveness + served chains + active tier + which AI providers have keys.",
-        "operationId": "health_api_health_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Health Api Health Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Health",
-        "tags": [
-          "system"
-        ]
-      }
-    },
-    "/api/metrics": {
-      "get": {
-        "description": "Live process counters \u2014 every number is measured, none estimated.\ntokens/labels are measured persistence row counts (0 when persistence\nis off \u2014 off is a fact, not an estimate).",
-        "operationId": "metrics_api_metrics_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Metrics Api Metrics Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Metrics",
-        "tags": [
-          "system"
-        ]
-      }
-    },
-    "/api/scan": {
-      "post": {
-        "deprecated": true,
-        "description": "Full evidence scan: pair view + weighted risk assessment + clustering,\nplus the best-effort trader-loop `context` block (BE-F5a-R \u2014 context\nrenders beside the verdict; the score formula never reads it).\n`refresh: true` bypasses the 30s TTL cache and forces a fresh fetch.",
-        "operationId": "api_scan_api_scan_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ScanBody"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScanResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Api Scan",
-        "tags": [
-          "market"
-        ]
-      }
-    },
-    "/api/v1/chains": {
-      "get": {
-        "description": "What each chain can honestly do today, per provider. This is the\naudit-\u00a72 provider matrix as a structured, importable constant \u2014 the\nguard in webapp/chains.py keeps it equivalent to the provider modules,\nso a capability change fails the catalog test until updated.",
-        "operationId": "api_chains_api_v1_chains_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ChainsResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Api Chains",
-        "tags": [
-          "market"
-        ]
-      }
-    },
-    "/api/v1/detect": {
-      "get": {
-        "description": "Auto-detect (Fase 3): pasted CA or $TICKER \u2192 one candidate pair per\nfounder chain where DS lists it (deepest pool), liquidity-ranked. The\nclient MUST present the candidate set on >1 \u2014 silently defaulting to one\nchain is the identity bug this surface exists to prevent. DS search only:\nGT /api/v2/search does not exist (probed 404, 2026-08-30).",
-        "operationId": "api_detect_api_v1_detect_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "address",
-            "required": true,
-            "schema": {
-              "title": "Address",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DetectResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Api Detect",
-        "tags": [
-          "market"
-        ]
-      }
-    },
-    "/api/v1/discovery": {
-      "get": {
-        "description": "Keyless radar feed (G.3): trending or new pools via GeckoTerminal free\ntier. Validation \u2192 400; upstream failure \u2192 honest 502. Items carry only\nwhat the API returned \u2014 absent fields stay absent (None).",
-        "operationId": "api_discovery_api_v1_discovery_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "chain",
-            "required": false,
-            "schema": {
-              "default": "sol",
-              "title": "Chain",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "mode",
-            "required": false,
-            "schema": {
-              "default": "trending",
-              "title": "Mode",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 20,
-              "title": "Limit",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DiscoveryResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Api Discovery",
-        "tags": [
-          "market"
-        ]
-      }
-    },
-    "/api/v1/explain": {
-      "post": {
-        "description": "Evidence-first narrative. `provider`: claude|glm|kimi (LLM, rate-limited,\nneeds its key) or `local` (deterministic heuristics, keyless, unlimited).\nEvidence is always re-fetched and re-assessed server-side.",
-        "operationId": "api_explain_api_v1_explain_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ExplainBody"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ExplainResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Api Explain",
-        "tags": [
-          "ai"
-        ]
-      }
-    },
-    "/api/v1/history/prices/{chain}/{ident}": {
-      "get": {
-        "description": "Point-in-time price history from the local persistence layer (BE-F2).\n\nlimit clamped to 1..500 \u00b7 opaque cursor is None-terminated \u00b7 window\nfilters since/until take timezone-aware ISO-8601. data_mode = the union\nof the page's rows (fixture|live), never hardcoded. Rows are point\nobservations: open/high/low stay None, close = the observed price \u2014\ncandles are never synthesized.",
-        "operationId": "api_history_prices_api_v1_history_prices__chain___ident__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "chain",
-            "required": true,
-            "schema": {
-              "title": "Chain",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "ident",
-            "required": true,
-            "schema": {
-              "title": "Ident",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 100,
-              "title": "Limit",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "cursor",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Cursor"
-            }
-          },
-          {
-            "in": "query",
-            "name": "since",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Since"
-            }
-          },
-          {
-            "in": "query",
-            "name": "until",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Until"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HistoryPage_OhlcvPoint_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Api History Prices",
-        "tags": [
-          "market"
-        ]
-      }
-    },
-    "/api/v1/history/trades/{chain}/{ident}": {
-      "get": {
-        "description": "Trade history from the local persistence layer (BE-F2) \u2014 same cursor,\nwindow and data_mode contract as the prices page.",
-        "operationId": "api_history_trades_api_v1_history_trades__chain___ident__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "chain",
-            "required": true,
-            "schema": {
-              "title": "Chain",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "ident",
-            "required": true,
-            "schema": {
-              "title": "Ident",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 100,
-              "title": "Limit",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "query",
-            "name": "cursor",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Cursor"
-            }
-          },
-          {
-            "in": "query",
-            "name": "since",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Since"
-            }
-          },
-          {
-            "in": "query",
-            "name": "until",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Until"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HistoryPage_TradeRow_"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Api History Trades",
-        "tags": [
-          "market"
-        ]
-      }
-    },
-    "/api/v1/live/{chain}": {
-      "get": {
-        "description": "Live memecoin feed per chain (G.7) \u2014 modes: new | trending | volume | alpha.\n\nKeyless GeckoTerminal only, TTL-cached \u2265120s per (chain, mode) \u2014 the free\ntier is ~10 calls/min and `alpha` re-ranks the volume feed with zero extra\ncalls. A chain without a GT network answers live:false with an empty item\nlist \u2014 never fabricated. Unknown chain \u2192 404; bad mode/limit \u2192 400;\nupstream failure without a cache fallback \u2192 502 (a warm expired cache is\nserved with stale:true instead).",
-        "operationId": "api_live_api_v1_live__chain__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "chain",
-            "required": true,
-            "schema": {
-              "title": "Chain",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "mode",
-            "required": false,
-            "schema": {
-              "default": "new",
-              "title": "Mode",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 20,
-              "title": "Limit",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LiveResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Api Live",
-        "tags": [
-          "live"
-        ]
-      }
-    },
-    "/api/v1/market/ohlcv": {
-      "get": {
-        "description": "GT candles for a pool (Fase 4 chart/volume/indicator source). Keyless,\nTTL-cached 60s, verbatim floats oldest\u2192newest \u2014 no gap-filling, no\nrounding. An empty candle list ships with a degraded reason, never a\nsynthesized series. The browser never calls GT directly (zero\nthird-party-host claim); this route is the only door.",
-        "operationId": "api_market_ohlcv_api_v1_market_ohlcv_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "chain",
-            "required": true,
-            "schema": {
-              "title": "Chain",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "pair",
-            "required": true,
-            "schema": {
-              "title": "Pair",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "resolution",
-            "required": false,
-            "schema": {
-              "default": "15m",
-              "title": "Resolution",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 200,
-              "title": "Limit",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OhlcvResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Api Market Ohlcv",
-        "tags": [
-          "market"
-        ]
-      }
-    },
-    "/api/v1/scan": {
-      "post": {
-        "description": "Full evidence scan: pair view + weighted risk assessment + clustering,\nplus the best-effort trader-loop `context` block (BE-F5a-R \u2014 context\nrenders beside the verdict; the score formula never reads it).\n`refresh: true` bypasses the 30s TTL cache and forces a fresh fetch.",
-        "operationId": "api_scan_api_v1_scan_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ScanBody"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ScanResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Api Scan",
-        "tags": [
-          "market"
-        ]
-      }
-    },
-    "/api/v1/socials": {
-      "get": {
-        "description": "Official links for a token (Fase 4 SOCIALS tab) from DexScreener\ntoken-pairs info, TTL-cached 300s. Param is the TOKEN address (CA): DS\nanswers 0 pairs for a pair address (probed 2026-08-30) \u2014 the FE passes\nthe CA from the active-pair identity context. Empty lists = 'no official\nlinks in feed'; links are never invented.",
-        "operationId": "api_socials_api_v1_socials_get",
-        "parameters": [
-          {
-            "in": "query",
-            "name": "chain",
-            "required": true,
-            "schema": {
-              "title": "Chain",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "token",
-            "required": true,
-            "schema": {
-              "title": "Token",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SocialsResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Api Socials",
-        "tags": [
-          "market"
-        ]
-      }
-    },
-    "/api/v1/tokens/{chain}/{ident}": {
-      "get": {
-        "description": "One registry token. 404 only when the registry never saw it \u2014 the\nregistry is silent on unknowns, never guesses. Registry-backed pages\ncarry data_mode='fixture' today; fields no upstream filled stay None.",
-        "operationId": "api_token_meta_api_v1_tokens__chain___ident__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "chain",
-            "required": true,
-            "schema": {
-              "title": "Chain",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "ident",
-            "required": true,
-            "schema": {
-              "title": "Ident",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TokenMeta"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Api Token Meta",
-        "tags": [
-          "market"
-        ]
-      }
-    },
-    "/api/v1/wallets/{address}": {
-      "get": {
-        "description": "Wallet label claims across chains. 200 + [] for a valid address with\nno labels (unlabeled = silence, never a guess); 404 only on a malformed\naddress shape. Labels are claims with provenance \u2014 verified=false unless\nan operator path (none exists yet) checked them.",
-        "operationId": "api_wallet_labels_api_v1_wallets__address__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "address",
-            "required": true,
-            "schema": {
-              "title": "Address",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WalletLabelsResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Api Wallet Labels",
-        "tags": [
-          "market"
-        ]
-      }
-    },
-    "/api/v1/whale": {
-      "post": {
-        "description": "Solana wallet balances via Helius (needs HELIUS_API_KEY).",
-        "operationId": "api_whale_api_v1_whale_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/WhaleBody"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WhaleResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Api Whale",
-        "tags": [
-          "whale"
-        ]
-      }
-    },
-    "/api/v1/whales/{chain}/{token}": {
-      "get": {
-        "description": "Large recent transfers + per-wallet netflow for one token. Solana =\nHelius enhanced transactions (keyed); bnb/base/hood/hype carry the probe\nreason \u2014 no $0 trade feed exists there. USD sizing uses the DexScreener\npair price; when absent, `usd` stays None and token amounts stand alone.",
-        "operationId": "api_whales_api_v1_whales__chain___token__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "chain",
-            "required": true,
-            "schema": {
-              "title": "Chain",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
-            "name": "token",
-            "required": true,
-            "schema": {
-              "title": "Token",
-              "type": "string"
-            }
-          },
-          {
-            "in": "query",
-            "name": "threshold_usd",
-            "required": false,
-            "schema": {
-              "default": 1000.0,
-              "title": "Threshold Usd",
-              "type": "number"
-            }
-          },
-          {
-            "in": "query",
-            "name": "limit",
-            "required": false,
-            "schema": {
-              "default": 25,
-              "title": "Limit",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WhalesResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Api Whales",
-        "tags": [
-          "market"
-        ]
-      }
-    },
-    "/api/version": {
-      "get": {
-        "description": "Build identity \u2014 real toolchain versions, nothing invented. The db\nblock reports measured persistence facts (path_kind, schema version,\nrows per table, last run, oldest row) \u2014 never the raw filesystem path.",
-        "operationId": "version_api_version_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/VersionResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Version",
-        "tags": [
-          "system"
-        ]
-      }
-    },
-    "/api/whale": {
-      "post": {
-        "deprecated": true,
-        "description": "Solana wallet balances via Helius (needs HELIUS_API_KEY).",
-        "operationId": "api_whale_api_whale_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/WhaleBody"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/WhaleResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Api Whale",
-        "tags": [
-          "whale"
-        ]
+        "description": "Whale tracker (BE-ALL-LIVE F3). A quiet token is an honest empty\nlist; an unwired chain carries the probe reason sentence in data_sources."
       }
     }
   },
   "tags": [
     {
-      "description": "Token scanning, discovery radar and market evidence.",
-      "name": "market"
+      "name": "market",
+      "description": "Token scanning, discovery radar and market evidence."
     },
     {
-      "description": "Persisted point-in-time history from the local database (BE-F2). Cursor-paginated; every page carries the provenance of its rows.",
-      "name": "history"
+      "name": "history",
+      "description": "Persisted point-in-time history from the local database (BE-F2). Cursor-paginated; every page carries the provenance of its rows."
     },
     {
-      "description": "Live per-chain memecoin feed \u2014 keyless GeckoTerminal, \u2265120s TTL cache, honest live:false for networks GT does not serve.",
-      "name": "live"
+      "name": "live",
+      "description": "Live per-chain memecoin feed — keyless GeckoTerminal, ≥120s TTL cache, honest live:false for networks GT does not serve."
     },
     {
-      "description": "Evidence-first narrative: LLM providers or the keyless deterministic local tier.",
-      "name": "ai"
+      "name": "ai",
+      "description": "Evidence-first narrative: LLM providers or the keyless deterministic local tier."
     },
     {
-      "description": "Wallet balances via Helius (needs HELIUS_API_KEY).",
-      "name": "whale"
+      "name": "whale",
+      "description": "Wallet balances via Helius (needs HELIUS_API_KEY)."
     },
     {
-      "description": "Health, version and live process metrics.",
-      "name": "system"
+      "name": "system",
+      "description": "Health, version and live process metrics."
     }
   ]
 }
