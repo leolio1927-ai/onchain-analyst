@@ -479,10 +479,10 @@ function TapeBand() {
    joins when its chainId is verified upstream, and the UI says so. */
 
 const SCAN_CHAINS: { id: Chain; label: string; accent: string; hint: string }[] = [
-  { id: 'sol', label: 'SOL', accent: '#14F195', hint: 'SOLANA ADDRESS · 32–44 BASE58 CHARS' },
-  { id: 'bnb', label: 'BNB', accent: '#F0B90B', hint: 'EVM ADDRESS · 0X + 40 HEX CHARS' },
-  { id: 'base', label: 'BASE', accent: '#4D8DFF', hint: 'EVM ADDRESS · 0X + 40 HEX CHARS' },
-    { id: 'hood', label: 'HOOD', accent: '#00C805', hint: 'EVM ADDRESS · 0X + 40 HEX CHARS' },
+  { id: 'sol', label: 'SOL', accent: 'var(--emb-sol)', hint: 'SOLANA ADDRESS · 32–44 BASE58 CHARS' },
+  { id: 'bnb', label: 'BNB', accent: 'var(--emb-bnb)', hint: 'EVM ADDRESS · 0X + 40 HEX CHARS' },
+  { id: 'base', label: 'BASE', accent: 'var(--emb-base)', hint: 'EVM ADDRESS · 0X + 40 HEX CHARS' },
+    { id: 'hood', label: 'HOOD', accent: 'var(--emb-hood)', hint: 'EVM ADDRESS · 0X + 40 HEX CHARS' },
 ]
 
 const SO_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/
@@ -497,7 +497,7 @@ function SevBar({ severity }: { severity: number | null }) {
 
 /* semi-circular risk gauge — animated count-up on result (reduced motion: instant) */
 function Gauge({ score, level }: { score: number | null; level: string }) {
-  const color = level === 'low' ? '#14F195' : level === 'medium' ? '#F0B90B' : level === 'high' ? '#FB7185' : '#649580'
+  const color = level === 'low' ? 'var(--emb-sol)' : level === 'medium' ? 'var(--emb-bnb)' : level === 'high' ? '#FB7185' : '#649580'
   const [v, setV] = useState(0)
   useEffect(() => {
     if (score === null || score === undefined) return
@@ -1300,7 +1300,7 @@ function Foot() {
     <footer className="lv-foot">
       <div className="lv-foot-grid">
         <div>
-          <div className="lv-logo" style={{ marginBottom: 12 }}><span className="m">◤</span>TERMINAL&nbsp;<span className="lg">ALPHA</span></div>
+          <div className="lv-logo" style={{ marginBottom: 12 }}><span className="m">◤</span>VIL<span className="lg">MEI</span></div>
           <p className="disc">Read-only memecoin research across five chains. Analysis &amp; education only — risk scores are heuristics, not audits. DYOR.</p>
         </div>
         <div className="lv-foot-col">

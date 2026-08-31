@@ -88,7 +88,7 @@ export function Shell({ pages }: { pages: Record<string, ReactNode> }) {
   const current = pages[route] ?? pages.dashboard
   return (
     <div className="ta-shell">
-      <aside className="ta-side">
+      <aside className="ta-side embroidery">
         <div className="ta-side-logo">
           <span className="mark">◤</span>
           <span className="name">VILMEI</span>
@@ -124,7 +124,7 @@ export function Shell({ pages }: { pages: Record<string, ReactNode> }) {
       </aside>
       <main className="ta-main">
         {/* PROMPT-V Fase 3.1: one global search bar on every terminal page */}
-        <header className="ta-topbar">
+        <header className="ta-topbar embroidery">
           <AutodetectSearch />
           <span className="ta-topbar-note mono">READ-ONLY · 5 LIVE FEEDS</span>
         </header>

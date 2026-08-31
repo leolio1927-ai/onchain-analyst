@@ -15,7 +15,7 @@ import { ChainLogo } from './chainLogos'
 
 function Head({ title, sub, right }: { title: string; sub: string; right?: React.ReactNode }) {
   return (
-    <div className="page-head">
+    <div className="page-head embroidery">
       <div><div className="page-title">{title}</div><div className="page-sub">{sub}</div></div>
       {right}
     </div>

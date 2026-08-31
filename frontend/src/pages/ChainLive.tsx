@@ -69,7 +69,7 @@ function TopBar({ active }: { active: string }) {
   return (
     <header className="lx-top">
       <div className="lx-top-in">
-        <a className="lx-logo" href="/"><span className="m">◤</span>TERMINAL&nbsp;ALPHA</a>
+        <a className="lx-logo" href="/"><span className="m">◤</span>VILMEI</a>
         <span className="lx-title">MEMECOIN LIVE</span>
         <nav className="lx-top-links">
           <a className={active === 'board' ? 'on' : ''} href="/live">BOARD</a>

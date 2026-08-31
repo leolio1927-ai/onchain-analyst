@@ -334,7 +334,7 @@
 .lx-top-links a.boxed { padding: 6px 13px; border-radius: 999px; border: 2px solid transparent;
   background:
     linear-gradient(180deg, rgba(6,16,11,.92), rgba(6,16,11,.92)) padding-box,
-    linear-gradient(90deg, #14F195, #F0B90B, #4D8DFF, #2DD4BF, #00C805, #E84142) border-box;
+    var(--emb-thread) border-box;
   box-shadow: 0 0 12px rgba(20,241,149,.12); }
 .lx-top-links a.boxed:hover { box-shadow: 0 0 22px rgba(20,241,149,.32); text-shadow: none; }
 
@@ -353,7 +353,7 @@
 
 .lx-note { position: relative; }
 .lx-note::before { content: ''; position: absolute; top: -14px; left: 10%; right: 10%; height: 2px;
-  background: linear-gradient(90deg, transparent, #14F195, #F0B90B, #4D8DFF, #2DD4BF, #00C805, #E84142, transparent);
+  background: var(--emb-thread);
   opacity: .55; }
 
 @media (prefers-reduced-motion: reduce) {

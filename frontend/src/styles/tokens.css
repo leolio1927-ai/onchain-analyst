@@ -16,6 +16,18 @@
   --blue: #60a5fa;   /* info / BASE */
   --violet: #a78bfa; /* AI-panel / hype / HYPE — retired as brand */
   --bnb: var(--amber); --base: var(--blue); --hype: var(--violet);
+  /* V5-G3 embroidery — the ONE source for the 6-chain stitch band. Every
+     surface (landing nav, live topbars, terminal topbar/sidebar/header)
+     derives from these; no surface may hardcode the hexes again. */
+  --emb-sol: #14F195; --emb-bnb: #F0B90B; --emb-base: #4D8DFF;
+  --emb-hype: #2DD4BF; --emb-hood: #00C805; --emb-avax: #E84142;
+  --emb-band: repeating-linear-gradient(90deg,
+    var(--emb-sol) 0 44px, var(--emb-sol) 44px 58px,
+    var(--emb-bnb) 58px 68px, var(--emb-base) 68px 78px,
+    var(--emb-hype) 78px 88px, var(--emb-hood) 88px 98px);
+  --emb-thread: linear-gradient(90deg, transparent,
+    var(--emb-sol), var(--emb-bnb), var(--emb-base), var(--emb-hype),
+    var(--emb-hood), var(--emb-avax), transparent);
   --font-display: 'Space Grotesk', 'Inter', sans-serif;
   --font-ui: 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;

@@ -17,7 +17,7 @@ import '../styles/docs.css'
 /* mirrors liveParts.CHAIN_ACCENT (founder-locked hexes) — duplicated here so
    the docs bundle stays free of unrelated strings and deps */
 const ACCENT: Record<LiveChain, string> = {
-  sol: '#14F195', bnb: '#F0B90B', base: '#4D8DFF',
+  sol: 'var(--emb-sol)', bnb: 'var(--emb-bnb)', base: 'var(--emb-base)',
   hype: '#2DD4BF', hood: '#00C805', // avax accent parked 2026-08-30
 }
 

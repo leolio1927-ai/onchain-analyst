@@ -533,7 +533,7 @@ a { color: inherit; text-decoration: none; }
 .lv-nav-links a.boxed { padding: 7px 14px; border-radius: 999px; border: 2px solid transparent;
   background:
     linear-gradient(180deg, rgba(6,16,11,.92), rgba(6,16,11,.92)) padding-box,
-    linear-gradient(90deg, #14F195, #F0B90B, #4D8DFF, #2DD4BF, #00C805, #E84142) border-box;
+    var(--emb-thread) border-box;
   box-shadow: 0 0 14px rgba(20,241,149,.12); }
 .lv-nav-links a.boxed::after { display: none; }
 .lv-nav-links a.boxed:hover, .lv-nav-links a.boxed.on { color: #eafff6;
@@ -541,7 +541,7 @@ a { color: inherit; text-decoration: none; }
 .lv-cta.boxed { border-radius: 999px; border: 2px solid transparent;
   background:
     linear-gradient(135deg, #00ffa3, #00d18c 55%, #34d399) padding-box,
-    linear-gradient(90deg, #14F195, #F0B90B, #4D8DFF, #2DD4BF, #00C805, #E84142) border-box;
+    var(--emb-thread) border-box;
   color: #04120b; }
 .lv-cta.boxed::before { border-radius: 999px; }
 
@@ -566,7 +566,7 @@ a { color: inherit; text-decoration: none; }
   background: rgba(4,16,10,.78); backdrop-filter: blur(10px); overflow: hidden;
   box-shadow: 0 24px 70px rgba(0,0,0,.5), 0 0 34px rgba(0,255,163,.08); }
 .lv-tapewrap::before { content: ''; display: block; height: 2px;
-  background: linear-gradient(90deg, #14F195, #F0B90B, #4D8DFF, #2DD4BF, #00C805, #E84142); opacity: .85; }
+  background: var(--emb-thread); opacity: .85; }
 .lv-tapehd { display: flex; align-items: center; gap: 10px; padding: 11px 18px;
   font-family: var(--fm); font-size: 9.5px; font-weight: 700; letter-spacing: .18em; color: var(--g);
   border-bottom: 1px solid rgba(0,255,163,.16); background: rgba(0,255,163,.04); }
@@ -747,9 +747,9 @@ a { color: inherit; text-decoration: none; }
 .lv-faq details p a { color: var(--g); font-family: var(--fm); font-size: 12px; }
 
 /* ── L2 color DNA — the 6-chain thread in the hero kicker ── */
-.lv-kicker { background: linear-gradient(90deg, #14F195, #F0B90B, #4D8DFF, #2DD4BF, #00C805, #E84142);
+.lv-kicker { background: var(--emb-thread);
   -webkit-background-clip: text; background-clip: text; color: transparent; }
-.lv-kicker::before { background: linear-gradient(90deg, #14F195, #F0B90B, #4D8DFF, #2DD4BF, #00C805, #E84142); }
+.lv-kicker::before { background: var(--emb-thread); }
 
 /* ═══════════════════════════════════════════════════════════════
    LANDING L4 — live scan widget: paste an address, render the real
@@ -761,7 +761,7 @@ a { color: inherit; text-decoration: none; }
   background: rgba(4,16,10,.8); backdrop-filter: blur(10px); overflow: hidden;
   box-shadow: 0 24px 70px rgba(0,0,0,.5), 0 0 34px rgba(0,255,163,.08); }
 .lv-scancard::before { content: ''; display: block; height: 2px;
-  background: linear-gradient(90deg, #14F195, #F0B90B, #4D8DFF, #2DD4BF, #00C805, #E84142); opacity: .85; }
+  background: var(--emb-thread); opacity: .85; }
 .lv-scanrow { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center;
   padding: 16px 18px; border-bottom: 1px dashed rgba(0,255,163,.12); }
 .lv-chainbtns { display: flex; gap: 6px; flex-wrap: wrap; }
