@@ -25,9 +25,8 @@ import time
 import urllib.parse
 import urllib.request
 
-from providers import dexscreener
+from providers import dexscreener, live
 from providers import geckoterminal as gt
-from providers import live
 
 # DS chainId per founder chain — DS-search/tokens slugs (verified, see docstring)
 DS_CHAINS = {"sol": "solana", "bnb": "bsc", "base": "base", "hype": "hyperevm",

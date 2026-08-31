@@ -40,7 +40,7 @@ def test_tools_list_is_the_catalog(client):
 
 
 def test_tools_call_rug_bnb_verbatim(client, monkeypatch):
-    import providers.goplus as goplus
+    from providers import goplus
     monkeypatch.setattr(goplus, "token_security", lambda c, t: (
         {"token_symbol": "Cake", "is_honeypot": 0, "is_open_source": 1,
          "buy_tax": None, "sell_tax": None, "is_mintable": 1,

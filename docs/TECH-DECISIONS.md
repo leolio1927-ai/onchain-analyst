@@ -40,3 +40,41 @@ Frontier adoption per utility module (the founder's core question — "mana tekn
 - **Charting**: three 0.185.1 DIAL (P5, lazy, budget-proven) + zero-dep canvas fallback
 - **i18n-safe formatting**: `Intl.NumberFormat` compact everywhere (already; TETAP)
 - **Motion**: compositor-only rule + frame telemetry (P5)
+
+## Frontier rows per utility module (PROMPT-V2B P8, all checked 2026-08-31)
+
+**SWAP**
+| teknologi | sumber (URL) | tanggal | status |
+|---|---|---|---|
+| View Transitions API — page cross-fade, API-guarded | developer.mozilla.org/docs/Web/API/View_Transitions_API | 2026-08-31 | FRONTIER-ADOPT (Shell) |
+| CSS container queries — rail types itself by inline-size | web.dev/docs/css-container-queries (Baseline 2023+) | 2026-08-31 | FRONTIER-ADOPT (.sw-rail) |
+| three 0.185.1 DIAL lazy chunk — 130.10 kB gzip ≤ 150 kB budget | npmjs.com/package/three (build evidence this repo) | 2026-08-31 | FRONTIER-ADOPT |
+| useSyncExternalStore atomic store + generation guard — zero state lib | react.dev/reference/react/useSyncExternalStore | 2026-08-31 | TETAP (dep-free) |
+
+**DASHBOARD**
+| teknologi | sumber (URL) | tanggal | status |
+|---|---|---|---|
+| oklch --sev-* severity tokens (CSS Color 4, Baseline 2024) | web.dev/articles/hd-gamut (oklch) | 2026-08-31 | FRONTIER-ADOPT |
+| Spring counter — dep-free rAF integrator, reduced-motion jump | react.dev/reference/react/useEffect + own lib/spring.ts | 2026-08-31 | FRONTIER-ADOPT |
+| One RiskDisplay verdict language across modules (parity-tested) | this repo: components/RiskDisplay.tsx + risk-display.test.tsx | 2026-08-31 | ADOPT |
+
+**TOKEN SCANNER**
+| teknologi | sumber (URL) | tanggal | status |
+|---|---|---|---|
+| Model Context Protocol rev 2026-07-28 — /mcp JSON-RPC 2.0 | modelcontextprotocol.io/specification/latest | 2026-07-28 (rev) / 2026-08-31 (check) | FRONTIER-ADOPT |
+| RFC 9727 — /.well-known/api-catalog linkset discovery | rfc-editor.org/rfc/rfc9727.html | 2025-06 (RFC) / 2026-08-31 (check) | FRONTIER-ADOPT |
+| DexScreener keyless detect/search across the five chains | docs.dexscreener.com | 2026-08-31 (probed) | TETAP |
+
+**RUG CHECK**
+| teknologi | sumber (URL) | tanggal | status |
+|---|---|---|---|
+| RugCheck report/summary API (sol) — probed 200 @1.03s BONK | api.rugcheck.xyz/v1 | 2026-08-31 (probed) | ADOPT |
+| GoPlus token_security (bnb/base) — probed 200 @0.50s CAKE | docs.gopluslabs.com/reference/response-details | 2026-08-31 (probed) | ADOPT |
+| Provider × chain coverage matrix, dated + raw probes | docs/rug-coverage-matrix.md (this repo) | 2026-08-31 | ADOPT |
+
+**WHALE TRACKER**
+| teknologi | sumber (URL) | tanggal | status |
+|---|---|---|---|
+| Helius enhanced-transactions tape (sol, key-gated feed) | docs.helius.dev | 2026-08-31 (wiring re-verified) | TETAP |
+| USD sizing via DexScreener pair price — null when absent, never fabricated | api.dexscreener.com (keyless) | 2026-08-31 (probed) | TETAP |
+| Tape-window aggregation 1h/6h/24h/7d + CSV blob export | developer.mozilla.org/docs/Web/API/URL/createObjectURL | 2026-08-31 | ADOPT |

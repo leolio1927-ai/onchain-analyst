@@ -25,7 +25,13 @@ from pathlib import Path
 
 import fastapi
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    RedirectResponse,
+    Response,
+)
 from pydantic import BaseModel
 
 import ai_analyst
@@ -43,9 +49,8 @@ from providers import (
     rugcheck,
     whales,
 )
-from webapp import chains, db, schemas
+from webapp import chains, db, mcp, schemas
 from webapp import lineage as lineage_mod
-from webapp import mcp
 
 CACHE_TTL_S = 30.0
 SCAN_CACHE_MAX = 512  # hard cap — every /api/scan key would otherwise live forever (memory DoS)

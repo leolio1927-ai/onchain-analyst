@@ -60,7 +60,7 @@ def test_rug_evm_rows_verbatim_with_provider(client, monkeypatch):
                 "is_freezable": None, "holder_count": 1909528,
                 "contract_creator": "0xdeadbeef"}, None
 
-    import providers.goplus as goplus
+    from providers import goplus
     monkeypatch.setattr(goplus, "token_security", fake)
     r = client.get(f"/api/v1/rug/evm/bnb/{CAKE}")
     assert r.status_code == 200

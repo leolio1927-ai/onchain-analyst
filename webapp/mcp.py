@@ -13,7 +13,8 @@ webapp/server.py so this module stays import-cycle-free and unit-testable.
 from __future__ import annotations
 
 import json
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 PROTOCOL_VERSION = "2026-07-28"
 SERVER_INFO = {"name": "vilmei-read-only", "version": "2.0.0"}
