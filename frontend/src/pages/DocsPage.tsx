@@ -731,6 +731,22 @@ export function DocsPage() {
             </div>
           </Sec>
 
+          {/* ── 16 · FOR AGENTS ───────────────────────────────── */}
+          <Sec id="agents" n="16" title="VILMEI FOR AGENTS — MACHINE SURFACES">
+            <p className="dd-p">
+              Two read-only doors exist for AI agents. Neither trades, custodies or
+              writes — they serve the exact same functions the REST surface serves.
+            </p>
+            <div className="dd-card">
+              <dl className="dd-gloss">
+                <div><dt>POST /mcp</dt><dd>Model Context Protocol server (spec revision 2026-07-28), JSON-RPC 2.0: initialize · ping · tools/list · tools/call.</dd></div>
+                <div><dt>tools</dt><dd>trending (live feed per chain) · scan (weighted verdict + evidence) · rug (RugCheck sol / GoPlus bnb+base / honest partial elsewhere) · whale_windows (large transfers + netflow).</dd></div>
+                <div><dt>GET /.well-known/api-catalog</dt><dd>RFC 9727 discovery document (application/linkset+json) pointing at /openapi.json.</dd></div>
+                <div><dt>/assets/llms.txt</dt><dd>The machine-readable index of the project — the agent's map of everything above.</dd></div>
+              </dl>
+            </div>
+          </Sec>
+
           <footer className="dd-foot">
             TERMINAL ALPHA · READ-ONLY RESEARCH INFRASTRUCTURE · NO TRADING · NO CUSTODY · EVIDENCE FIRST
             <br />MACHINE INDEX · <a className="dd-a" href="/assets/llms.txt">/assets/llms.txt</a> · API SURFACE · <a className="dd-a" href="/api/docs">/api/docs</a> · ROADMAP · <a className="dd-a" href="/roadmap">/roadmap</a>

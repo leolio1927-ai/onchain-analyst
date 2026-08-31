@@ -25,7 +25,7 @@ from pathlib import Path
 
 import fastapi
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, Response
 from pydantic import BaseModel
 
 import ai_analyst
@@ -45,6 +45,7 @@ from providers import (
 )
 from webapp import chains, db, schemas
 from webapp import lineage as lineage_mod
+from webapp import mcp
 
 CACHE_TTL_S = 30.0
 SCAN_CACHE_MAX = 512  # hard cap — every /api/scan key would otherwise live forever (memory DoS)
@@ -805,6 +806,79 @@ async def api_whales(chain: str, token: str, threshold_usd: float = 1000.0,
         f"threshold ${threshold_usd}) + dexscreener pair price"
         + ("" if data["price_usd"] is not None else " — price absent: usd stays null"))
     return out
+
+
+# ── PROMPT-V2B P6: machine surfaces (read-only) ─────────────────────────
+# MCP spec revision 2026-07-28 (modelcontextprotocol.io/specification/latest,
+# checked 2026-08-31); discovery via RFC 9727 api-catalog. The tools are thin
+# read-only doors onto the SAME functions the REST surface serves.
+
+async def _mcp_trending(a: dict) -> dict:
+    return await api_live(str(a.get("chain", "sol")),
+                          str(a.get("mode", "trending")),
+                          int(a.get("limit", 20)))
+
+
+async def _mcp_scan(a: dict) -> dict:
+    chain = str(a.get("chain", "")).strip().lower()
+    addr = str(a.get("address", "")).strip()
+    if not chain or not addr:
+        raise ValueError("scan: chain + address required")
+    return await _get_scan(chain, addr)
+
+
+async def _mcp_rug(a: dict) -> dict:
+    chain = str(a.get("chain", "")).strip().lower()
+    addr = str(a.get("address", "")).strip()
+    if chain == "sol":
+        return await api_rug_sol(addr)
+    if chain in ("bnb", "base"):
+        return await api_rug_evm(chain, addr)
+    return {"chain": chain, "coverage": "partial",
+            "reason": "free coverage does not index this chain yet — the "
+                      "limited GT/DS panel is the honest signal set"}
+
+
+async def _mcp_whales(a: dict) -> dict:
+    return await api_whales(str(a.get("chain", "sol")), str(a.get("token", "")),
+                            float(a.get("threshold_usd", 1000)),
+                            int(a.get("limit", 25)))
+
+
+_MCP_IMPL: dict[str, mcp.ToolImpl] = {
+    "trending": _mcp_trending, "scan": _mcp_scan,
+    "rug": _mcp_rug, "whale_windows": _mcp_whales,
+}
+
+
+@app.post("/mcp", tags=["system"])
+async def mcp_rpc(request: Request) -> Response:
+    """Read-only Model Context Protocol endpoint — JSON-RPC 2.0 (spec rev
+    2026-07-28): initialize / ping / tools/list / tools/call over four
+    read-only tools (trending, scan, rug, whale_windows). Nothing here
+    trades, custodies, or writes."""
+    try:
+        payload = await request.json()
+    except Exception:  # noqa: BLE001 — a broken body is a JSON-RPC error, not a 500
+        payload = None
+    status, out = await mcp.handle(payload, _MCP_IMPL)
+    if out is None:
+        return Response(status_code=status)
+    return JSONResponse(out, status_code=status)
+
+
+@app.get("/.well-known/api-catalog", include_in_schema=False)
+async def api_catalog(request: Request) -> Response:
+    """RFC 9727 — machine-discoverable catalog pointing at openapi.json."""
+    base = str(request.base_url)
+    catalog = f"{base}.well-known/api-catalog"
+    openapi = f"{base}openapi.json"
+    return JSONResponse({"linkset": [
+        {"anchor": catalog, "item": [{"href": openapi}]},
+        {"anchor": openapi,
+         "service-desc": [{"href": openapi,
+                           "type": "application/vnd.oai.openapi+json;version=3.1"}]},
+    ]}, media_type="application/linkset+json")
 
 
 _NO_BUILD = """<!doctype html><html><head><meta charset="utf-8">

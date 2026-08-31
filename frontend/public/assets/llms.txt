@@ -208,6 +208,22 @@ Simulated. Non-goals are published on the page (/roadmap#non-goals): no custody,
 no trade execution, no paid rankings, no hidden data, no ads/trackers, no date
 promises outside the Locked band.
 
+## For AI agents (machine surfaces, read-only)
+
+- POST /mcp — Model Context Protocol server, spec revision **2026-07-28**
+  (modelcontextprotocol.io/specification/latest, checked 2026-08-31). JSON-RPC 2.0:
+  initialize · ping · tools/list · tools/call. Implemented in stdlib, no SDK
+  [webapp/mcp.py].
+  - Tools: trending (live feed per chain/mode) · scan (weighted verdict + verbatim
+    evidence + rug flags) · rug (RugCheck summary on sol, GoPlus token_security on
+    bnb/base, honest partial reason elsewhere) · whale_windows (large transfers +
+    per-wallet netflow; declared-null probe reason where no $0 feed exists).
+  - Every tool answers the same payloads the REST routes serve — one truth, two
+    doors. Tool errors arrive as content (isError:true), never as an HTTP 500.
+- GET /.well-known/api-catalog — RFC 9727 discovery document
+  (application/linkset+json) linking this server to /openapi.json [webapp/server.py].
+- GET /openapi.json · /api/docs · /api/redoc — the full additive API surface.
+
 ## Statement
 
 Research tools — not financial advice. Data belongs to upstream providers
