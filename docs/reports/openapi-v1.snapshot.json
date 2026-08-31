@@ -3,7 +3,7 @@
   "info": {
     "title": "VILMEI",
     "summary": "Evidence-first multichain memecoin risk terminal",
-    "description": "Read-only multichain memecoin research terminal \u2014 reduce noise, add context.\n\n- **POST /api/scan** \u2014 DexScreener pair + GeckoTerminal trade clustering \u2192 deterministic, weighted risk assessment\n- **GET /api/v1/discovery** \u2014 keyless trending/new pool radar (GeckoTerminal free tier)\n- **POST /api/explain** \u2014 evidence-first AI narrative; `provider: \"local\"` serves a deterministic heuristic narrative with zero API keys\n- **POST /api/whale** \u2014 Helius wallet balances (key required)\n- **GET /api/v1/whale/windows** \u2014 whale windows (1h/6h/24h) on the keyless GeckoTerminal trade tape, all five chains; threshold is a labelled heuristic, never an on-chain label\n- **GET /api/v1/whale/auto** \u2014 AUTO: resolve a contract across networks + trending top-N candidates\n- **GET /api/v1/fees/estimate** \u2014 the PLANNED VILMEI fee (0.50% split 0.30/0.10/0.10) as inspectable data; nothing is charged, VILMEI is read-only\n- **GET /api/v1/fees/destinations** \u2014 the claim-based vault map: per chain, the three fee slices with their PUBLIC founder-claimed address (or a declared-null awaiting-founder sentence); no key enters the repo\n- **GET /api/v1/portfolio/snapshot** \u2014 market facts for up to 15 watchlist tokens (deepest GT pool per token, verbatim; positions stay client-side)\n- **GET /api/v1/holdings/{chain}/{address}** \u2014 read-only balances for a PUBLIC address (sol Helius \u00b7 bnb Alchemy \u00b7 base Alchemy-or-keyless-Blockscout \u00b7 hype/hood honest PARTIAL); no keys asked, no custody, ever\n- **WS /ws/snap** \u2014 full honest snapshot ticker \u00b7 **WS /ws/tape** \u2014 live trade-tape deltas for the active pool\n\nEvery value is copied verbatim from the upstream APIs; absent fields stay absent \u2014\nnothing is simulated, zero-filled or random-walked. Heuristic thresholds are public\nand auditable (heuristics/).",
+    "description": "Read-only multichain memecoin research terminal \u2014 reduce noise, add context.\n\n- **POST /api/scan** \u2014 DexScreener pair + GeckoTerminal trade clustering \u2192 deterministic, weighted risk assessment\n- **GET /api/v1/discovery** \u2014 keyless trending/new pool radar (GeckoTerminal free tier)\n- **POST /api/explain** \u2014 evidence-first AI narrative; `provider: \"local\"` serves a deterministic heuristic narrative with zero API keys\n- **POST /api/whale** \u2014 Helius wallet balances (key required)\n- **GET /api/v1/whale/windows** \u2014 whale windows (1h/6h/24h) on the keyless GeckoTerminal trade tape, all five chains; threshold is a labelled heuristic, never an on-chain label\n- **GET /api/v1/whale/auto** \u2014 AUTO: resolve a contract across networks + trending top-N candidates\n- **GET /api/v1/fees/estimate** \u2014 the PLANNED VILMEI fee (0.50% split 0.30/0.10/0.10) as inspectable data; nothing is charged, VILMEI is read-only\n- **GET /api/v1/fees/destinations** \u2014 the claim-based vault map: per chain, the three fee slices with their PUBLIC founder-claimed address (or a declared-null awaiting-founder sentence); no key enters the repo\n- **GET /api/v1/portfolio/snapshot** \u2014 market facts for up to 15 watchlist tokens (deepest GT pool per token, verbatim; positions stay client-side)\n- **GET /api/v1/holdings/{chain}/{address}** \u2014 read-only balances for a PUBLIC address (sol Helius \u00b7 bnb Alchemy \u00b7 base Alchemy-or-keyless-Blockscout \u00b7 hype/hood honest PARTIAL) + USD/\u039424h joined from each token's deepest GeckoTerminal pool (heuristic \u2014 dex-reserve derived, chip on the page); no keys asked, no custody, addresses never logged\n- **WS /ws/snap** \u2014 full honest snapshot ticker \u00b7 **WS /ws/tape** \u2014 live trade-tape deltas for the active pool\n\nEvery value is copied verbatim from the upstream APIs; absent fields stay absent \u2014\nnothing is simulated, zero-filled or random-walked. Heuristic thresholds are public\nand auditable (heuristics/).",
     "license": {
       "name": "MIT",
       "identifier": "MIT"
@@ -2842,11 +2842,44 @@
               }
             ],
             "title": "Amount"
+          },
+          "price_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Usd"
+          },
+          "change_24h": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change 24H"
+          },
+          "price_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Note"
           }
         },
         "type": "object",
         "title": "HoldingToken",
-        "description": "One held token, verbatim: address + amount when the source can read\nthem. symbol only where the source provides it for free (Blockscout);\namount None when decimals are unreadable \u2014 never guessed."
+        "description": "One held token, verbatim: address + amount when the source can read\nthem. symbol only where the source provides it for free (Blockscout);\namount None when decimals are unreadable \u2014 never guessed. price_usd /\nchange_24h are the M5 price join: the deepest GeckoTerminal pool read\nfrom the token's OWN side (heuristic \u2014 dex-reserve derived); price_note\nsays why a price is absent (no_pool | rate_limited | upstream_error |\ncapped), never silently."
       },
       "HoldingsResponse": {
         "properties": {
@@ -2913,6 +2946,28 @@
             ],
             "title": "Native Amount"
           },
+          "native_price_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Native Price Usd"
+          },
+          "native_change_24h": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Native Change 24H"
+          },
           "tokens": {
             "items": {
               "$ref": "#/components/schemas/HoldingToken"
@@ -2926,6 +2981,17 @@
             },
             "type": "array",
             "title": "Reasons"
+          },
+          "pricing_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pricing Note"
           }
         },
         "type": "object",

@@ -3,12 +3,14 @@
    remove the old key — migration runs once, evidenced by the test).
    Stored: risk display mode + wallet mock session (address-only, mock). */
 import { useSyncExternalStore } from 'react'
+import type { LiveChain } from './liveApi'
+import { LIVE_CHAINS } from './liveApi'
 import type { WalletSession } from '../wallet/registry'
 
 const NS = 'vilmei'
 const LEGACY = 'alpha'
 
-type PrefKey = 'risk-mode' | 'wallet-session'
+type PrefKey = 'risk-mode' | 'wallet-session' | 'holdings-chain'
 
 function key(k: PrefKey): string {
   return `${NS}.${k}`
@@ -73,4 +75,15 @@ export function getWalletSession(): WalletSession | null {
 
 export function setWalletSession(s: WalletSession | null): void {
   write('wallet-session', s)
+}
+
+/* Holdings Check (PROMPT-V4 M5): the SELECTED CHAIN persists, the address
+   never does — it lives in the request URL and nowhere else. */
+export function getHoldingsChain(): LiveChain {
+  const c = read<string>('holdings-chain', 'sol')
+  return (LIVE_CHAINS as readonly string[]).includes(c) ? (c as LiveChain) : 'sol'
+}
+
+export function setHoldingsChain(c: LiveChain): void {
+  write('holdings-chain', c)
 }

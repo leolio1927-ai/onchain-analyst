@@ -1,11 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ALERTS, MEMEATCHI, SYSTEM_STATUS } from '../mock/data'
 import { AiPanel } from '../components/AiPanel'
 import type { LiveChain } from '../lib/liveApi'
 import { LIVE_CHAINS, LIVE_CHAIN_LABEL } from '../lib/liveApi'
 import { fmtPct, fmtPrice, fmtUsdCompact, fmtUtcClock, shorten } from '../lib/liveFormat'
+import { getHoldingsChain, setHoldingsChain } from '../lib/prefs'
 import { WATCH_CAP, addWatchItem, removeWatchItem, setWatchAmount, useWatchlist } from '../lib/watchlist'
+import { WALLET_LABEL } from '../wallet/registry'
+import { useWallet } from '../wallet/WalletContext'
 import { Badge, Card, EmptyState, Meter, Skeleton, Tabs, Toggle } from '../components/ui'
+import { ChainLogo } from './chainLogos'
 
 function Head({ title, sub, right }: { title: string; sub: string; right?: React.ReactNode }) {
   return (
@@ -357,7 +361,10 @@ interface HoldingsResult {
   coverage: 'ok' | 'no_key' | 'partial' | 'upstream_error'
   native_symbol: string | null
   native_amount: number | null
-  tokens: { token: string | null; symbol: string | null; amount: number | null }[]
+  native_price_usd: number | null
+  native_change_24h: number | null
+  tokens: { token: string | null; symbol: string | null; amount: number | null; price_usd: number | null; change_24h: number | null; price_note: string | null }[]
+  pricing_note: string | null
   sources: string[]
   reasons: string[]
   data_mode: string
@@ -370,6 +377,17 @@ const COVERAGE_COLOR: Record<HoldingsResult['coverage'], 'green' | 'amber' | 'cy
   ok: 'green', no_key: 'amber', partial: 'muted', upstream_error: 'amber',
 }
 
+/* the one privacy sentence, verbatim everywhere it appears */
+const PRIVACY_LINE = 'address stays in this browser; proxy fetches public balances; never logs addresses'
+
+/* a price miss is data, shown per-row in dim — mapped to human words */
+const PRICE_NOTE_LABEL: Record<string, string> = {
+  no_pool: 'no pool price', rate_limited: 'price rate-limited',
+  capped: 'beyond price cap', upstream_error: 'price unavailable',
+}
+
+const BAR_COLORS = ['#00ffa3', '#a78bfa', '#fbbf24', '#38bdf8', '#f472b6', '#94a3b8']
+
 function fmtAmt(n: number | null): string {
   if (n === null) return '–'
   const a = Math.abs(n)
@@ -380,8 +398,29 @@ function fmtAmt(n: number | null): string {
   return n.toLocaleString('en-US', { maximumFractionDigits: 6 })
 }
 
+function fmtUsd(n: number | null | undefined): string {
+  if (n === null || n === undefined) return '–'
+  if (n >= 1000) return `$${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+  if (n >= 1) return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return `$${n.toPrecision(4)}`
+}
+
+/* client-side only: USD value = amount × server price (M4 portfolio pattern —
+   the server ships facts, the multiplication never leaves the browser) */
+function valueOf(amount: number | null | undefined, price: number | null | undefined): number | null {
+  if (amount === null || amount === undefined || price === null || price === undefined) return null
+  return amount * price
+}
+
+function Delta({ v }: { v: number | null | undefined }) {
+  if (v === null || v === undefined) return <span className="dim">–</span>
+  return <span className={`mono ${v >= 0 ? 'up' : 'down'}`}>{fmtPct(v)}</span>
+}
+
 export function HoldingsPage() {
-  const [chain, setChain] = useState<LiveChain>('sol')
+  const { session, live, connect, connectDemo, connecting, error: walletError } = useWallet()
+  const [chain, setChainState] = useState<LiveChain>(getHoldingsChain)
+  const setChain = (c: LiveChain) => { setChainState(c); setHoldingsChain(c) }
   const [addr, setAddr] = useState('')
   const [checked, setChecked] = useState<{ chain: LiveChain; addr: string } | null>(null)
   const [res, setRes] = useState<HoldingsResult | null>(null)
@@ -390,6 +429,20 @@ export function HoldingsPage() {
   const reqKey = checked ? `${checked.chain}:${checked.addr}` : null
   /* derived loading (M4 pattern): doneKey is written only in fetch callbacks */
   const loading = reqKey !== null && doneKey !== reqKey
+
+  /* M2 join: a connected wallet IS the address input — solana sessions check
+     sol immediately, evm sessions prefill base. Once per session address. */
+  const prefilled = useRef<string | null>(null)
+  useEffect(() => {
+    if (!session) { prefilled.current = null; return }
+    if (prefilled.current === session.address) return
+    prefilled.current = session.address
+    const c: LiveChain = session.chainFam === 'solana' ? 'sol' : 'base'
+    setChainState(c)
+    setHoldingsChain(c)
+    setAddr(session.address)
+    setChecked({ chain: c, addr: session.address })
+  }, [session])
 
   useEffect(() => {
     if (!checked) return
@@ -422,11 +475,49 @@ export function HoldingsPage() {
     setChecked({ chain, addr: a })
   }
 
+  /* chain-breakdown bar: USD share of native + each priced holding (the
+     unpriced ones are absent from the bar, never zeroed into it) */
+  const segs = useMemo(() => {
+    if (!res || res.coverage !== 'ok') return []
+    const parts: { label: string; value: number; color: string }[] = []
+    const nv = valueOf(res.native_amount, res.native_price_usd)
+    if (nv) parts.push({ label: res.native_symbol ?? 'native', value: nv, color: BAR_COLORS[0] })
+    res.tokens.forEach((t, i) => {
+      const v = valueOf(t.amount, t.price_usd)
+      if (v) parts.push({ label: t.symbol ?? shorten(t.token), value: v, color: BAR_COLORS[(i + 1) % BAR_COLORS.length] })
+    })
+    const total = parts.reduce((s, p) => s + p.value, 0)
+    return total > 0 ? parts.map((p) => ({ ...p, share: p.value / total })) : []
+  }, [res])
+
+  /* CSV export — same Blob pattern as the whale tape; the filename carries
+     the chain only, never the address */
+  const exportCsv = () => {
+    if (!res) return
+    const head = 'chain,kind,token,symbol,amount,price_usd,value_usd,change_24h'
+    const lines: string[] = []
+    if (res.native_amount !== null) {
+      lines.push([res.chain, 'native', 'native', res.native_symbol ?? '', res.native_amount,
+        res.native_price_usd ?? '', valueOf(res.native_amount, res.native_price_usd) ?? '',
+        res.native_change_24h ?? ''].join(','))
+    }
+    for (const t of res.tokens) {
+      lines.push([res.chain, 'token', t.token ?? '', t.symbol ?? '', t.amount ?? '',
+        t.price_usd ?? '', valueOf(t.amount, t.price_usd) ?? '', t.change_24h ?? ''].join(','))
+    }
+    const blob = new Blob([[head, ...lines].join('\n')], { type: 'text/csv' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `vilmei-holdings-${res.chain}.csv`
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
+
   return (
     <div className="ta-page">
       <Head
         title="Holdings Check"
-        sub="Paste a PUBLIC wallet address — read-only balances from free-tier sources. We never ask for keys; no custody, ever."
+        sub="Paste a PUBLIC wallet address — read-only balances from free-tier sources, priced against each token's deepest pool. We never ask for keys; no custody, ever."
         right={<Badge color="green">NO CUSTODY</Badge>}
       />
       <Card title="CHECK A PUBLIC ADDRESS">
@@ -454,12 +545,34 @@ export function HoldingsPage() {
         <div className="mono" style={{ fontSize: 11.5, marginTop: 8, color: 'var(--dim)' }}>
           sol → Helius · bnb → Alchemy · base → Alchemy or keyless Blockscout · hype/hood → honest PARTIAL
         </div>
+        {session && session.kind === 'mock' && (
+          <div className="mono" style={{ fontSize: 11.5, marginTop: 6, color: 'var(--amber, #fbbf24)' }} data-testid="hc-demo-hint">
+            DEMO identity connected — the check runs on the deterministic preview address, not a real wallet
+          </div>
+        )}
       </Card>
 
       {!checked && !errMsg && (
         <Card>
           <EmptyState icon="▣" title="No wallet checked yet"
-            hint="Paste a public address — we never connect wallets or ask for private keys. Balances are read from public chain data only." />
+            hint={`Connect a wallet below — address only, nothing is signed — or paste any public address above. ${PRIVACY_LINE}.`} />
+          <div className="rug-list" style={{ marginTop: 14, maxWidth: 460, marginInline: 'auto' }}>
+            <div className="rug-row">
+              <span className="k">Wallet picker</span>
+              <span className="v mono dim">address only · read-only build</span>
+            </div>
+            {live.map((w) => (
+              <button type="button" key={w.id} className="ta-wallet-row btn" data-testid={`wallet-live-${w.id}`} onClick={() => connect(w.id)}>
+                <span>{w.name}</span>
+                <span className="ta-chain-tag">{w.fam === 'solana' ? 'SOL' : 'EVM'} · LIVE</span>
+              </button>
+            ))}
+            <button type="button" className="ta-wallet-row btn" data-testid="wallet-demo" onClick={connectDemo} disabled={connecting !== null}>
+              <span>{WALLET_LABEL}</span>
+              <span className="dim2">preview only</span>
+            </button>
+            {walletError && <div className="ta-wallet-row mono dim2" data-testid="wallet-error">{walletError}</div>}
+          </div>
         </Card>
       )}
       {errMsg && (
@@ -468,57 +581,107 @@ export function HoldingsPage() {
         </Card>
       )}
       {res && (
-        <div className="grid-2">
-          <Card title={`WALLET ${shorten(res.address)}`}>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
-              <Badge color={COVERAGE_COLOR[res.coverage]}>{COVERAGE_LABEL[res.coverage]}</Badge>
-              <span className="mono dim" style={{ fontSize: 11 }}>{res.sources.length ? `sources: ${res.sources.join(', ')}` : 'no source queried'}</span>
-            </div>
-            <div className="rug-list">
-              <div className="rug-row">
-                <span className="k">{res.native_symbol ?? 'Native'} balance</span>
-                <span className="v mono" data-testid="hc-native">{fmtAmt(res.native_amount)}{res.native_amount !== null && res.native_symbol ? ` ${res.native_symbol}` : ''}</span>
+        <>
+          <div className="grid-2">
+            <Card title={`WALLET ${shorten(res.address)}`}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <ChainLogo chain={res.chain as LiveChain} size={18} />
+                  <span className="mono" style={{ fontSize: 11.5, color: 'var(--muted)' }}>{LIVE_CHAIN_LABEL[res.chain as LiveChain]?.toUpperCase() ?? res.chain}</span>
+                </span>
+                <Badge color={COVERAGE_COLOR[res.coverage]}>{COVERAGE_LABEL[res.coverage]}</Badge>
+                {res.pricing_note && (
+                  <span data-testid="hc-pricing-chip" title={res.pricing_note}>
+                    <Badge color="cyan">heuristic pricing — dex-reserve derived</Badge>
+                  </span>
+                )}
+                <span className="mono dim" style={{ fontSize: 11 }}>{res.sources.length ? `sources: ${res.sources.join(', ')}` : 'no source queried'}</span>
               </div>
-              <div className="rug-row"><span className="k">Tokens listed</span><span className="v">{res.tokens.length}</span></div>
-              <div className="rug-row"><span className="k">Custody</span><span className="v ok-yes">none — read-only, by design</span></div>
-            </div>
-            {res.tokens.length > 0 && (
-              <div className="ta-table-wrap" style={{ marginTop: 12 }}>
-                <table className="ta-table">
-                  <thead><tr><th>Token</th><th>Symbol</th><th className="r">Amount</th></tr></thead>
-                  <tbody>
-                    {res.tokens.map((t, i) => (
-                      <tr key={`${t.token}-${i}`}>
-                        <td className="mono">{shorten(t.token)}</td>
-                        <td>{t.symbol ?? <span className="dim mono">–</span>}</td>
-                        <td className="r mono" data-testid="hc-token-amount">{fmtAmt(t.amount)}</td>
-                      </tr>
+              <div className="rug-list">
+                <div className="rug-row">
+                  <span className="k">{res.native_symbol ?? 'Native'} balance</span>
+                  <span className="v mono" data-testid="hc-native">{fmtAmt(res.native_amount)}{res.native_amount !== null && res.native_symbol ? ` ${res.native_symbol}` : ''}</span>
+                </div>
+                <div className="rug-row">
+                  <span className="k">{res.native_symbol ?? 'Native'} value</span>
+                  <span className="v mono" data-testid="hc-native-usd">
+                    {fmtUsd(valueOf(res.native_amount, res.native_price_usd))} <Delta v={res.native_change_24h} />
+                  </span>
+                </div>
+                <div className="rug-row"><span className="k">Tokens listed</span><span className="v">{res.tokens.length}</span></div>
+                <div className="rug-row"><span className="k">Custody</span><span className="v ok-yes">none — read-only, by design</span></div>
+              </div>
+              {segs.length > 0 && (
+                <div style={{ marginTop: 14 }}>
+                  <div className="mono dim" style={{ fontSize: 10.5, marginBottom: 6 }}>CHAIN BREAKDOWN · USD SHARE</div>
+                  <div data-testid="hc-bar" style={{ display: 'flex', height: 10, borderRadius: 5, overflow: 'hidden', background: 'rgba(255,255,255,.06)' }}>
+                    {segs.map((s, i) => (
+                      <div key={`${s.label}-${i}`} title={`${s.label} · ${(s.share * 100).toFixed(1)}%`}
+                        style={{ width: `${(s.share * 100).toFixed(2)}%`, background: s.color }} />
                     ))}
-                  </tbody>
-                </table>
+                  </div>
+                  <div className="mono" style={{ fontSize: 10.5, marginTop: 6, color: 'var(--muted)' }}>
+                    {segs.map((s) => `${s.label} ${(s.share * 100).toFixed(1)}%`).join(' · ')}
+                  </div>
+                </div>
+              )}
+              {res.tokens.length > 0 && (
+                <div className="ta-table-wrap" style={{ marginTop: 12 }}>
+                  <table className="ta-table">
+                    <thead><tr><th>Token</th><th className="r">Amount</th><th className="r">Price</th><th className="r">Value</th><th className="r">Δ24h</th></tr></thead>
+                    <tbody>
+                      {res.tokens.map((t, i) => (
+                        <tr key={`${t.token}-${i}`}>
+                          <td>
+                            <span className="mono">{shorten(t.token)}</span>
+                            {t.symbol && <span className="dim" style={{ marginLeft: 6 }}>{t.symbol}</span>}
+                            {t.price_note && (
+                              <div className="mono dim" style={{ fontSize: 10.5 }}>{PRICE_NOTE_LABEL[t.price_note] ?? t.price_note}</div>
+                            )}
+                          </td>
+                          <td className="r mono" data-testid="hc-token-amount">{fmtAmt(t.amount)}</td>
+                          <td className="r mono">{fmtUsd(t.price_usd)}</td>
+                          <td className="r mono">{fmtUsd(valueOf(t.amount, t.price_usd))}</td>
+                          <td className="r"><Delta v={t.change_24h} /></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
+                <button className="btn-analyze as-ghost" data-testid="hc-csv" onClick={exportCsv}>EXPORT CSV</button>
               </div>
-            )}
-          </Card>
-          <Card title="COVERAGE — WHAT THE TERMINAL CAN SEE">
-            {res.reasons.length === 0 ? (
-              <p style={{ color: 'var(--muted)', fontSize: 12.5 }}>
-                Full coverage on this chain: every number above is copied verbatim
-                from {res.sources.join(' + ') || 'the wired source'}. Absent values
-                stay absent — nothing here is estimated.
+            </Card>
+            <Card title="COVERAGE — WHAT THE TERMINAL CAN SEE">
+              {res.reasons.length === 0 ? (
+                <p style={{ color: 'var(--muted)', fontSize: 12.5 }}>
+                  Full coverage on this chain: every balance above is copied verbatim
+                  from {res.sources.join(' + ') || 'the wired source'}. Absent values
+                  stay absent — nothing here is estimated.
+                </p>
+              ) : (
+                <div style={{ display: 'grid', gap: 8 }}>
+                  {res.reasons.map((s) => (
+                    <p key={s.slice(0, 40)} className="mono" style={{ color: 'var(--muted)', fontSize: 11.5, lineHeight: 1.6 }} data-testid="hc-reason">{s}</p>
+                  ))}
+                </div>
+              )}
+              {res.pricing_note && (
+                <p className="mono" style={{ color: 'var(--dim)', fontSize: 11, marginTop: 12, lineHeight: 1.6 }}>{res.pricing_note}</p>
+              )}
+              <p style={{ color: 'var(--dim)', fontSize: 11, marginTop: 14 }}>
+                Read-only view from public chain data. This product cannot move funds — by design.
               </p>
-            ) : (
-              <div style={{ display: 'grid', gap: 8 }}>
-                {res.reasons.map((s) => (
-                  <p key={s.slice(0, 40)} className="mono" style={{ color: 'var(--muted)', fontSize: 11.5, lineHeight: 1.6 }} data-testid="hc-reason">{s}</p>
-                ))}
-              </div>
-            )}
-            <p style={{ color: 'var(--dim)', fontSize: 11, marginTop: 14 }}>
-              Read-only view from public chain data. This product cannot move funds — by design.
-            </p>
-          </Card>
-        </div>
+            </Card>
+          </div>
+        </>
       )}
+      <Card>
+        <p className="mono" data-testid="hc-privacy" style={{ color: 'var(--dim)', fontSize: 11.5, textAlign: 'center' }}>
+          PRIVACY — {PRIVACY_LINE}
+        </p>
+      </Card>
     </div>
   )
 }

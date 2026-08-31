@@ -211,6 +211,42 @@ def best_pool(pools: list[dict]) -> dict | None:
     return max(pools, key=_reserve)
 
 
+def pool_token_side(pool: dict, chain_key: str, token_address: str) -> str | None:
+    """'base' | 'quote' | None — which side of the pool the token occupies.
+    Relationship ids are '{network}_{address}' lower-cased (probe
+    2026-08-31); a price is only read from the pool's own side — the
+    holdings price join owes its correctness to this check."""
+    rel = pool.get("relationships") or {}
+    want = f"{_net(chain_key)}_{token_address}".lower()
+    for side, field in (("base", "base_token"), ("quote", "quote_token")):
+        pid = (((rel.get(field) or {}).get("data") or {}).get("id") or "")
+        if pid.lower() == want:
+            return side
+    return None
+
+
+def search_pools_v2(query: str, chain_key: str) -> list[dict]:
+    """Network-scoped v2 pool search — raw pool resources, attributes AND
+    relationships intact. Probe 2026-08-31: GT serves no bsc token page for
+    WBNB (/networks/bsc/tokens/{wbnb} and its pools both 404), but this
+    endpoint returns WBNB pools verbatim. Same governance as every GT path
+    (pools-cache TTL + single-flight)."""
+    q = query.strip().lower()
+    cache_key = (f"search2:{chain_key}", q)
+    cached = _pools_cache_get(cache_key)
+    if cached is not None:
+        return cached
+
+    def _do() -> list[dict]:
+        return _get(f"/search/pools?query={urllib.parse.quote(q)}"
+                    f"&network={_net(chain_key)}&page=1").get("data") or []
+
+    out = _single_flight(("search2", chain_key, q), _do,
+                         lambda k: _pools_cache_get((f"search2:{k[1]}", k[2])),
+                         lambda k, v: _pools_cache_put((f"search2:{k[1]}", k[2]), v))
+    return out if out is not None else _do()
+
+
 def _normalize_trade(item: dict) -> dict | None:
     """One GT trade item → the normalized row; None when a required field is
     missing — never guessed."""

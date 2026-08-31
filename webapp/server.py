@@ -25,6 +25,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import fastapi
+import uvicorn.logging
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import (
     FileResponse,
@@ -132,7 +133,7 @@ _DESCRIPTION = """Read-only multichain memecoin research terminal — reduce noi
 - **GET /api/v1/fees/estimate** — the PLANNED VILMEI fee (0.50% split 0.30/0.10/0.10) as inspectable data; nothing is charged, VILMEI is read-only
 - **GET /api/v1/fees/destinations** — the claim-based vault map: per chain, the three fee slices with their PUBLIC founder-claimed address (or a declared-null awaiting-founder sentence); no key enters the repo
 - **GET /api/v1/portfolio/snapshot** — market facts for up to 15 watchlist tokens (deepest GT pool per token, verbatim; positions stay client-side)
-- **GET /api/v1/holdings/{chain}/{address}** — read-only balances for a PUBLIC address (sol Helius · bnb Alchemy · base Alchemy-or-keyless-Blockscout · hype/hood honest PARTIAL); no keys asked, no custody, ever
+- **GET /api/v1/holdings/{chain}/{address}** — read-only balances for a PUBLIC address (sol Helius · bnb Alchemy · base Alchemy-or-keyless-Blockscout · hype/hood honest PARTIAL) + USD/Δ24h joined from each token's deepest GeckoTerminal pool (heuristic — dex-reserve derived, chip on the page); no keys asked, no custody, addresses never logged
 - **WS /ws/snap** — full honest snapshot ticker · **WS /ws/tape** — live trade-tape deltas for the active pool
 
 Every value is copied verbatim from the upstream APIs; absent fields stay absent —
@@ -970,6 +971,25 @@ async def api_holdings(chain: str, address: str) -> dict:
     return holdings.check(chain, addr)
 
 
+_HOLDINGS_PATH_RE = re.compile(r"^(/api/v1/holdings/[a-z]+)/.+$")
+
+
+class HoldingsRedactAccessFormatter(uvicorn.logging.AccessFormatter):
+    """M5 privacy law: the holdings route carries a PUBLIC wallet address in
+    the PATH, and addresses are never logged. uvicorn's access line keeps
+    method/status/timing but the address segment becomes REDACTED
+    (tests/test_holdings.py pins the rewrite; a live curl + stdout read
+    proved it end-to-end)."""
+
+    def formatMessage(self, record: logging.LogRecord) -> str:
+        args = record.args
+        if isinstance(args, tuple) and len(args) >= 3 and isinstance(args[2], str):
+            m = _HOLDINGS_PATH_RE.match(args[2].split("?", 1)[0])
+            if m:
+                record.args = (*args[:2], f"{m.group(1)}/REDACTED", *args[3:])
+        return super().formatMessage(record)
+
+
 # ── PROMPT-V2B P6: machine surfaces (read-only) ─────────────────────────
 # MCP spec revision 2026-07-28 (modelcontextprotocol.io/specification/latest,
 # checked 2026-08-31); discovery via RFC 9727 api-catalog. The tools are thin
@@ -1289,8 +1309,16 @@ def main() -> None:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args()
+    import copy
+
     import uvicorn
-    uvicorn.run(app, host=args.host, port=args.port)
+    from uvicorn.config import LOGGING_CONFIG
+    # M5 privacy law: holdings paths carry PUBLIC wallet addresses, and
+    # addresses are never logged — swap in the redacting access formatter.
+    log_config = copy.deepcopy(LOGGING_CONFIG)
+    log_config["formatters"]["access"]["()"] = (
+        "webapp.server.HoldingsRedactAccessFormatter")
+    uvicorn.run(app, host=args.host, port=args.port, log_config=log_config)
 
 
 if __name__ == "__main__":

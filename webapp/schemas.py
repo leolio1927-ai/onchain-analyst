@@ -921,11 +921,18 @@ class PortfolioSnapshotResponse(Envelope):
 class HoldingToken(BaseModel):
     """One held token, verbatim: address + amount when the source can read
     them. symbol only where the source provides it for free (Blockscout);
-    amount None when decimals are unreadable — never guessed."""
+    amount None when decimals are unreadable — never guessed. price_usd /
+    change_24h are the M5 price join: the deepest GeckoTerminal pool read
+    from the token's OWN side (heuristic — dex-reserve derived); price_note
+    says why a price is absent (no_pool | rate_limited | upstream_error |
+    capped), never silently."""
 
     token: str | None = None
     symbol: str | None = None
     amount: float | None = None
+    price_usd: float | None = None
+    change_24h: float | None = None
+    price_note: str | None = None
 
 
 class HoldingsResponse(Envelope):
@@ -940,5 +947,8 @@ class HoldingsResponse(Envelope):
     coverage: str                                   # ok | no_key | partial | upstream_error
     native_symbol: str | None = None
     native_amount: float | None = None
+    native_price_usd: float | None = None
+    native_change_24h: float | None = None
     tokens: list[HoldingToken] = Field(default_factory=list)
     reasons: list[str] = Field(default_factory=list)
+    pricing_note: str | None = None

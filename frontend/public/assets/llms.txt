@@ -174,15 +174,28 @@ brackets) and was last re-verified 2026-08-29.
 - GET /api/v1/holdings/{chain}/{address} — PROMPT-V4 M5: read-only balances
   for a PUBLIC wallet address (unknown chain → 404 with the allowed list;
   malformed address → 400 sentence). Free-tier coverage per chain, probe-first
-  (logs/m5-probe-blockscout.txt): sol → Helius (HELIUS_API_KEY), bnb → Alchemy
-  (ALCHEMY_API_KEY), base → Alchemy when keyed else keyless Blockscout
+  (logs/m5-probe-blockscout.txt + logs/n1-probe-*.txt): sol → Helius
+  (HELIUS_API_KEY, key rides the X-API-Key header — never the URL), bnb →
+  Alchemy (ALCHEMY_API_KEY), base → Alchemy when keyed else keyless Blockscout
   (coin_balance + best-effort ERC-20 page; a failed tokens page ships the
   native balance alone with a tokens_note), hype/hood → honest PARTIAL
   (no free-tier balance source verified, the terminal says so instead of
   guessing). coverage is a chip, never red: ok | no_key (a declared-null
   sentence naming the missing key) | partial | upstream_error. Balances ship
-  verbatim; absent stays absent; no custody, no signing, ever
-  [providers/holdings.py, providers/blockscout.py, providers/alchemy.py].
+  verbatim; absent stays absent; no custody, no signing, ever. PRICE JOIN
+  (heuristic, labeled on the page): USD + Δ24h from each token's deepest
+  GeckoTerminal pool, read from the token's OWN side — base-side holdings get
+  price + Δ24h, quote-side holdings (USDC and friends) get price and NO Δ
+  (GT exposes no quote-side change, probe 2026-08-31); natives ride the
+  wrapped twin (WSOL / base WETH), BNB rides a v2-search WBNB pool (GT 404s
+  the bsc token page); PRICE_CAP 8 guards the ~10 calls/min free tier —
+  capped rows keep their amount with a note; pricing misses are per-row notes
+  + ONE aggregate sentence, never red; pricing_note says "heuristic pricing —
+  dex-reserve derived". PRIVACY: the address stays in the browser; the proxy
+  fetches public balances; holdings addresses never reach the access log
+  (a redacting AccessFormatter replaces the path segment)
+  [providers/holdings.py, providers/geckoterminal.py, providers/blockscout.py,
+  providers/alchemy.py, webapp/server.py].
 - GET /api/v1/rug/sol/{mint} — Solana rug summary via RugCheck.xyz
   (score, score_normalised, lp_locked_pct, risks[] verbatim; TTL 300s,
   single-flight; a missing report ships empty risks + a degraded reason)

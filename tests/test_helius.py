@@ -23,6 +23,7 @@ def _urlopen_stub(payloads: list[dict], capture: dict):
     def _fake(req, timeout=10):
         capture.setdefault("bodies", []).append(json.loads(req.data.decode()))
         capture.setdefault("urls", []).append(req.full_url)
+        capture.setdefault("headers", []).append(dict(req.headers))
         return _StubResp(json.dumps(payloads[len(capture["bodies"]) - 1]).encode())
     return _fake
 
@@ -55,3 +56,7 @@ def test_rpc_parse_skips_unreadable_rows(monkeypatch):
     methods = [b["method"] for b in capture["bodies"]]
     assert methods == ["getBalance", "getTokenAccountsByOwner"]
     assert all(u.startswith(helius.BASE) for u in capture["urls"])
+    # hygiene law: the key rides the header, NEVER the URL (probe 2026-08-31;
+    # urllib error messages embed the request URL, so a query-string key leaks)
+    assert all("api-key" not in u for u in capture["urls"])
+    assert all(h.get("X-api-key") == "sk-test-123" for h in capture["headers"])

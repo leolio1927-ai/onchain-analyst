@@ -71,10 +71,15 @@ def _single_flight(key, fn):
     return _cache_get(key)
 
 
-def _call(url: str, *, body: dict | None = None) -> dict | list:
-    """One keyed HTTP call; 429 honors Retry-Header once, then gives up.
+def _call(url: str, *, body: dict | None = None,
+          extra_headers: dict | None = None) -> dict | list:
+    """One HTTP call; 429 honors Retry-Header once, then gives up. Secrets
+    travel in extra_headers, NEVER the URL — urllib error messages embed
+    the request URL, so a query-string key would leak into error logs.
     Raises _HeliusError with the reason note — callers translate."""
     headers = {"User-Agent": "vilmei/2.0", "Accept": "application/json"}
+    if extra_headers:
+        headers.update(extra_headers)
     data = None
     if body is not None:
         headers["Content-Type"] = "application/json"
@@ -110,16 +115,22 @@ def fetch_balances(address: str) -> dict:
     holdings are not enumerated — that absence is stated here, never faked)."""
     if not _key():
         raise NoKeyError("HELIUS_API_KEY not set — founder's call (see .env.example)")
-    url = f"{BASE}/?api-key={_key()}"
+    # Key rides the header, never the URL (probe 2026-08-31: x-api-key 200) —
+    # urllib error messages embed the request URL, and error notes surface on
+    # the page; a query-string key would leak through them.
+    auth = {"X-API-Key": _key()}
+    url = f"{BASE}/"
     native = _call(url, body={"jsonrpc": "2.0", "id": "ta",
-                              "method": "getBalance", "params": [address]})
+                              "method": "getBalance", "params": [address]},
+                   extra_headers=auth)
     lamports = (native.get("result") or {}).get("value")
     if lamports is None:
         raise _HeliusError("unparsed_response")
     accts = _call(url, body={"jsonrpc": "2.0", "id": "ta",
                              "method": "getTokenAccountsByOwner",
                              "params": [address, {"programId": TOKEN_PROGRAM},
-                                        {"encoding": "jsonParsed"}]})
+                                        {"encoding": "jsonParsed"}]},
+                  extra_headers=auth)
     rows = (accts.get("result") or {}).get("value")
     if rows is None:
         raise _HeliusError("unparsed_response")
