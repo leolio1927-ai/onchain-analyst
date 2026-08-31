@@ -11,6 +11,7 @@ import { api, ApiError } from './api'
 import type { Chain, ScanResult } from './api'
 import { ChainLogo } from './pages/chainLogos'
 import { BRAND_NAME, BRAND_LEGAL } from './lib/brand'
+import { AiHttpError, askAiStream } from './lib/aiApi'
 
 /* ═══════════ helpers ═══════════ */
 
@@ -358,7 +359,7 @@ function Nav() {
       <div className="lv-progress"><span style={{ width: `${progress * 100}%` }} /></div>
       <nav className={`lv-nav bordir ${scrolled ? 'scrolled' : ''}`}>
         <div className="lv-nav-in">
-          <a href="#" className="lv-logo"><span className="m">◤</span>TERMINAL&nbsp;<span className="lg">ALPHA</span></a>
+          <a href="#" className="lv-logo"><span className="m">◤</span>VIL<span className="lg">MEI</span></a>
           <div className="lv-nav-links">
             {NAV.map(([l, id]) => (
               <a key={id} href={`#${id}`} className={cur === id ? 'on' : ''}>{l}</a>
@@ -954,8 +955,61 @@ function Chains() {
   )
 }
 
-/* S8 — AI teaser: deterministic illustrative trace, labeled SIMULATED */
+/* S8 — AI demo (PROMPT-AI-V): LIVE answers via POST /api/v1/ai/ask on the
+   landing pool. LABEL LAW — the chip always says what is actually true:
+   a live answer shows the model id from its own provenance; ANY failure
+   falls back to the deterministic scripted trace labeled SIMULATED. */
+
+const LANDING_BONK = { chain: 'sol', token: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263' }
+
+const AI_DEMO_QS: { label: string; persona: 'analyst' | 'guide'; question: string }[] = [
+  { label: 'What is VILMEI?', persona: 'guide', question: 'What is VILMEI, in a few sentences?' },
+  { label: 'Is this token a rug?', persona: 'analyst', question: 'Based on the evidence block, is this token showing rug signals? Say what is and what isn\'t in the evidence.' },
+  { label: 'Is your AI safe?', persona: 'guide', question: 'How is the VILMEI AI kept safe and honest?' },
+  { label: 'What\'s the roadmap?', persona: 'guide', question: 'What is on the VILMEI roadmap right now — what is live, and what is still planned?' },
+]
+
+type DemoState = 'idle' | 'connecting' | 'live' | 'simulated'
+
 function AiSection() {
+  const [state, setState] = useState<DemoState>('idle')
+  const [asked, setAsked] = useState<string | null>(null)
+  const [answer, setAnswer] = useState('')
+  const [label, setLabel] = useState('')
+  const [note, setNote] = useState<string | null>(null)
+  const ctrlRef = useRef<AbortController | null>(null)
+  const reduceMotion = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+  const askDemo = async (q: typeof AI_DEMO_QS[number]) => {
+    ctrlRef.current?.abort()
+    const ctrl = new AbortController()
+    ctrlRef.current = ctrl
+    setAsked(q.question); setAnswer(''); setNote(null); setLabel('')
+    setState('connecting')
+    let text = ''
+    try {
+      await askAiStream({
+        question: q.question, mode: 'free', surface: 'landing', persona: q.persona,
+        ...(q.persona === 'analyst' ? LANDING_BONK : {}),
+      }, (e) => {
+        if (e.type === 'provenance') {
+          setState('live')
+          setLabel(`live · vilmei ai · ${e.model}${e.cached ? ' · cached' : ''}`)
+        } else if (e.type === 'delta') {
+          text += e.text
+          if (!reduceMotion) setAnswer(text)  // PB-8: reduced motion gets the full text at once
+        }
+      }, ctrl.signal)
+      setAnswer(text)
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return
+      setState('simulated')
+      setLabel('simulated (live AI offline)')
+      setNote(err instanceof AiHttpError ? err.message : 'The AI route did not answer.')
+    }
+  }
+
   return (
     <section className="lv-sec alt" id="ai">
       <div className="lv-num">06</div>
@@ -965,31 +1019,74 @@ function AiSection() {
           <div className="lv-k2">AI ANALYST</div>
           <h2 className="lv-h2" style={{ marginBottom: 18 }}>Ask Why. <span className="a">Get Evidence.</span></h2>
           <div className="lv-chat">
-            <div className="hd"><span className="d" /><b>VILMEI AI — ILLUSTRATIVE TRACE</b>
-              <span className="lv-status sim" style={{ marginLeft: 'auto' }}>simulated</span>
+            <div className="hd"><span className="d" /><b>VILMEI AI — EVIDENCE-FIRST ASSISTANT</b>
+              {state === 'live' && <span className="lv-status live" style={{ marginLeft: 'auto' }}><span className="dot" />{label}</span>}
+              {state === 'simulated' && <span className="lv-status sim" style={{ marginLeft: 'auto' }}>{label}</span>}
+              {state === 'connecting' && <span className="lv-status build" style={{ marginLeft: 'auto' }}>connecting…</span>}
+              {state === 'idle' && <span className="lv-status build" style={{ marginLeft: 'auto' }}>four questions · free tier</span>}
             </div>
-            <div className="lv-msg user">
-              <div className="who">YOU</div>
-              <div className="lv-bub">“Why is this token considered medium risk?”</div>
-            </div>
-            <div className="lv-msg ai">
-              <div className="who">AI ANALYST</div>
-              <div className="lv-bub">
-                <span className="lv-verdict">◈ MEDIUM RISK · 68/100</span>
-                <div className="sect">KEY SIGNALS</div>
-                <ul>
-                  <li>Early wallet clustering detected</li>
-                  <li>Liquidity appears healthy</li>
-                  <li>Holder concentration requires monitoring</li>
-                  <li>Coordinated activity detected</li>
-                </ul>
-              </div>
-            </div>
+            {asked && state !== 'simulated' && (
+              <>
+                <div className="lv-msg user">
+                  <div className="who">YOU</div>
+                  <div className="lv-bub">“{asked}”</div>
+                </div>
+                <div className="lv-msg ai">
+                  <div className="who">AI ANALYST</div>
+                  <div className="lv-bub">
+                    {state === 'connecting' ? (
+                      <span style={{ display: 'grid', gap: 8 }}>
+                        <span className="ta-skel" style={{ height: 11, width: '90%' }} />
+                        <span className="ta-skel" style={{ height: 11, width: '64%' }} />
+                      </span>
+                    ) : (
+                      <span style={{ whiteSpace: 'pre-wrap' }}>{answer}{state === 'live' && <span className="ai-caret" aria-hidden="true" />}</span>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+            {state === 'simulated' && (
+              <>
+                <div className="lv-msg user">
+                  <div className="who">YOU</div>
+                  <div className="lv-bub">“Why is this token considered medium risk?”</div>
+                </div>
+                <div className="lv-msg ai">
+                  <div className="who">AI ANALYST</div>
+                  <div className="lv-bub">
+                    <span className="lv-verdict">◈ MEDIUM RISK · 68/100</span>
+                    <div className="sect">KEY SIGNALS</div>
+                    <ul>
+                      <li>Early wallet clustering detected</li>
+                      <li>Liquidity appears healthy</li>
+                      <li>Holder concentration requires monitoring</li>
+                      <li>Coordinated activity detected</li>
+                    </ul>
+                  </div>
+                </div>
+              </>
+            )}
             <div className="btns">
-              <button className="lv-cta ghost off" style={{ height: 38, fontSize: 12 }} aria-disabled="true" tabIndex={-1}>Explain Score</button>
-              <button className="lv-cta ghost off" style={{ height: 38, fontSize: 12 }} aria-disabled="true" tabIndex={-1}>Deeper Analysis</button>
+              {AI_DEMO_QS.map((q) => (
+                <button key={q.label} className="lv-cta ghost" style={{ height: 38, fontSize: 12 }}
+                  disabled={state === 'connecting'} onClick={() => void askDemo(q)}>
+                  {q.label}
+                </button>
+              ))}
             </div>
-            <div className="note">DETERMINISTIC ILLUSTRATIVE TRACE — THE PANEL ABOVE IS NOT WIRED YET. AI ANALYST — <a href="/roadmap#ta-104" style={{ color: 'var(--g)' }}>IN BUILD · ROADMAP VM-104 →</a></div>
+            {state === 'live' && (
+              <div className="note">ANSWER STREAMED FROM THE FREE TIER — THE MODEL ID ABOVE COMES FROM THE RESPONSE ITSELF. <a href="/terminal#/ai" style={{ color: 'var(--g)' }}>OPEN THE FULL PANEL →</a></div>
+            )}
+            {state === 'simulated' && (
+              <div className="note">DETERMINISTIC SCRIPTED TRACE{note ? ` — ${note.toUpperCase()}` : ''}. AI ANALYST — LIVE WHEN THE FOUNDER KEY IS CONFIGURED. <a href="/terminal#/ai" style={{ color: 'var(--g)' }}>OPEN THE PANEL →</a></div>
+            )}
+            {state === 'idle' && (
+              <div className="note">PICK A QUESTION — ANSWERS STREAM LIVE FROM THE FREE TIER (SHARED DAILY BUDGET). THE TOKEN QUESTION RUNS ON TODAY'S BONK EVIDENCE. <a href="/terminal#/ai" style={{ color: 'var(--g)' }}>FULL PANEL →</a></div>
+            )}
+            {state === 'connecting' && (
+              <div className="note">STREAMING — FREE-TIER MODELS CAN TAKE A WHILE; THE ANSWER ARRIVES TOKEN BY TOKEN.</div>
+            )}
           </div>
         </div>
       </div>

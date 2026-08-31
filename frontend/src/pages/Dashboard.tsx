@@ -6,13 +6,15 @@ import { api, ApiError } from '../api'
 import type { ChainsCatalog, WhalesResult } from '../api'
 import { ScoreDial } from '../components/charts'
 import { Badge, Card, EmptyState, Skeleton } from '../components/ui'
+import { AiHttpError, answerKey, askAiOnce, cachedAnswer, rememberAnswer } from '../lib/aiApi'
+import { useActivePair } from '../lib/tokenStore'
 import { shorten } from '../lib/liveFormat'
 import { useSpringNumber } from '../lib/spring'
 
 /* BE-ALL-LIVE F5: this dashboard eats the real modules — /api/scan verdicts,
    the whale tracker, live scanner rows. Mock-only surfaces (candles, cluster
-   graph, AI narrative, alerts) render as declared-SOON empty states; the
-   modules behind them were never wired and are not pretended. */
+   graph, alerts) render as declared-SOON empty states; the AI narrative went
+   live via /api/v1/ai/ask (PROMPT-AI-V) and is never pretended either way. */
 
 const HERO_STATS = [
   { ico: '⬡', v: '5', l: 'Blockchains', c: 'c-cyan' },
@@ -63,6 +65,83 @@ function fmtUsd(n: number): string {
 }
 
 const short = shorten
+
+/* PROMPT-AI-V: dashboard AI micro-feed — one lazy, cached /ai/v1/ask free
+   answer for the active token. Zero requests until the user hits ASK WHY (or
+   the AI page already answered this token this session); the server-side
+   cache absorbs repeats. Label law: LIVE shows the model from the REAL
+   provenance — never a hardcoded name. */
+const WHY_Q = 'In two or three sentences, what does the evidence say about this token right now?'
+
+type FeedFlow = { key: string; phase: 'asking' | 'busy' | 'offline'; note: string | null }
+
+function AiMicroFeed() {
+  const pair = useActivePair()
+  const [flow, setFlow] = useState<FeedFlow | null>(null)
+  const [, rerender] = useState(0)
+
+  const pairKey = pair ? answerKey(pair.chain, pair.tokenAddress, WHY_Q) : null
+  /* the answer is DERIVED from the session cache at render time — asking
+     remembers into it and bumps a counter; no effect, no stale state. A
+     flow from a different token is ignored, so switching tokens resets
+     the panel naturally. */
+  const cached = pairKey ? cachedAnswer(pairKey) : null
+  const activeFlow = flow && pairKey && flow.key === pairKey ? flow : null
+
+  const askWhy = async () => {
+    if (!pair || !pairKey || activeFlow?.phase === 'asking') return
+    setFlow({ key: pairKey, phase: 'asking', note: null })
+    try {
+      const a = await askAiOnce({ question: WHY_Q, mode: 'free', surface: 'terminal', persona: 'analyst', chain: pair.chain, token: pair.tokenAddress })
+      rememberAnswer(pairKey, a)
+      setFlow(null)
+      rerender((n) => n + 1)
+    } catch (e) {
+      if (e instanceof AiHttpError && e.status === 503) {
+        setFlow({ key: pairKey, phase: 'offline', note: e.message })
+      } else if (e instanceof AiHttpError) {
+        setFlow({ key: pairKey, phase: 'busy', note: e.message })
+      } else {
+        setFlow({ key: pairKey, phase: 'busy', note: 'The AI route did not answer — the rest of the dashboard stays live.' })
+      }
+    }
+  }
+
+  return (
+    <Card title="AI ANALYST" right={<Badge color="green">LIVE</Badge>} glow="#00ffa3" className="pb-acc">
+      {!pair ? (
+        <EmptyState title="No token in context" hint="scan a token or pick one in the terminal — the AI answers about the token you are looking at" />
+      ) : cached ? (
+        <a href="#/ai" style={{ textDecoration: 'none', color: 'inherit', display: 'grid', gap: 8 }}>
+          <p style={{ color: 'var(--text)', fontSize: 13, lineHeight: 1.6 }}>{cached.text || '—'}</p>
+          <div className="ai-prov" style={{ marginTop: 2 }}>
+            <span className="prov-chip live">● LIVE{cached.provenance ? ` · ${cached.provenance.model}` : ''}</span>
+            {cached.provenance?.cached && <span className="prov-chip">CACHED</span>}
+          </div>
+          <div style={{ color: 'var(--dim)', fontSize: 10.5, fontFamily: 'var(--f-mono, monospace)' }}>OPEN AI PAGE →</div>
+        </a>
+      ) : (
+        <div style={{ display: 'grid', gap: 10 }}>
+          <p style={{ color: 'var(--muted)', fontSize: 12.5 }}>
+            One free-tier question about <b style={{ color: 'var(--text)' }}>{pair.symbol}</b> —
+            answered from the same evidence block the scanner uses.
+          </p>
+          {activeFlow?.phase === 'asking' ? (
+            <div style={{ display: 'grid', gap: 8 }} aria-label="asking">
+              <span className="ta-skel" style={{ height: 11, width: '94%' }} />
+              <span className="ta-skel" style={{ height: 11, width: '70%' }} />
+            </div>
+          ) : (
+            <button className="btn-analyze" style={{ height: 38, fontSize: 12.5 }} onClick={() => void askWhy()}>ASK WHY</button>
+          )}
+          {activeFlow?.note && (
+            <div className="ai-note">{activeFlow.note}{activeFlow.phase === 'offline' ? ' — the dashboard data stays live without it.' : ''}</div>
+          )}
+        </div>
+      )}
+    </Card>
+  )
+}
 
 async function scanAnyChain(address: string,
                             chainSel: string): Promise<{ token: LiveToken; chain: string }> {
@@ -319,9 +398,7 @@ export default function Dashboard() {
 
           {/* right rail */}
           <div style={{ display: 'grid', gap: 16, position: 'sticky', top: 16 }}>
-            <Card title="AI ANALYST" right={<Badge color="amber">SOON</Badge>} glow="#00ffa3">
-              <EmptyState title="VILMEI AI — not yet live" hint="the /api/explain local tier ships today — the dashboard panel arrives with the AI module (stay tuned)" />
-            </Card>
+            <AiMicroFeed />
 
             <Card title={<span>TERMINAL STATUS <span style={{ color: 'var(--green)', fontWeight: 400, letterSpacing: 0, textTransform: 'none' }}>
               ● {health ? health.status.toUpperCase() : '—'}</span></span>}>

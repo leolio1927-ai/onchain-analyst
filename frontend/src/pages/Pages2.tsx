@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ALERTS, MEMEATCHI, SYSTEM_STATUS } from '../mock/data'
-import { AiPanel } from '../components/AiPanel'
+import { ALERTS, SYSTEM_STATUS } from '../mock/data'
+import { AiHttpError, answerKey, askAiStream, rememberAnswer } from '../lib/aiApi'
+import type { AiAskRequest, AiMode, AiProvenance, AiUsage } from '../lib/aiApi'
+import { getGeneration, useActivePair } from '../lib/tokenStore'
 import type { LiveChain } from '../lib/liveApi'
 import { LIVE_CHAINS, LIVE_CHAIN_LABEL } from '../lib/liveApi'
 import { fmtPct, fmtPrice, fmtUsdCompact, fmtUtcClock, shorten } from '../lib/liveFormat'
@@ -20,34 +22,251 @@ function Head({ title, sub, right }: { title: string; sub: string; right?: React
   )
 }
 
-/* ─────────────── AI ANALYST (full page) ─────────────── */
+/* ─────────────── AI ANALYST (PROMPT-AI-V — LIVE) ───────────────
+   The model only ever sees a server-assembled evidence block; this page
+   never composes a prompt. P1 law: the active-pair identity is captured
+   atomically per ask — if the token changes mid-answer, the stale stream
+   is aborted instead of rendering one token's words under another. */
+
+const AI_PRESETS: { label: string; mode: 'free' | 'deep'; question: string }[] = [
+  { label: 'Explain Score', mode: 'free', question: 'Explain this token\'s current risk score: which evidence signals drive it, and what would move it up or down?' },
+  { label: 'Deeper Analysis', mode: 'deep', question: 'Give the full structured assessment: what the evidence supports, the gaps in it, and what to watch next.' },
+  { label: 'Rug Picture', mode: 'free', question: 'What rug signals does the evidence show for this token — and what evidence is missing?' },
+]
+
+interface GroundingRow {
+  id: number
+  model: string
+  mode: string
+  persona: string
+  tokens: number | null
+  cached: boolean
+  ms: number
+  ts: string
+}
+
+type AiPageStatus =
+  | { kind: 'idle' }
+  | { kind: 'connecting' }
+  | { kind: 'streaming' }
+  | { kind: 'done' }
+  | { kind: 'http-error'; status: number; message: string }
+  | { kind: 'network-error'; message: string }
+
+function AiStatusPanel({ status }: { status: AiPageStatus }) {
+  if (status.kind === 'http-error') {
+    const busy = status.status === 429
+    const offline = status.status === 503
+    return (
+      <div className="ai-status-panel" style={{ borderColor: busy || offline ? 'var(--line2)' : 'rgba(251,191,36,.4)' }}>
+        <div className="t" style={{ color: busy || offline ? 'var(--muted)' : '#fbbf24' }}>
+          {busy ? 'BUDGET' : offline ? 'OFFLINE' : 'UPSTREAM'}
+        </div>
+        <div className="m">{status.message}</div>
+        {offline && (
+          <div className="s">The rest of the terminal stays live — scans, rug check, whale feed and prices do not need the AI key.</div>
+        )}
+      </div>
+    )
+  }
+  if (status.kind === 'network-error') {
+    return (
+      <div className="ai-status-panel" style={{ borderColor: 'rgba(251,191,36,.4)' }}>
+        <div className="t" style={{ color: '#fbbf24' }}>CONNECTION</div>
+        <div className="m">{status.message}</div>
+      </div>
+    )
+  }
+  return null
+}
+
 export function AiPage() {
+  const pair = useActivePair()
+  const [mode, setMode] = useState<AiMode>('free')
+  const [question, setQuestion] = useState('')
+  const [answer, setAnswer] = useState('')
+  const [status, setStatus] = useState<AiPageStatus>({ kind: 'idle' })
+  const [provenance, setProvenance] = useState<AiProvenance | null>(null)
+  const [log, setLog] = useState<GroundingRow[]>([])
+  const [note, setNote] = useState<string | null>(null)
+  const [elapsedMs, setElapsedMs] = useState<number | null>(null)
+  const ctrlRef = useRef<AbortController | null>(null)
+  const startRef = useRef(0)
+  const idRef = useRef(0)
+
+  const ask = async (raw: string, askMode: AiMode) => {
+    const q = raw.trim()
+    if (!q) return
+    ctrlRef.current?.abort()
+    const ctrl = new AbortController()
+    ctrlRef.current = ctrl
+    setAnswer(''); setProvenance(null); setNote(null); setElapsedMs(null)
+    setStatus({ kind: 'connecting' })
+    /* P1: identity captured ATOMICALLY at ask-time — a newer applySwapToken
+       bumps the generation and every later event for this run is dropped. */
+    const gen = getGeneration()
+    const p = pair
+    const req: AiAskRequest = {
+      question: q, mode: askMode, surface: 'terminal',
+      persona: p ? 'analyst' : 'guide',
+      ...(p ? { chain: p.chain, token: p.tokenAddress } : {}),
+    }
+    startRef.current = performance.now()
+    const got: { prov: AiProvenance | null; usg: AiUsage | null } = { prov: null, usg: null }
+    let text = ''
+    let dropped = false
+    let interrupted = false
+    try {
+      await askAiStream(req, (e) => {
+        if (getGeneration() !== gen) {
+          dropped = true
+          ctrl.abort()
+          return
+        }
+        if (e.type === 'provenance') { got.prov = e; setProvenance(e) }
+        else if (e.type === 'delta') {
+          text += e.text
+          setAnswer(text)
+          setStatus({ kind: 'streaming' })
+        } else if (e.type === 'usage') { got.usg = e }
+        else if (e.type === 'error') { interrupted = true; setNote(e.detail) }
+      }, ctrl.signal)
+      if (dropped) {
+        setStatus({ kind: 'idle' })
+        setNote('Token changed mid-answer — the stale answer was dropped. Ask again.')
+        return
+      }
+      const ms = Math.round(performance.now() - startRef.current)
+      setElapsedMs(ms)
+      const provDone = got.prov
+      const usgDone = got.usg
+      if (provDone) {
+        idRef.current += 1
+        setLog((rows) => [{
+          id: idRef.current, model: provDone.model, mode: askMode,
+          persona: provDone.persona, tokens: usgDone?.total_tokens ?? null,
+          cached: provDone.cached, ms, ts: new Date().toISOString().slice(11, 19),
+        }, ...rows].slice(0, 8))
+        if (p) rememberAnswer(answerKey(p.chain, p.tokenAddress, q),
+          { text, provenance: provDone, usage: usgDone, interrupted })
+      }
+      setStatus({ kind: 'done' })
+    } catch (err) {
+      if (dropped) {
+        setStatus({ kind: 'idle' })
+        setNote('Token changed mid-answer — the stale answer was dropped. Ask again.')
+        return
+      }
+      if (err instanceof AiHttpError) setStatus({ kind: 'http-error', status: err.status, message: err.message })
+      else if (err instanceof DOMException && err.name === 'AbortError') { /* superseded by a newer ask — silent */ }
+      else setStatus({ kind: 'network-error', message: 'The stream could not be opened — the terminal or its backend is unreachable.' })
+    }
+  }
+
+  const busy = status.kind === 'connecting' || status.kind === 'streaming'
+
   return (
     <div className="ta-page">
-      <Head title="AI Analyst" sub="Evidence-first reasoning: the model only sees the heuristic evidence block. Free and Deep differ in depth — never in data correctness." right={<Badge color="purple">DEEP ANALYSIS</Badge>} />
+      <Head title="AI Analyst" sub="Evidence-first: the model only sees the heuristic evidence block the server assembles. Free and Deep differ in depth — never in data correctness." right={<Badge color="green">LIVE · FREE TIER</Badge>} />
       <div className="grid-23">
-        <Card>
-          <AiPanel token={MEMEATCHI} full />
-        </Card>
-        <div style={{ display: 'grid', gap: 16, alignContent: 'start' }}>
-          <Card title="ACTIVE CONTEXT">
-            <div className="rug-list">
-              <div className="rug-row"><span className="k">Token</span><span className="v">{MEMEATCHI.symbol}</span></div>
-              <div className="rug-row"><span className="k">Chain</span><span className="v">SOLANA</span></div>
-              <div className="rug-row"><span className="k">Risk</span><span className="v ok-warn">{MEMEATCHI.risk.level} · {MEMEATCHI.risk.score}/100</span></div>
-              <div className="rug-row"><span className="k">Evidence block</span><span className="v ok-yes">6 signals</span></div>
+        <Card className="pb-acc">
+          <div style={{ display: 'grid', gap: 12 }}>
+            <div className="ai-mode" role="group" aria-label="AI mode">
+              <button className={mode === 'free' ? 'on' : ''} onClick={() => setMode('free')}>FREE · FAST TIER</button>
+              <button className={mode === 'deep' ? 'on' : ''} onClick={() => setMode('deep')}>DEEP · REASONING TIER</button>
             </div>
-          </Card>
-          <Card title="GROUNDING LOG">
-            <p style={{ color: 'var(--muted)', fontSize: 12.5 }}>
-              Every answer is logged next to the exact evidence the model saw — replayable and
-              comparable across Claude / GLM / Kimi. What isn't in the data doesn't exist here.
-            </p>
-            <div style={{ display: 'grid', gap: 6, marginTop: 10 }}>
-              {['claude · deep · 1,204 tok', 'glm · free · 640 tok', 'kimi · free · 702 tok'].map((l) => (
-                <div key={l} className="mono-line">{l}</div>
+            <textarea
+              className="ai-ask-input"
+              rows={2}
+              value={question}
+              placeholder={pair ? `Ask about ${pair.symbol} — the evidence block rides along` : 'No token selected — the guide answers VILMEI questions'}
+              onChange={(e) => setQuestion(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void ask(question, mode) } }}
+            />
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <button className="btn-analyze" style={{ height: 38, fontSize: 12.5 }} disabled={busy || !question.trim()} onClick={() => void ask(question, mode)}>
+                {busy ? 'STREAMING…' : 'ASK'}
+              </button>
+              {AI_PRESETS.map((p) => (
+                <button key={p.label} className="btn-analyze as-ghost" style={{ height: 38, fontSize: 12 }} disabled={busy} onClick={() => { setQuestion(p.question); void ask(p.question, p.mode) }}>
+                  {p.label}{p.mode === 'deep' ? ' · DEEP' : ''}
+                </button>
               ))}
             </div>
+            {status.kind === 'connecting' && (
+              <div style={{ display: 'grid', gap: 8, padding: '4px 0' }} aria-label="connecting">
+                <span className="ta-skel" style={{ height: 12, width: '92%' }} />
+                <span className="ta-skel" style={{ height: 12, width: '76%' }} />
+                <span className="ta-skel" style={{ height: 12, width: '84%' }} />
+              </div>
+            )}
+            {(answer || status.kind === 'streaming' || status.kind === 'done') && (
+              <div className="ai-answer mono">
+                {answer}
+                {status.kind === 'streaming' && <span className="ai-caret" aria-hidden="true" />}
+              </div>
+            )}
+            {note && <div className="ai-note">{note}</div>}
+            {provenance && (
+              <div className="ai-prov">
+                <span className="prov-chip live">● LIVE · {provenance.model}</span>
+                <span className="prov-chip">{provenance.mode.toUpperCase()}</span>
+                <span className="prov-chip">{provenance.persona.toUpperCase()}</span>
+                {provenance.cached && <span className="prov-chip">CACHED</span>}
+                {elapsedMs != null && (
+                  <span className="prov-chip" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {(elapsedMs / 1000).toFixed(1)}s{provenance.mode === 'deep' ? ' · deep' : ''}
+                  </span>
+                )}
+                <span className="prov-chip dim">{provenance.prompt_version}</span>
+                {provenance.evidence_sources.length > 0 && (
+                  <span className="prov-chip dim">EVIDENCE: {provenance.evidence_sources.join(' · ')}</span>
+                )}
+              </div>
+            )}
+            <AiStatusPanel status={status} />
+          </div>
+        </Card>
+        <div style={{ display: 'grid', gap: 16, alignContent: 'start' }}>
+          <Card title="ACTIVE CONTEXT" className="pb-acc">
+            {pair ? (
+              <div className="rug-list">
+                <div className="rug-row"><span className="k">Token</span><span className="v">{pair.symbol} · <span className="dim">{shorten(pair.tokenAddress)}</span></span></div>
+                <div className="rug-row"><span className="k">Chain</span><span className="v">{LIVE_CHAIN_LABEL[pair.chain]}</span></div>
+                <div className="rug-row"><span className="k">Persona</span><span className="v ok-yes">ANALYST</span></div>
+                <div className="rug-row"><span className="k">Evidence</span><span className="v">{provenance ? provenance.evidence_sources.join(' · ') : 'assembled server-side on ask'}</span></div>
+              </div>
+            ) : (
+              <div className="rug-list">
+                <div className="rug-row"><span className="k">Token</span><span className="v dim">none selected</span></div>
+                <div className="rug-row"><span className="k">Persona</span><span className="v ok-yes">GUIDE</span></div>
+                <div className="rug-row"><span className="k">Grounding</span><span className="v">docs/AI-BRIEF.md — facts only, LIVE/PLANNED labels</span></div>
+              </div>
+            )}
+            <p style={{ color: 'var(--dim)', fontSize: 11, marginTop: 10 }}>
+              Context follows the token store — switch tokens and the next ask carries the new identity. Stale mid-stream answers are dropped, never blended.
+            </p>
+          </Card>
+          <Card title="GROUNDING LOG" className="pb-acc">
+            <p style={{ color: 'var(--muted)', fontSize: 12.5 }}>
+              Every answer logs the exact model, mode and tokens from its own provenance —
+              nothing is written here before a real response exists.
+            </p>
+            <div style={{ display: 'grid', gap: 6, marginTop: 10 }}>
+              {log.length === 0 && <div className="mono-line dim">no answers yet this session — the log fills as you ask</div>}
+              {log.map((r) => (
+                <div key={r.id} className="mono-line">
+                  {r.model} · {r.mode} · {r.persona} · <span style={{ fontVariantNumeric: 'tabular-nums' }}>{r.tokens ?? '—'} tok</span>{r.cached ? ' · cached' : ''} · <span style={{ fontVariantNumeric: 'tabular-nums' }}>{(r.ms / 1000).toFixed(1)}s</span> · {r.ts}Z
+                </div>
+              ))}
+            </div>
+          </Card>
+          <Card title="EVIDENCE LAW">
+            <p style={{ color: 'var(--muted)', fontSize: 12.5 }}>
+              The analyst may only cite numbers, prices, levels or dates that exist in the
+              evidence block. Ask for a support level it can't ground and it refuses instead
+              of inventing. Not financial advice — a read-only terminal never tells you to buy.
+            </p>
           </Card>
         </div>
       </div>
@@ -753,12 +972,14 @@ export function SettingsPage() {
             <Toggle on={prefs.sound} onChange={(v) => setPrefs({ ...prefs, sound: v })} label="Sound on HIGH severity" />
           </div>
         </Card>
-        <Card title="AI PROVIDER">
+        <Card title="AI MODEL">
           <p style={{ color: 'var(--muted)', fontSize: 12.5, marginBottom: 12 }}>
-            Same evidence block goes to whichever brain you pick — compare answers in the grounding log.
+            The terminal assigns the model per mode — FREE uses the fast tier, DEEP the reasoning
+            tier. The exact model id of every answer is logged in the grounding log; there is no
+            provider to pick and nothing to pay.
           </p>
           <div className="ai-mode">
-            <button className="on">CLAUDE</button><button>GLM</button><button>KIMI</button>
+            <button className="on">AUTO · PER MODE</button>
           </div>
         </Card>
         <Card title="DANGER ZONE" glow="#fb7185">

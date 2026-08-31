@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import '../styles/app.css'
 import { AutodetectSearch } from './AutodetectSearch'
+import { NAV } from './navModel'
 
 /* crash guard: a broken page must NEVER white-screen the terminal — the
    actual error is surfaced honestly so it can be screenshotted and fixed */
@@ -21,23 +22,6 @@ class PageBoundary extends Component<{ children: ReactNode }, { err: Error | nul
     return this.props.children
   }
 }
-
-const NAV: { id: string; icon: string; label: string; pill?: 'NEW' | 'LIVE' | number; soon?: boolean }[] = [
-  { id: 'dashboard', icon: '▦', label: 'Dashboard' },
-  { id: 'swap', icon: '⇅', label: 'Swap', pill: 'NEW' },
-  { id: 'scanner', icon: '⌕', label: 'Token Scanner' },
-  { id: 'rugcheck', icon: '⛨', label: 'Rug Check', pill: 'LIVE' },
-  { id: 'whale', icon: '◍', label: 'Whale Tracker', pill: 'LIVE' },
-  { id: 'cluster', icon: '❋', label: 'Cluster Analysis', soon: true },
-  { id: 'ai', icon: '✦', label: 'AI Analyst', soon: true },
-  { id: 'portfolio', icon: '▤', label: 'Portfolio Watch', pill: 'LIVE' },
-  { id: 'alerts', icon: '◆', label: 'Alerts', soon: true },
-  { id: 'holdings', icon: '▣', label: 'Holdings Check', pill: 'LIVE' },
-  { id: 'gate', icon: '⚿', label: 'Token Gate', soon: true },
-  { id: 'settings', icon: '⚙', label: 'Settings', soon: true },
-  { id: 'docs', icon: '❐', label: 'Documentation', soon: true },
-  { id: 'feedback', icon: '✎', label: 'Feedback', soon: true },
-]
 
 function useHashRoute(): string {
   const [route, setRoute] = useState(() => window.location.hash.replace(/^#\/?/, '') || 'dashboard')

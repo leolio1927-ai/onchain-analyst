@@ -97,6 +97,17 @@ brackets) and was last re-verified 2026-08-29.
 - POST /api/explain — evidence-first narrative; provider "local" is a deterministic
   keyless tier; LLM providers are rate-limited per IP (5/hour, 30/day default);
   evidence is always re-fetched and re-assessed server-side [webapp/server.py].
+- POST /api/v1/ai/ask — VILMEI AI (PROMPT-AI-V). Streams SSE:
+  provenance → delta* → usage → data: [DONE]. Body: { question, mode free|deep,
+  surface terminal|landing, persona? analyst|guide, chain?, token?, history[] }.
+  System prompt + evidence block are assembled SERVER-SIDE (a client can never
+  forge evidence); analyst evidence = scan verdict + rug summary + fee matrix;
+  guide grounding = docs/AI-BRIEF.md, always injected. Guards: per-IP 60s RPM
+  window + global daily pool (VILMEI_AI_DAILY_MAX_QUESTIONS, file-persisted
+  data/ai-budget.json) + a smaller separate landing pool; identical-answer cache
+  TTL 240s (provenance cached:true). Degraded copy, never red: no key → 503
+  "VILMEI AI offline — NVIDIA_API_KEY not set (founder config)"; budget → local
+  429; upstream stall → honest 502/504 [providers/nvidia.py, webapp/ai_ask.py].
 - POST /api/whale — Helius wallet balances (key required) [webapp/server.py].
 - GET /api/health · /api/version · /api/metrics — liveness, build identity, real
   process counters [webapp/server.py].
@@ -302,7 +313,7 @@ Design queue (stable IDs, each with a WHY and the proof that marks it shipped):
 - VM-101 · Wallet session + quote engine [IN BUILD]
 - VM-102 · Watchlist [IN BUILD] — PARTIAL: M4 shipped the account-less watchlist + portfolio snapshot; sync/alerts remain design
 - VM-103 · Trade tape on the board (the /ws/tape route already ships) [IN BUILD]
-- VM-104 · AI analyst panel (the /api/explain local tier already ships) [DESIGN]
+- VM-104 · AI analyst panel [DONE-V1] — PROMPT-AI-V shipped it live: POST /api/v1/ai/ask (SSE) on the NVIDIA NIM free tier, evidence assembled server-side, landing demo + terminal page + dashboard micro-feed
 - VM-105 · Backend foundations, one additive route at a time [IN BUILD]
 
 Confidence bands: Locked (the only band allowed a date) · In build · Design ·
@@ -327,6 +338,10 @@ promises outside the Locked band.
     doors. Tool errors arrive as content (isError:true), never as an HTTP 500.
 - GET /.well-known/api-catalog — RFC 9727 discovery document
   (application/linkset+json) linking this server to /openapi.json [webapp/server.py].
+- POST /api/v1/ai/ask — SSE chat for agents: provenance → delta* → usage →
+  [DONE]. Send surface:"terminal" and a precise question (+ chain/token for
+  analyst answers). Budget, not credits: per-IP RPM window + shared daily pool;
+  over budget → local 429 with honest copy; no key configured → 503 degraded.
 - GET /openapi.json · /api/docs · /api/redoc — the full additive API surface.
 
 ## Statement
