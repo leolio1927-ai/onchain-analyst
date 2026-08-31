@@ -1,0 +1,86 @@
+/* RiskDisplay (PROMPT-V2 P5) — one severity language, four modes.
+   --sev-* tokens are THE single source (parity-tested against RiskDisplay).
+   oklch chosen over hex so the 8-bin tape interpolates with monotonic
+   luminance (WCAG-safe) — the 2026 color frontier. */
+@import '../styles/tokens.css';
+
+:root {
+  --sev-low: oklch(78% 0.14 155);
+  --sev-medium: oklch(80% 0.14 90);
+  --sev-high: oklch(70% 0.18 25);
+  --sev-nodata: oklch(60% 0.02 160);
+}
+
+.rd-root { display: grid; gap: 10px; min-width: 0; }
+.rd-modes { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.rd-modes button { background: rgba(255,255,255,.03); border: 1px solid var(--border-soft);
+  color: var(--muted); border-radius: 7px; padding: 4px 10px; cursor: pointer;
+  font-family: var(--f-mono); font-size: 9.5px; letter-spacing: .14em; }
+.rd-modes button.on { color: var(--brand-2); border-color: color-mix(in srgb, var(--brand-2) 45%, transparent); }
+.rd-verdict { margin-left: auto; font-size: 11px; letter-spacing: .08em; }
+.rd-verdict[data-level='low'] { color: var(--sev-low); }
+.rd-verdict[data-level='medium'] { color: var(--sev-medium); }
+.rd-verdict[data-level='high'] { color: var(--sev-high); }
+.rd-verdict[data-level='nodata'] { color: var(--sev-nodata); }
+
+.rd-dial-wrap { position: relative; display: grid; place-items: center; padding: 6px 0; }
+.rd-dial { width: min(240px, 100%); aspect-ratio: 1; }
+.rd-dial-num { position: absolute; inset: 0; display: grid; place-items: center;
+  font-size: 26px; font-weight: 700; color: var(--text); pointer-events: none;
+  text-shadow: 0 0 18px rgb(0 0 0 / .8); }
+
+/* TAPE — 8 bins interpolated in oklch: luminance stays monotonic */
+.rd-tape { display: grid; gap: 4px; min-width: 0; }
+.rd-row { display: grid; grid-template-columns: 10px 90px 52px 1fr 46px; gap: 8px;
+  align-items: center; padding: 5px 8px; border: 1px solid var(--border-soft);
+  border-radius: 8px; background: rgba(255,255,255,.02); min-width: 0; }
+.rd-bin { width: 10px; height: 22px; border-radius: 3px; }
+.rd-bin[data-bin='0'] { background: color-mix(in oklch, var(--sev-low) 100%, var(--sev-high) 0%); }
+.rd-bin[data-bin='1'] { background: color-mix(in oklch, var(--sev-low) 86%, var(--sev-high) 14%); }
+.rd-bin[data-bin='2'] { background: color-mix(in oklch, var(--sev-low) 71%, var(--sev-high) 29%); }
+.rd-bin[data-bin='3'] { background: color-mix(in oklch, var(--sev-low) 57%, var(--sev-high) 43%); }
+.rd-bin[data-bin='4'] { background: color-mix(in oklch, var(--sev-low) 43%, var(--sev-high) 57%); }
+.rd-bin[data-bin='5'] { background: color-mix(in oklch, var(--sev-low) 29%, var(--sev-high) 71%); }
+.rd-bin[data-bin='6'] { background: color-mix(in oklch, var(--sev-low) 14%, var(--sev-high) 86%); }
+.rd-bin[data-bin='7'] { background: color-mix(in oklch, var(--sev-low) 0%, var(--sev-high) 100%); }
+.rd-name { font-family: var(--f-mono); font-size: 10.5px; color: var(--text); }
+.rd-level { font-family: var(--f-mono); font-size: 8px; letter-spacing: .14em; text-transform: uppercase; }
+.rd-level[data-level='warn'] { color: var(--sev-medium); }
+.rd-level[data-level='danger'] { color: var(--sev-high); }
+.rd-desc { font-size: 10px; }
+.rd-score { text-align: right; font-size: 11px; color: var(--muted); }
+.ell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.dim { color: var(--muted-deep); }
+.mono { font-family: var(--f-mono); }
+
+/* FIELD */
+.rd-field-wrap { display: grid; gap: 4px; }
+.rd-field { width: 100%; border: 1px dashed var(--border-soft); border-radius: 10px; }
+.rd-fielddim { font-size: 9.5px; color: var(--muted-deep); letter-spacing: .06em; }
+
+/* LOG */
+.rd-log { display: grid; gap: 6px; min-width: 0; }
+.rd-log-head { display: flex; justify-content: space-between; align-items: center; }
+.rd-log-head button { background: none; border: 1px solid var(--border-soft); color: var(--muted);
+  border-radius: 6px; font-size: 10px; padding: 3px 8px; cursor: pointer; }
+.rd-prov { font-size: 9.5px; line-height: 1.6; border: 1px dashed var(--border-soft);
+  border-radius: 8px; padding: 6px 8px; overflow: auto; max-height: 88px; }
+.rd-json { font-size: 10px; line-height: 1.55; background: rgba(0,0,0,.35);
+  border-radius: 8px; padding: 8px 10px; overflow: auto; max-height: 180px;
+  color: var(--muted); margin: 0; }
+.rd-empty { color: var(--muted-deep); font-size: 11px; padding: 8px 0; }
+
+/* BADGE — same tokens */
+.rd-badge { display: inline-flex; align-items: center; gap: 5px; font-family: var(--f-mono);
+  font-size: 8.5px; font-weight: 700; letter-spacing: .16em; padding: 2px 8px;
+  border-radius: 5px; border: 1px solid currentColor; text-transform: uppercase; }
+.rd-badge[data-level='low'] { color: var(--sev-low); background: color-mix(in srgb, var(--sev-low) 10%, transparent); }
+.rd-badge[data-level='medium'] { color: var(--sev-medium); background: color-mix(in srgb, var(--sev-medium) 10%, transparent); }
+.rd-badge[data-level='high'] { color: var(--sev-high); background: color-mix(in srgb, var(--sev-high) 12%, transparent); }
+.rd-badge[data-level='nodata'] { color: var(--sev-nodata); background: color-mix(in srgb, var(--sev-nodata) 10%, transparent); }
+
+/* reduced motion: nothing here animates on its own; three dial is not even
+   mounted (parent guards), so this block documents the contract */
+@media (prefers-reduced-motion: reduce) {
+  .rd-dial { animation: none !important; }
+}

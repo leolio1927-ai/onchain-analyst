@@ -349,3 +349,13 @@
 .tk-mc .s { font-family: var(--font-mono); font-size: 8px; letter-spacing: .16em;
   color: var(--amber); margin-top: 3px; }
 .tk-mc .v { font-size: 20px; }
+
+
+/* P5 micro — container-query rail (Baseline 2024): the rail types itself by
+   its own inline size, not the viewport. */
+.sw-rail { container-type: inline-size; }
+@container (max-width: 270px) {
+  .sw2-input { font-size: 15px; }
+  .sw2-hd { font-size: 8px; }
+  .sw2-quick button { padding: 2px 6px; }
+}

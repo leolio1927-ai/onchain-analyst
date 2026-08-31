@@ -680,3 +680,10 @@ input, select { font-family: inherit; }
 .v2-csv:hover { color: var(--brand-2, #14F195); }
 .v2-shield { filter: drop-shadow(0 10px 22px rgb(0 0 0 / .5)); }
 .mono.dim { color: var(--muted-deep, #649580); }
+
+
+/* ═══ PROMPT-V2 P5 micro (2026-08-31): motion + type frontier ═══
+   View Transitions page cross-fade (progressive — API-guarded in Shell),
+   balanced headings, compositor-only rule. */
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .16s; }
+.page-title, .hero-title h1, .tk-name, .page-sub { text-wrap: balance; }

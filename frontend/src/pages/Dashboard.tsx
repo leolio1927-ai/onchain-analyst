@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { dataService } from '../services/dataService'
 import type { LiveToken } from '../services/dataService'
 import { api, ApiError } from '../api'
 import type { ChainsCatalog, WhalesResult } from '../api'
 import { ScoreDial } from '../components/charts'
 import { Badge, Card, EmptyState, Skeleton } from '../components/ui'
+import { shorten } from '../lib/liveFormat'
+import { useSpringNumber } from '../lib/spring'
 
 /* BE-ALL-LIVE F5: this dashboard eats the real modules — /api/scan verdicts,
    the whale tracker, live scanner rows. Mock-only surfaces (candles, cluster
@@ -35,7 +38,7 @@ const SCAN_CHAINS: { id: string; label: string }[] = [
 
 const BONK = 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263'   // live whale demo seed
 
-function Metric({ k, v, d, up, tip }: { k: string; v: string; d?: string; up?: boolean; tip?: string }) {
+function Metric({ k, v, d, up, tip }: { k: string; v: ReactNode; d?: string; up?: boolean; tip?: string }) {
   return (
     <div className="metric">
       <span className="k">{tip ? <span className="ta-tip">{k}<span className="ta-tip-pop">{tip}</span></span> : k}</span>
@@ -45,6 +48,13 @@ function Metric({ k, v, d, up, tip }: { k: string; v: string; d?: string; up?: b
   )
 }
 
+/* P5 micro — spring counter: headline integers ease in with spring physics
+   (dep-free rAF integrator; reduced-motion jumps straight to the value). */
+function SpringInt({ value }: { value: number }) {
+  const n = useSpringNumber(value)
+  return <>{Math.round(n).toLocaleString('en-US')}</>
+}
+
 function fmtUsd(n: number): string {
   if (Math.abs(n) >= 1e9) return `$${(n / 1e9).toFixed(2)}B`
   if (Math.abs(n) >= 1e6) return `$${(n / 1e6).toFixed(2)}M`
@@ -52,7 +62,7 @@ function fmtUsd(n: number): string {
   return `$${n.toFixed(2)}`
 }
 
-const short = (w: string | null | undefined) => (w ? `${w.slice(0, 4)}…${w.slice(-4)}` : '—')
+const short = shorten
 
 async function scanAnyChain(address: string,
                             chainSel: string): Promise<{ token: LiveToken; chain: string }> {
@@ -250,7 +260,7 @@ export default function Dashboard() {
             {!loading && token && (
               <div className="metrics-row">
                 <Metric k="Volume 24h" v={token.volume24h != null ? fmtUsd(token.volume24h) : '–'} />
-                <Metric k="Txns 24h" v={token.txns24h != null ? token.txns24h.toLocaleString('en-US') : '–'} />
+                <Metric k="Txns 24h" v={token.txns24h != null ? <SpringInt value={token.txns24h} /> : '–'} />
                 <Metric k="Buy / Sell" v={token.buySell ? `${token.buySell[0]}% / ${token.buySell[1]}%` : '–'} tip="24h trade balance" />
                 <Metric k="Age" v={token.age ?? '–'} />
                 <Metric k="Launch venue" v={token.launchVenue ?? '–'} tip="Earliest pair on this chain (DexScreener)" />

@@ -1,5 +1,6 @@
 import { Component, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
+import { flushSync } from 'react-dom'
 import '../styles/app.css'
 import { AutodetectSearch } from './AutodetectSearch'
 
@@ -41,7 +42,17 @@ const NAV: { id: string; icon: string; label: string; pill?: 'NEW' | 'LIVE' | nu
 function useHashRoute(): string {
   const [route, setRoute] = useState(() => window.location.hash.replace(/^#\/?/, '') || 'dashboard')
   useEffect(() => {
-    const onHash = () => setRoute(window.location.hash.replace(/^#\/?/, '') || 'dashboard')
+    const onHash = () => {
+      const next = window.location.hash.replace(/^#\/?/, '') || 'dashboard'
+      /* P5 micro — progressive View Transitions cross-fade between pages
+         (Chrome 111+/Safari 18); unsupported browsers get the instant swap */
+      const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown }
+      if (typeof doc.startViewTransition === 'function') {
+        doc.startViewTransition(() => { flushSync(() => setRoute(next)) })
+      } else {
+        setRoute(next)
+      }
+    }
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
   }, [])
