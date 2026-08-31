@@ -104,6 +104,23 @@ brackets) and was last re-verified 2026-08-29.
   client, no random walk [webapp/server.py].
 - WS /ws/tape — additive trade-tape deltas over real GeckoTerminal trades,
   deduped by trade identity [webapp/server.py].
+- GET /api/v1/market/ohlcv?chain=&pair=&resolution=&limit= — GeckoTerminal
+  candles for a pool (keyless; the browser never calls GT directly). Probed
+  2026-08-30: timeframe day|hour|minute + aggregate param; ohlcv_list rows
+  [ts,o,h,l,c,v] re-ordered oldest-first, verbatim floats, TTL cache 60s.
+  resolution: 1m|5m|15m|1h|4h|1d|1w (default 15m; invalid → 400). Empty
+  candle list ships a provenance.degraded reason, never a filled series
+  [providers/market.py].
+- GET /api/v1/socials?chain=&token= — official links for a TOKEN address
+  (DexScreener token-pairs info; a pair address answers 0 pairs — probed
+  2026-08-30). websites[] + links[] (twitter/telegram/discord/web), image_url;
+  empty lists = "no official links in feed"; TTL cache 300s [providers/market.py].
+- GET /api/v1/detect?address= — CA or $TICKER auto-detect: one candidate pair
+  per founder chain (deepest pool, liquidity desc) + kind
+  (base58|evm-ambiguous|ticker). Cross-chain hits MUST be surfaced to the
+  user, never silently defaulted. GT /api/v2/search does not exist (404,
+  probed) — DexScreener search/token lookup serves all five chains
+  [providers/market.py].
 - GET /api/v1/chains — capability × chain truth table (`capabilities` map:
   source name or an explicit reason sentence) + the 5-chain catalog
   [webapp/chains.py, providers/chains_map.py].

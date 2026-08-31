@@ -1,6 +1,7 @@
 import { Component, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import '../styles/app.css'
+import { AutodetectSearch } from './AutodetectSearch'
 
 /* crash guard: a broken page must NEVER white-screen the terminal — the
    actual error is surfaced honestly so it can be screenshotted and fixed */
@@ -127,6 +128,11 @@ export function Shell({ pages }: { pages: Record<string, ReactNode> }) {
         </div>
       </aside>
       <main className="ta-main">
+        {/* PROMPT-V Fase 3.1: one global search bar on every terminal page */}
+        <header className="ta-topbar">
+          <AutodetectSearch />
+          <span className="ta-topbar-note mono">READ-ONLY · 5 LIVE FEEDS</span>
+        </header>
         <PageBoundary>{current}</PageBoundary>
       </main>
       <UpgradeModal open={upgrade} onClose={() => setUpgrade(false)} />

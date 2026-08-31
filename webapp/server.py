@@ -38,6 +38,7 @@ from providers import (
     geckoterminal,
     helius,
     live,
+    market,
     whales,
 )
 from webapp import chains, db, schemas
@@ -484,6 +485,84 @@ async def api_discovery(chain: str = "sol", mode: str = "trending", limit: int =
         raise HTTPException(502, f"GeckoTerminal unreachable ({str(e)[:60]})") from e
     return {"chain": chain, "mode": mode, "count": len(items), "items": items,
             "sources": ["geckoterminal"]}
+
+
+# ── PROMPT-V Fase 3/4: market surface (ohlcv · socials · detect) ─────────
+# Every route follows the envelope + provenance law: WHERE each payload came
+# from (source/host), how fresh it is (cache/freshness), and an honest
+# `degraded` reason instead of fabricated values.
+
+def _prov(out: dict, source: str, host: str) -> dict:
+    """Build the Provenance block from the provider payload's cache/freshness/
+    degraded fields and strip them off the top level. Works on a COPY — the
+    provider's TTL cache holds the original dict and must stay intact."""
+    out = dict(out)
+    prov = {"source": source, "host": host,
+            "cache": out.pop("cache"), "freshness": out.pop("freshness"),
+            "degraded": out.pop("degraded")}
+    out["provenance"] = prov
+    return out
+
+
+@app.get("/api/v1/market/ohlcv", response_model=schemas.OhlcvResponse, tags=["market"])
+async def api_market_ohlcv(chain: str, pair: str, resolution: str = "15m",
+                           limit: int = 200) -> dict:
+    """GT candles for a pool (Fase 4 chart/volume/indicator source). Keyless,
+    TTL-cached 60s, verbatim floats oldest→newest — no gap-filling, no
+    rounding. An empty candle list ships with a degraded reason, never a
+    synthesized series. The browser never calls GT directly (zero
+    third-party-host claim); this route is the only door."""
+    try:
+        out = await asyncio.to_thread(market.ohlcv, chain, pair, resolution, limit)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except urllib.error.HTTPError as e:
+        raise HTTPException(502, f"GeckoTerminal HTTP {e.code} — ohlcv upstream failed") from e
+    except (urllib.error.URLError, TimeoutError, OSError) as e:
+        raise HTTPException(502, f"GeckoTerminal unreachable ({str(e)[:60]})") from e
+    out = _prov(out, "geckoterminal", "api.geckoterminal.com")
+    out["sources"] = ["geckoterminal"]
+    return out
+
+
+@app.get("/api/v1/socials", response_model=schemas.SocialsResponse, tags=["market"])
+async def api_socials(chain: str, token: str) -> dict:
+    """Official links for a token (Fase 4 SOCIALS tab) from DexScreener
+    token-pairs info, TTL-cached 300s. Param is the TOKEN address (CA): DS
+    answers 0 pairs for a pair address (probed 2026-08-30) — the FE passes
+    the CA from the active-pair identity context. Empty lists = 'no official
+    links in feed'; links are never invented."""
+    try:
+        out = await asyncio.to_thread(market.socials, chain, token)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except urllib.error.HTTPError as e:
+        raise HTTPException(502, f"DexScreener HTTP {e.code} — socials upstream failed") from e
+    except (urllib.error.URLError, TimeoutError, OSError) as e:
+        raise HTTPException(502, f"DexScreener unreachable ({str(e)[:60]})") from e
+    out = _prov(out, "dexscreener", "api.dexscreener.com")
+    out["sources"] = ["dexscreener"]
+    return out
+
+
+@app.get("/api/v1/detect", response_model=schemas.DetectResponse, tags=["market"])
+async def api_detect(address: str) -> dict:
+    """Auto-detect (Fase 3): pasted CA or $TICKER → one candidate pair per
+    founder chain where DS lists it (deepest pool), liquidity-ranked. The
+    client MUST present the candidate set on >1 — silently defaulting to one
+    chain is the identity bug this surface exists to prevent. DS search only:
+    GT /api/v2/search does not exist (probed 404, 2026-08-30)."""
+    try:
+        out = await asyncio.to_thread(market.detect, address)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except urllib.error.HTTPError as e:
+        raise HTTPException(502, f"DexScreener HTTP {e.code} — detect upstream failed") from e
+    except (urllib.error.URLError, TimeoutError, OSError) as e:
+        raise HTTPException(502, f"DexScreener unreachable ({str(e)[:60]})") from e
+    out = _prov(out, "dexscreener", "api.dexscreener.com")
+    out["sources"] = ["dexscreener"]
+    return out
 
 
 @app.get("/api/v1/live/{chain}", response_model=schemas.LiveResponse, tags=["live"])

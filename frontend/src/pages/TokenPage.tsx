@@ -1,256 +1,379 @@
-/* TOKEN PAGE (S2) — full-bleed, dense, shipped-product token detail + swap.
-   Reference: printr token page. FE-only simulated surface: every number is
-   STATIC and the page hero says so; one SIMULATED chip per panel, never per
-   number. Deterministic seeded candles/trades (same input → same page). DNA:
-   2px bordir, dashed hairlines, glow, mono density, zero purple.
-   LAYOUT (founder-locked): main row = LEFT column stacks chart → bonding →
-   trades directly (zero gaps); RIGHT column (380px) is the compact swap rail
-   (sticky). No canvas — crash-proof pure CSS background. */
-import { useEffect, useState } from 'react'
-import type { ReactNode } from 'react'
-import { LIVE_CHAINS } from '../lib/liveApi'
+/* TOKEN PAGE (S2, rebuilt PROMPT-V 2026-08-30) — full-bleed token detail +
+   swap rail on ONE identity source (lib/tokenStore): the active pair feeds
+   header, chart, bonding, tabs, info panel and the rail — there is no second
+   token default anywhere (the old BONK-global is gone).
+   $0 sources: quote/rate + pair facts = DexScreener (browser, CORS *); chart
+   candles + socials = backend /api/v1/market/ohlcv + /api/v1/socials (the
+   browser never calls GeckoTerminal directly — zero third-party-host claim);
+   trades = /ws/tape (real GT deltas). Simulated-only surfaces keep their
+   declared chips (holders). DNA: 2px bordir, dashed hairlines, mono density. */
+import { useEffect, useMemo, useState } from 'react'
 import type { LiveChain } from '../lib/liveApi'
+import { LIVE_CHAIN_LABEL } from '../lib/liveApi'
 import { truncAddr } from '../lib/liveFormat'
 import { accentStyle } from './liveParts'
 import { ChainLogo } from './chainLogos'
 import { fetchSwapQuote } from '../services/dexscreener'
 import type { SwapQuote } from '../services/dexscreener'
+import { useActivePair } from '../lib/tokenStore'
+import type { ActivePair } from '../lib/tokenStore'
+import { INDICATOR_LEGEND, ema, rsi, vwap } from '../lib/indicators'
+import type { Candle } from '../lib/indicators'
+import { demoTokenBalance, WALLET_LABEL } from '../wallet/registry'
+import { useWallet } from '../wallet/WalletContext'
+import { WalletButton } from '../wallet/WalletButton'
 import '../styles/swap.css'
 
-/* ── deterministic simulated data set ─────────────────────────── */
-function mulberry32(seed: number) {
-  return () => {
-    seed |= 0; seed = (seed + 0x6D2B79F5) | 0
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
+const OHLCV_RESOLUTIONS = ['1m', '15m', '1h', '4h', '1d'] as const
+type Resolution = (typeof OHLCV_RESOLUTIONS)[number]
+
+interface OhlcvState {
+  candles: Candle[]
+  state: 'SEEDING' | 'LIVE' | 'EMPTY' | 'ERROR'
+  reason: string | null
+  lastTs: number | null
 }
 
-interface Bar { o: number; c: number; h: number; l: number; v: number }
-const BARS: Bar[] = (() => {
-  const rnd = mulberry32(4749)
-  let px = 0.0031
-  const out: Bar[] = []
-  for (let i = 0; i < 60; i++) {
-    const o = px
-    const c = Math.max(px * 0.55, o + (rnd() - 0.47) * px * 0.09)
-    const h = Math.max(o, c) * (1 + rnd() * 0.035)
-    const l = Math.min(o, c) * (1 - rnd() * 0.035)
-    out.push({ o, c, h, l, v: 200 + rnd() * 900 })
-    px = c
-  }
-  return out
-})()
-
-const TOKEN = {
-  name: 'FOMO ON SOLANA', ticker: 'FOMO', pair: 'FOMO / SOL',
-  ca: 'F0Mo4vEr1111111111111111111111111111111',
-  creator: 'F0M0CxA8…AAAA', created: 'AUGUST 29, 2026',
-  mc: '$3.79K', ath: '$3.9K', price: 0.0031, liq: '$48.2K', vol: '$1.2M',
+interface SocialsState {
+  links: { url: string; type: string | null }[]
+  websites: { url: string; label: string | null }[]
+  imageUrl: string | null
+  state: 'LOADING' | 'LIVE' | 'EMPTY' | 'ERROR'
+  reason: string | null
 }
 
-interface Trade {
-  account: string; buy: boolean; value: string; amount: string
-  price: number; date: string; chain: LiveChain; src: string; srcColor: string; tx: string
-}
-const TRADES: Trade[] = (() => {
-  const rnd = mulberry32(911)
-  const srcs = [['R', '#4D8DFF'], ['J', '#2DD4BF'], ['P', '#14F195'], ['B', '#F0B90B']]
-  const chains: LiveChain[] = ['sol', 'bnb', 'base', 'hype', 'hood']  // avax parked 2026-08-30
-  const out: Trade[] = []
-  for (let i = 0; i < 12; i++) {
-    const buy = rnd() > 0.45
-    const [sc, cc] = srcs[i % srcs.length]
-    out.push({
-      account: `0x${Math.floor(rnd() * 0xfffffff).toString(16)}…${Math.floor(rnd() * 0xffff).toString(16).padStart(4, '0')}`,
-      buy,
-      value: `$${(rnd() * 900 + 3).toFixed(2)}`,
-      amount: `${(rnd() * 600 + 12).toFixed(1)}K`,
-      price: 0.000031 + rnd() * 0.0009,
-      date: ['5M AGO', '12M AGO', '1H AGO', '2H AGO', '1W AGO'][i % 5],
-      chain: chains[i % chains.length],
-      src: sc, srcColor: cc,
-      tx: `0x${Math.floor(rnd() * 0xfffffff).toString(16)}…${Math.floor(rnd() * 0xffff).toString(16).padStart(4, '0')}`,
-    })
-  }
-  return out
-})()
-
-/* $0.0₄4994 — leading zeros rendered as a subscript count (printr notation) */
-const SUBS = '₀₁₂₃₄₅₆₇₈₉'
-function fmtSub(p: number): string {
-  if (p >= 0.01) return `$${p.toFixed(4)}`
-  const s = p.toFixed(12)
-  const zeros = s.match(/^0\.(0+)/)?.[1].length ?? 0
-  const digits = s.replace(/^0\.0+/, '').slice(0, 4)
-  return `$0.0${SUBS[zeros] ?? zeros}${digits}`
-}
-
-const TOOLS: { id: string; svg: ReactNode; sep?: boolean }[] = [
-  { id: 'zoom', svg: <><circle cx="8" cy="8" r="5" /><path d="M12 12l4 4" /></> },
-  { id: 'cursor', svg: <path d="M5 3l10 6-4.5 1L8 15z" /> },
-  { id: 'trend', svg: <path d="M2 14L14 2" />, sep: true },
-  { id: 'channel', svg: <path d="M2 11L11 2M5 14L14 5" /> },
-  { id: 'fib', svg: <path d="M2 4h12M2 8h12M2 12h12" /> },
-  { id: 'measure', svg: <rect x="2" y="6" width="12" height="4" />, sep: true },
-  { id: 'text', svg: <path d="M3 3h10M8 3v10" /> },
-  { id: 'magnet', svg: <path d="M4 2v6a4 4 0 008 0V2M4 5h3M9 5h3" />, sep: true },
-  { id: 'cross', svg: <path d="M8 2v12M2 8h12" /> },
-]
-
-function ChartSvg() {
-  const W = 960, H = 400, PADR = 66, VOLH = 74, TOP = 12
-  const hi = Math.max(...BARS.map((b) => b.h))
-  const lo = Math.min(...BARS.map((b) => b.l))
-  const vmax = Math.max(...BARS.map((b) => b.v))
-  const cw = (W - PADR - 16) / BARS.length
-  const y = (p: number) => TOP + ((hi - p) / (hi - lo)) * (H - VOLH - TOP - 46)
-  const last = BARS[BARS.length - 1]
-  const grid = [0, 1, 2, 3, 4].map((i) => lo + ((hi - lo) * i) / 4)
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Simulated candlestick chart, static data">
-      {grid.map((p, i) => (
-        <g key={i}>
-          <line x1={0} x2={W - PADR} y1={y(p)} y2={y(p)} stroke="var(--border-soft)"
-            strokeDasharray="3 6" />
-          <text x={W - PADR + 8} y={y(p) + 3} className="tk-yt">{fmtSub(p)}</text>
-        </g>
-      ))}
-      {BARS.map((b, i) => {
-        const x = 8 + i * cw + cw / 2
-        const up = b.c >= b.o
-        const col = up ? 'var(--brand-2)' : 'var(--rose)'
-        const yTop = y(Math.max(b.o, b.c))
-        const h = Math.max(1.5, Math.abs(y(b.o) - y(b.c)))
-        return (
-          <g key={i}>
-            <line x1={x} x2={x} y1={y(b.h)} y2={y(b.l)} stroke={col} strokeWidth="1" />
-            <rect x={x - cw * 0.32} y={yTop} width={cw * 0.64} height={h} fill={col} rx="1" />
-            <rect x={x - cw * 0.32} y={H - 18 - (b.v / vmax) * (VOLH - 26)} width={cw * 0.64}
-              height={(b.v / vmax) * (VOLH - 26)} fill={col} opacity=".45" rx="1" />
-          </g>
-        )
-      })}
-      <line x1={0} x2={W - PADR} y1={y(last.c)} y2={y(last.c)} stroke="var(--brand)"
-        strokeDasharray="2 4" opacity=".7" />
-      <rect x={W - PADR + 4} y={y(last.c) - 9} width={58} height={18} rx="4" fill="var(--brand)" />
-      <text x={W - PADR + 33} y={y(last.c) + 4} textAnchor="middle" className="tk-ychip">
-        {fmtSub(last.c)}
-      </text>
-    </svg>
-  )
-}
-
-function CopyCa({ value }: { value: string }) {
-  const [ok, setOk] = useState(false)
-  return (
-    <button type="button" className={ok ? 'ok' : ''} onClick={() => {
-      navigator.clipboard?.writeText(value).then(() => { setOk(true); window.setTimeout(() => setOk(false), 1400) }, () => {})
-    }} aria-label="copy token address">⧉</button>
-  )
-}
-
+/* native asset per chain — mirrors providers (sol=SOL, bnb=BNB, base/hood=ETH,
+   hype=HYPE); the YOU-PAY side always trades against this */
 const NATIVE: Record<LiveChain, string> = {
   sol: 'SOL', bnb: 'BNB', base: 'ETH', hype: 'HYPE', hood: 'ETH',
   // avax: 'AVAX' parked 2026-08-30 (founder: 5-chain lineup)
 }
-/* Real default token per chain for the swap rail's LIVE quote (UI-3).
-   Verified addresses: BONK (sol), CAKE (bnb), AERO (base), APU (hood).
-   hype has no verified default pair → the rail shows an honest reason. */
-const SWAP_DEFAULT: Record<LiveChain, string | null> = {
-  sol: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',
-  bnb: '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82',
-  base: '0x940181a94A35A4569E4529A3CDfB74e38FD98631',
-  hood: '0x0f03df65dace80e5e727b6c2628889c6d8ea20a6',
-  hype: null,
+const NATIVE_USD_HINT: Record<LiveChain, number> = {
+  sol: 203, bnb: 690, base: 3400, hype: 38, hood: 3400,
 }
+
+/* dexId → CTA label — observed-only map (live.py LAUNCHPAD spirit): verbatim
+   slug capitalized, known brands named, unknown dex passes through raw */
+const DEX_LABEL: Record<string, string> = {
+  orca: 'Orca', raydium: 'Raydium', meteora: 'Meteora', pumpswap: 'Pumpswap',
+  'pump-fun': 'Pump.fun', pancakeswap: 'PancakeSwap', pancakeswap_v2: 'PancakeSwap',
+  uniswap: 'Uniswap', aerodrome: 'Aerodrome', 'aerodrome-slipstream-3': 'Aerodrome',
+  hyperlink: 'Hyperlink',
+}
+const dexLabel = (dexId: string | null | undefined) =>
+  (dexId && (DEX_LABEL[dexId] ?? dexId.replace(/[-_]/g, ' '))) || 'DEX'
+
+function fmtCompact(n: number, digits = 2): string {
+  if (!Number.isFinite(n)) return '—'
+  return new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: digits }).format(n)
+}
+function fmtUsd(n: number | null | undefined): string {
+  return n == null || !Number.isFinite(n) ? '—' : `$${fmtCompact(n)}`
+}
+function fmtAge(ms: number | null): string {
+  if (!ms || ms <= 0) return '—'
+  const h = Math.floor(ms / 3_600_000)
+  if (h < 1) return `${Math.max(1, Math.floor(ms / 60_000))}m`
+  if (h < 48) return `${h}h`
+  return `${Math.floor(h / 24)}d`
+}
+function fmtPrice(p: number | null | undefined): string {
+  if (p == null || !Number.isFinite(p) || p <= 0) return '—'
+  if (p >= 0.01) return `$${p.toFixed(4)}`
+  const s = p.toFixed(12)
+  const zeros = s.match(/^0\.(0+)/)?.[1].length ?? 0
+  return `$0.0${'₀₁₂₃₄₅₆₇₈₉'[zeros] ?? zeros}${s.replace(/^0\.0+/, '').slice(0, 4)}`
+}
+
+/* ── live data hooks ──────────────────────────────────────────────────── */
+
+function useQuote(pair: ActivePair | null): { quote: SwapQuote | null; error: string | null } {
+  const [quote, setQuote] = useState<SwapQuote | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  useEffect(() => {
+    let on = true
+    setQuote(null)
+    setError(null)
+    if (!pair) { setError('no token selected — paste a CA in the search bar above'); return }
+    fetchSwapQuote(pair.chain, pair.tokenAddress)
+      .then((q) => { if (on) { if (q) setQuote(q); else setError(`no live ${pair.chain.toUpperCase()} quote — dexscreener returned no finite rate for this token`) } })
+      .catch(() => { if (on) setError('dexscreener unreachable — rate unavailable') })
+    return () => { on = false }
+  }, [pair])
+  return { quote, error }
+}
+
+/* OHLCV via the backend (Fase 4): SEEDING until the first array answers,
+   LIVE afterwards, honest EMPTY/ERROR with the degraded reason verbatim */
+function useOhlcv(pair: ActivePair | null, resolution: Resolution, pairAddress: string | null | undefined): OhlcvState {
+  const [st, setSt] = useState<OhlcvState>({ candles: [], state: 'SEEDING', reason: null, lastTs: null })
+  useEffect(() => {
+    let on = true
+    if (!pair || !pairAddress) {
+      setSt({ candles: [], state: 'EMPTY', reason: 'no active pair address — open a token with a live pool', lastTs: null })
+      return
+    }
+    setSt((s) => ({ ...s, state: s.candles.length ? 'LIVE' : 'SEEDING', reason: null }))
+    fetch(`/api/v1/market/ohlcv?chain=${pair.chain}&pair=${encodeURIComponent(pairAddress)}&resolution=${resolution}&limit=180`)
+      .then(async (r) => {
+        const j = await r.json().catch(() => null)
+        if (!on) return
+        if (!r.ok || !j) {
+          setSt((s) => ({ ...s, state: 'ERROR', reason: j?.detail ?? `HTTP ${r.status} — ohlcv unavailable` }))
+          return
+        }
+        const candles: Candle[] = j.candles ?? []
+        setSt({
+          candles,
+          state: candles.length ? 'LIVE' : 'EMPTY',
+          reason: candles.length ? null : (j.provenance?.degraded ?? 'no candles in feed'),
+          lastTs: j.provenance?.freshness?.last_candle_ts ?? null,
+        })
+      })
+      .catch(() => { if (on) setSt((s) => ({ ...s, state: 'ERROR', reason: 'network error — is the API server running?' })) })
+    return () => { on = false }
+  }, [pair, pairAddress, resolution])
+  return st
+}
+
+function useSocials(pair: ActivePair | null): SocialsState {
+  const [st, setSt] = useState<SocialsState>({ links: [], websites: [], imageUrl: null, state: 'LOADING', reason: null })
+  useEffect(() => {
+    let on = true
+    setSt({ links: [], websites: [], imageUrl: pair?.logo ?? null, state: 'LOADING', reason: null })
+    if (!pair) return
+    fetch(`/api/v1/socials?chain=${pair.chain}&token=${encodeURIComponent(pair.tokenAddress)}`)
+      .then(async (r) => {
+        const j = await r.json().catch(() => null)
+        if (!on) return
+        if (!r.ok || !j) { setSt((s) => ({ ...s, state: 'ERROR', reason: j?.detail ?? `HTTP ${r.status}` })); return }
+        const links = j.links ?? []
+        const websites = j.websites ?? []
+        setSt({
+          links, websites, imageUrl: j.image_url ?? pair.logo ?? null,
+          state: links.length + websites.length ? 'LIVE' : 'EMPTY',
+          reason: j.provenance?.degraded ?? null,
+        })
+      })
+      .catch(() => { if (on) setSt((s) => ({ ...s, state: 'ERROR', reason: 'network error' })) })
+    return () => { on = false }
+  }, [pair])
+  return st
+}
+
+/* real trades over /ws/tape for the ACTIVE pool; falls back to the seeded
+   deterministic tape while the socket has nothing (SEEDING chip) */
+interface TapeTrade { wallet: string; kind: string | null; ts: string | null; usd: number | null; tx: string | null }
+function useTape(pairAddress: string | null | undefined): { trades: TapeTrade[]; live: boolean } {
+  const [trades, setTrades] = useState<TapeTrade[]>([])
+  const [live, setLive] = useState(false)
+  useEffect(() => {
+    if (!pairAddress) return
+    let ws: WebSocket | null = null
+    let closed = false
+    try {
+      const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      ws = new WebSocket(`${proto}//${window.location.host}/ws/tape?chain=&pool=${encodeURIComponent(pairAddress)}`)
+    } catch { return }
+    ws.onmessage = (ev) => {
+      try {
+        const frame = JSON.parse(ev.data) as { type?: string; trades?: TapeTrade[] }
+        if (frame.type === 'tape' && Array.isArray(frame.trades)) {
+          setLive(true)
+          setTrades((prev) => [...frame.trades!, ...prev].slice(0, 40))
+        }
+      } catch { /* malformed frame — skip, never render invented rows */ }
+    }
+    ws.onclose = () => { if (!closed) setLive(false) }
+    return () => { closed = true; ws?.close() }
+  }, [pairAddress])
+  return { trades, live }
+}
+
+/* ── deterministic seeded fallback tape (declared, per-panel SEEDING) ──── */
+function seededTrades(seed: string, symbol: string) {
+  let s = 911
+  for (let i = 0; i < seed.length; i++) s = (s * 31 + seed.charCodeAt(i)) | 0
+  const rnd = () => { s ^= s << 13; s >>>= 0; s ^= s >> 17; s ^= s << 5; s >>>= 0; return s / 4294967296 }
+  return Array.from({ length: 12 }, (_, i) => {
+    const buy = rnd() > 0.45
+    const w = `${rnd().toString(16).slice(2, 6)}…${rnd().toString(16).slice(2, 6)}`
+    return {
+      wallet: w, kind: buy ? 'buy' : 'sell', usd: Math.round(rnd() * 90000) / 100,
+      ts: null, tx: w,
+      _sym: symbol, _ago: ['5M AGO', '12M AGO', '1H AGO', '2H AGO', '1W AGO'][i % 5],
+    }
+  })
+}
+
+/* ── small shared bits ────────────────────────────────────────────────── */
+
+function CopyBtn({ value, label }: { value: string; label: string }) {
+  const [ok, setOk] = useState(false)
+  return (
+    <button type="button" className={ok ? 'ok' : ''} aria-label={`copy ${label}`}
+      onClick={() => navigator.clipboard?.writeText(value)
+        .then(() => { setOk(true); window.setTimeout(() => setOk(false), 1400) }, () => {})}>⧉</button>
+  )
+}
+
+function TokenLogo({ src, symbol, size = 34 }: { src: string | null; symbol: string; size?: number }) {
+  const [broken, setBroken] = useState(false)
+  if (src && !broken) {
+    return <img className="sw-logo-img" src={src} alt="" width={size} height={size}
+      onError={() => setBroken(true)} referrerPolicy="no-referrer" />
+  }
+  /* bordir glyph fallback — same tile language as the site logo */
+  return (
+    <span className="sw-logo-glyph" style={{ width: size, height: size, fontSize: size * 0.42 }}
+      aria-hidden="true">{(symbol || '?').slice(0, 1)}</span>
+  )
+}
+
 const QUICK = [0.001, 0.01, 0.05, 0.1, 0.5]
 
-function setAmt2(set: (v: string) => void, setP: (p: number) => void, balance: number, q: number) {
-  set(String(q))
-  setP(balance > 0 ? Math.round(Math.min(100, (q / balance) * 100)) : 0)
-}
+/* ── the swap rail (Fase 1) ───────────────────────────────────────────── */
 
-function SwapRail() {
-  const [chain, setChain] = useState<LiveChain>('sol')
+function SwapRail({ pair, quote, qErr }: { pair: ActivePair | null; quote: SwapQuote | null; qErr: string | null }) {
+  const { session } = useWallet()
   const [dir, setDir] = useState<'buy' | 'sell'>('buy')
   const [amount, setAmount] = useState('')
   const [pct, setPct] = useState(0)
   const [adv, setAdv] = useState(false)
-  const [quote, setQuote] = useState<SwapQuote | null>(null)
-  const [qErr, setQErr] = useState<string | null>(null)
-  const balance = 3.421
+  const chain = pair?.chain ?? 'sol'
 
-  useEffect(() => {
-    let on = true
-    const addr = SWAP_DEFAULT[chain]
-    if (!addr) { setQuote(null); setQErr(`no default pair wired for ${chain} — pick sol/bnb/base/hood`); return }
-    setQuote(null); setQErr(null)
-    fetchSwapQuote(chain, addr)
-      .then((q) => { if (on) { if (q) setQuote(q); else setQErr(`no live ${chain} quote — dexscreener returned no finite rate`) } })
-      .catch(() => { if (on) setQErr('dexscreener unreachable — rate unavailable') })
-    return () => { on = false }
-  }, [chain])
+  /* ONE balance source (Fase 1.2): wallet store when connected, else the
+     deterministic per-chain demo number — the header chip shows the same. */
+  const nativeBal = session?.balances?.[chain] ?? 3.421
+  const tokenBal = pair ? demoTokenBalance(session?.providerId ?? 'anon', pair.tokenAddress) : 0
+  const nativeUsd = quote ? quote.priceUsd && quote.priceNative ? (quote.priceUsd / quote.priceNative) : NATIVE_USD_HINT[chain] : NATIVE_USD_HINT[chain]
+
+  /* BUY: pay native, get token. SELL: pay token, get native (1.5). */
+  const payingNative = dir === 'buy'
+  const paySymbol = payingNative ? NATIVE[chain] : (quote?.token ?? pair?.symbol ?? '—')
+  const payBal = payingNative ? nativeBal : tokenBal
+  const payBalUsd = payingNative ? nativeBal * nativeUsd : tokenBal * (quote?.priceUsd ?? 0)
 
   const n = Number.parseFloat(amount)
-  const payAmt = Number.isFinite(n) && n > 0 ? n : 0
-  const perNative = quote ? 1 / quote.priceNative : 0
-  const getAmt = quote ? payAmt / quote.priceNative : 0
+  const payAmt = Number.isFinite(n) && n >= 0 ? n : 0
+  const rate = quote?.priceNative && quote.priceNative > 0 ? 1 / quote.priceNative : 0
+  /* interconvert both fields (1.4): the other side always mirrors the input */
+  const getAmt = quote ? (payingNative ? payAmt * rate : payAmt / quote.priceNative) : 0
+
+  const setFromPay = (v: string) => {
+    setAmount(v)
+    const x = Number.parseFloat(v)
+    setPct(Number.isFinite(x) && payBal > 0 ? Math.round(Math.min(100, Math.max(0, (x / payBal) * 100))) : 0)
+  }
+  /* MAX never throws (1.4): guard on balance/rate, honest 0 when no rate */
+  const setMax = () => {
+    if (payingNative) { setAmount(String(Math.floor(payBal * 1000) / 1000)); setPct(100); return }
+    setAmount(String(Math.floor(tokenBal * 100) / 100)); setPct(100)
+  }
+  const flip = () => { setDir((d) => (d === 'buy' ? 'sell' : 'buy')); setAmount(''); setPct(0) }
+
   return (
-    <section className="tk-panel" data-chain={chain} style={accentStyle(chain)}>
-      <div className="tk-phd">SWAP {quote ? <span className="tk-live">LIVE QUOTE</span> : <span className="tk-mock">NO QUOTE</span>}</div>
+    <section className="tk-panel sw-rail" data-chain={chain} style={accentStyle(chain)}>
+      <div className="tk-phd">
+        SWAP
+        {quote ? <span className="tk-live">LIVE QUOTE · DEXSCREENER</span> : <span className="tk-mock">NO QUOTE</span>}
+        <span style={{ marginLeft: 'auto' }}><WalletButton compact /></span>
+      </div>
       <div className="tk-swap">
         <div className="sw-tabs2" role="tablist" aria-label="direction">
           <button type="button" role="tab" aria-selected={dir === 'buy'}
-            className={`sw-tab2 buy${dir === 'buy' ? ' on' : ''}`} onClick={() => setDir('buy')}>BUY</button>
+            className={`sw-tab2 buy${dir === 'buy' ? ' on' : ''}`} onClick={() => dir !== 'buy' && flip()}>BUY</button>
           <button type="button" role="tab" aria-selected={dir === 'sell'}
-            className={`sw-tab2 sell${dir === 'sell' ? ' on' : ''}`} onClick={() => setDir('sell')}>SELL</button>
+            className={`sw-tab2 sell${dir === 'sell' ? ' on' : ''}`} onClick={() => dir !== 'sell' && flip()}>SELL</button>
         </div>
+
         <div className="sw2-field">
-          <div className="sw2-hd"><span>YOU PAY</span><span>BAL {balance.toFixed(3)}</span></div>
+          <div className="sw2-hd"><span>YOU PAY</span>
+            <span className="mono">{payBal.toFixed(payingNative ? 3 : 2)} {paySymbol} · ~{fmtUsd(payBalUsd)}</span>
+          </div>
           <div className="sw2-row">
-            <input className="sw2-input" inputMode="decimal" placeholder="0"
-              value={amount} onChange={(e) => {
-                setAmount(e.target.value)
-                const x = Number.parseFloat(e.target.value)
-                setPct(Number.isFinite(x) && balance > 0 ? Math.round(Math.min(100, (x / balance) * 100)) : 0)
-              }} aria-label="amount to pay" />
-            <div className="sw2-chip" onClick={(e) => e.stopPropagation()}>
-              <ChainLogo chain={chain} size={20} />
-              <select value={chain} onChange={(e) => { setChain(e.target.value as LiveChain); setAmount(''); setPct(0) }}
-                aria-label="chain" style={{ background: 'none', border: 'none', color: 'var(--text)', fontFamily: 'var(--font-mono)', fontSize: 11, cursor: 'pointer' }}>
-                {LIVE_CHAINS.map((c) => <option key={c} value={c} style={{ background: '#071410' }}>{c.toUpperCase()} · {NATIVE[c]}</option>)}
-              </select>
-            </div>
+            <input className="sw2-input" inputMode="decimal" placeholder="0" value={amount}
+              onChange={(e) => setFromPay(e.target.value)} aria-label={`amount of ${paySymbol} to pay`} />
+            {payingNative ? (
+              <div className="sw2-chip" title={`${LIVE_CHAIN_LABEL[chain]} · native asset`}>
+                <ChainLogo chain={chain} size={22} />
+                <span className="sw-chip-sym">{NATIVE[chain]}</span>
+              </div>
+            ) : (
+              <div className="sw2-chip" title={pair?.name ?? pair?.symbol ?? ''}>
+                <TokenLogo src={quote?.logoUrl ?? pair?.logo ?? null} symbol={pair?.symbol ?? '?'} size={22} />
+                <span className="sw-chip-sym">{quote?.token ?? pair?.symbol ?? '—'}</span>
+              </div>
+            )}
           </div>
           <div className="sw2-quick">
-            {QUICK.map((q) => <button type="button" key={q}
-              onClick={() => setAmt2(setAmount, setPct, balance, q)}>{q}</button>)}
+            {QUICK.map((q) => (
+              <button type="button" key={q} aria-label={`set ${q} ${paySymbol}`}
+                onClick={() => { setAmount(String(q)); setPct(payBal > 0 ? Math.round(Math.min(100, (q / payBal) * 100)) : 0) }}>
+                {q}
+              </button>
+            ))}
+            <button type="button" onClick={setMax}>MAX</button>
           </div>
           <div className="sw2-rail" role="slider" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}
-            aria-label="percent of balance">
+            aria-label="percent of balance"
+            onClick={(e) => {
+              const box = e.currentTarget.getBoundingClientRect()
+              const p = Math.round(Math.min(100, Math.max(0, ((e.clientX - box.left) / box.width) * 100)))
+              setPct(p)
+              setAmount(String(Math.floor(payBal * p) / 100 / (p === 100 ? 10 : 10)))
+            }}>
             <i className="fill" style={{ width: `${pct}%` }} />
             <i style={{ left: `${pct}%` }} />
           </div>
           <div className="sw2-pct"><span>{pct}%</span><span>of balance</span></div>
         </div>
+
         <div className="sw2-flip">
-          <button type="button" aria-label="flip direction"
-            onClick={() => { setDir((d) => (d === 'buy' ? 'sell' : 'buy')); setAmount(''); setPct(0) }}>⇅</button>
+          <button type="button" aria-label="flip direction" onClick={flip}>⇅</button>
         </div>
+
         <div className="sw2-field">
           <div className="sw2-hd"><span>YOU GET</span>
-            <span>{quote ? `1 ${quote.quote} = ${perNative.toLocaleString('en-US', { maximumFractionDigits: 0 })} ${quote.token}` : '—'}</span></div>
+            <span>{pair?.symbol ? <abbr className="sw-abbr" title={pair.tokenAddress}>{pair.symbol}{pair.name ? ` · ${pair.name}` : ''}</abbr> : '—'}</span>
+          </div>
           <div className="sw2-row">
-            <span className="sw2-input ro">{getAmt === 0 ? '0' : getAmt.toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
-            <div className="sw2-chip"><span className="tk-logo" style={{ width: 20, height: 20, borderRadius: 6, fontSize: 10 }}>{(quote?.token ?? '—').slice(0, 1)}</span>{quote?.token ?? '—'}</div>
+            <span className="sw2-input ro">{getAmt ? fmtCompact(getAmt, getAmt < 1000 ? 4 : 2) : '0'}</span>
+            {payingNative ? (
+              <div className="sw2-chip" title={pair?.name ?? pair?.symbol ?? ''}>
+                <TokenLogo src={quote?.logoUrl ?? pair?.logo ?? null} symbol={pair?.symbol ?? '?'} size={22} />
+                <span className="sw-chip-sym">{quote?.token ?? pair?.symbol ?? '—'}</span>
+              </div>
+            ) : (
+              <div className="sw2-chip" title={`${LIVE_CHAIN_LABEL[chain]} · native asset`}>
+                <ChainLogo chain={chain} size={22} />
+                <span className="sw-chip-sym">{NATIVE[chain]}</span>
+              </div>
+            )}
           </div>
         </div>
-        {quote && quote.priceUsd != null && (
-          <div className="sw2-note" style={{ marginTop: 6 }}>{quote.token} ${quote.priceUsd} · liq ${quote.liq.toLocaleString('en-US', { maximumFractionDigits: 0 })} · {quote.dexId}</div>
-        )}
-        {qErr && <div className="sw2-note" style={{ marginTop: 6, color: 'var(--rose)' }}>{qErr}</div>}
+
+        {/* 1.6 compact rate — never the truncated long number */}
+        <div className="sw2-rate mono" aria-label="exchange rate">
+          {quote && rate > 0
+            ? <>1 {NATIVE[chain]} ≈ {fmtCompact(rate, 2)} {quote.token}{quote.priceUsd != null && <> · {quote.token} {fmtPrice(quote.priceUsd)}</>}</>
+            : <>rate —</>}
+        </div>
+
+        {/* 1.7 info grid: every growable string ellipsized WITH a title */}
+        <div className="sw2-grid">
+          <div><span className="l">PRICE<abbr className="sw-info-tip" title="deepest pair price, live DexScreener">ⓘ</abbr></span>
+            <b className="mono">{quote?.priceUsd != null ? fmtPrice(quote.priceUsd) : '—'}</b></div>
+          <div><span className="l">LIQUIDITY</span><b className="mono">{fmtUsd(quote?.liq)}</b></div>
+          <div><abbr className="l" title={quote?.dexId ?? 'dex'}>DEX</abbr>
+            <b className="ell" title={dexLabel(quote?.dexId)}>{dexLabel(quote?.dexId)}</b></div>
+          <div><span className="l">+24H</span>
+            <b className={`mono ${((quote?.change?.h24 ?? 0) >= 0) ? 'pos' : 'neg'}`}>
+              {quote?.change?.h24 != null ? `${quote.change.h24 > 0 ? '+' : ''}${quote.change.h24.toFixed(2)}%` : '—'}</b></div>
+        </div>
+
+        {qErr && <div className="sw2-note err" role="status">{qErr}</div>}
+
         <button type="button" className="sw2-adv" aria-expanded={adv} onClick={() => setAdv((a) => !a)}>
           ADVANCED <span>{adv ? '▴' : '▾'}</span>
         </button>
@@ -260,189 +383,257 @@ function SwapRail() {
             <label>DEADLINE <span className="tk-mock">SIMULATED</span><input placeholder="30 min" readOnly tabIndex={-1} /></label>
           </div>
         )}
+
         {quote?.url ? (
-          <a className="sw2-cta" href={quote.url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>
-            OPEN {quote.dexId.toUpperCase()} PAIR ↗
+          <a className="sw2-cta" href={quote.url} target="_blank" rel="noopener noreferrer">
+            OPEN {dexLabel(quote.dexId).toUpperCase()} PAIR ↗
           </a>
         ) : (
           <button type="button" className="sw2-cta" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>NO LIVE PAIR</button>
         )}
-        <p className="sw2-note">Read-only terminal — the quote is live (dexscreener) but execution never happens here. Chart &amp; trades remain simulated.</p>
+
+        {/* 1.8 ONE unbroken line, natural wrap */}
+        <p className="sw2-disclaimer">Read-only terminal — the quote is live (DexScreener); execution never happens here, and chart/trades state is simulated where labeled.</p>
       </div>
     </section>
   )
 }
 
+/* ── page ─────────────────────────────────────────────────────────────── */
+
 export function TokenPage() {
-  if (typeof document !== 'undefined') document.title = 'FOMO · Swap — Terminal Alpha'
+  const pair = useActivePair()
+  const { quote, error } = useQuote(pair)
+  const chain = pair?.chain ?? 'sol'
   const [tool, setTool] = useState('cross')
   const [tab, setTab] = useState('TRADES')
-  const [chain] = useState<LiveChain>('sol')
+  const [resolution, setResolution] = useState<Resolution>('15m')
+  const ohlcv = useOhlcv(pair, resolution, pair?.pairAddress)
+  const socials = useSocials(pair)
+  const tape = useTape(pair?.pairAddress)
+  const { session } = useWallet()
+  useEffect(() => {
+    document.title = `${pair?.symbol ?? 'Token'} · ${chain.toUpperCase()} — Terminal Alpha`
+  }, [pair, chain])
+
+  const closes = useMemo(() => ohlcv.candles.map((c) => c.c), [ohlcv.candles])
+  const rsiLine = useMemo(() => rsi(closes), [closes])
+  const lastRsi = [...rsiLine].reverse().find((v) => v != null) ?? null
+  const chart = ohlcv.candles.length ? ohlcv.candles : null
+  const price = quote?.priceUsd ?? null
+  const ageMs = quote?.pairCreatedAt ? Date.now() - quote.pairCreatedAt : null
+  const mcapKnown = quote?.marketCap != null
+  const xchain = useXchain(pair)
+  const tapeRows = tape.live && tape.trades.length
+    ? tape.trades
+    : seededTrades(pair?.tokenAddress ?? 'seed', pair?.symbol ?? '—')
+  const railBalance = session?.balances?.[chain] ?? 3.421
+
   return (
     <div className="tk-root" style={accentStyle(chain)}>
       <div className="tk-aurora" aria-hidden="true" />
       <div className="tk-dots" aria-hidden="true" />
       <div className="tk-page">
         <div className="tk-wrap">
-          {/* ── [B] token header ── */}
+          {/* token header — SAME identity source as the rail (Fase 1.1) */}
           <section className="tk-panel tk-hero" data-chain={chain}>
             <div className="tk-hero-top">
-              <span className="tk-logo">{TOKEN.ticker.slice(0, 1)}</span>
+              <TokenLogo src={quote?.logoUrl ?? pair?.logo ?? null} symbol={pair?.symbol ?? '?'} size={56} />
               <div className="tk-id">
                 <div className="tk-name">
-                  {TOKEN.name}
-                  <span className="tk-ticker">${TOKEN.ticker}</span>
-                  <span className="tk-pair">${TOKEN.pair}</span>
-                  <span className="tk-ca">CA: {truncAddr(TOKEN.ca)} <CopyCa value={TOKEN.ca} /></span>
+                  {pair?.symbol ?? 'NO TOKEN SELECTED'}
+                  <span className="tk-ticker">${pair?.symbol ?? '—'}</span>
+                  <span className="tk-pair">{pair ? `${pair.symbol} / ${NATIVE[chain]}` : '—'}</span>
+                  {pair && (
+                    <span className="tk-ca">CA: <abbr className="sw-abbr" title={pair.tokenAddress}>{truncAddr(pair.tokenAddress)}</abbr> <CopyBtn value={pair.tokenAddress} label="token address" /></span>
+                  )}
                 </div>
                 <div className="tk-chips">
-                  <span className="tk-chip">ATH <b>{TOKEN.ath}</b></span>
-                  <span className="tk-chip pos">PRICE <b>{fmtSub(TOKEN.price)}</b></span>
-                  <span className="tk-chip">LIQUIDITY <b>{TOKEN.liq}</b></span>
-                  <span className="tk-chip">VOLUME <b>{TOKEN.vol}</b></span>
-                  <span className="tk-chip">FEE TYPE <b>Creator</b></span>
-                  <span className="tk-chip">FEE % <b>1.00%</b></span>
+                  <span className="tk-chip pos">PRICE <b>{fmtPrice(price)}</b></span>
+                  <span className="tk-chip">LIQUIDITY <b>{fmtUsd(quote?.liq)}</b></span>
+                  <span className="tk-chip">VOLUME 24H <b>{fmtUsd(quote?.vol24)}</b></span>
+                  <span className="tk-chip">AGE <b>{fmtAge(ageMs)}</b></span>
+                  <span className="tk-chip" title={mcapKnown ? 'derived: price × supply (DexScreener marketCap field)' : 'no supply in the feed — never guessed'}>
+                    MCAP <b>{mcapKnown ? fmtUsd(quote?.marketCap) : '—'}</b>
+                  </span>
+                  <span className="tk-chip" title={dexLabel(quote?.dexId)}>DEX <b>{dexLabel(quote?.dexId)}</b></span>
                 </div>
               </div>
               <div className="tk-mc">
-                <div className="l">Market Cap</div>
-                <div className="v">{TOKEN.mc}</div>
+                <div className="l">{LIVE_CHAIN_LABEL[chain]} · {tape.live ? 'TAPE LIVE' : 'TAPE SEEDING'}</div>
+                <div className="v mono">{railBalance.toFixed(3)} {NATIVE[chain]}</div>
+                <div className="s">{WALLET_LABEL}</div>
               </div>
-              <span className="tk-mock" style={{ position: 'absolute', top: 12, right: 14 }}>SIMULATED</span>
+              {!quote && <span className="tk-mock" style={{ position: 'absolute', top: 12, right: 14 }}>{error ? 'NO QUOTE' : 'LOADING'}</span>}
             </div>
           </section>
 
-          {/* ── main row: LEFT column (chart → bonding → trades) + RIGHT rail ── */}
           <div className="tk-main">
             <div className="tk-col-a">
+              {/* chart — live OHLCV array; SEEDING watermark <5s, LIVE after */}
               <section className="tk-panel tk-chart" data-chain={chain}>
                 <div className="tk-tools">
-                  {TOOLS.map((t) => (
-                    <span key={t.id} style={{ display: 'contents' }}>
-                      <button type="button" title={t.id}
-                        className={`tk-tool${tool === t.id ? ' on' : ''}`}
-                        onClick={() => setTool(t.id)}>
-                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
-                          stroke="currentColor" strokeWidth="1.5">{t.svg}</svg>
-                      </button>
-                      {t.sep && <span className="tk-tsep" />}
-                    </span>
+                  {['cross', 'trend', 'measure'].map((t) => (
+                    <button key={t} type="button" title={t} className={`tk-tool${tool === t ? ' on' : ''}`}
+                      onClick={() => setTool(t)}>◎</button>
                   ))}
+                  <span className="tk-tsep" />
+                  <span className="tk-watermark" data-state={ohlcv.state}>
+                    {ohlcv.state === 'SEEDING' ? 'SEEDING…' : ohlcv.state === 'LIVE' ? 'LIVE · GECKOTERMINAL' : ohlcv.state === 'EMPTY' ? 'NO CANDLES' : 'FEED ERROR'}
+                  </span>
                 </div>
                 <div className="tk-chart-main">
                   <div className="tk-cb">
-                    <span className="tg">15s</span>
-                    <span className="g">▮▮</span>
-                    <span className="g">ƒ Indicators</span>
-                    <span className="g">Marks ▾</span>
-                    <span className="g">↶</span>
-                    <span className="g">↷</span>
-                    <span className="rgt">
-                      <span className="g">◐</span><span className="g">⚙</span>
-                      <span className="g">⛶</span><span className="g">📷</span>
-                    </span>
+                    {OHLCV_RESOLUTIONS.map((r) => (
+                      <button key={r} type="button" className={`tg${resolution === r ? ' on' : ''}`}
+                        onClick={() => setResolution(r)}>{r}</button>
+                    ))}
+                    <span className="rgt mono sw-legend" title={INDICATOR_LEGEND[0].formula}>EMA12</span>
+                    <span className="rgt mono sw-legend" title={INDICATOR_LEGEND[1].formula}>VWAP</span>
+                    <span className="rgt mono sw-legend" title={INDICATOR_LEGEND[2].formula}>RSI14 {lastRsi != null ? lastRsi.toFixed(0) : '—'}</span>
                   </div>
                   <div className="tk-canvas">
-                    <div className="tk-overlay">{TOKEN.name} / USD · O H L C Vol</div>
-                    <ChartSvg />
+                    <div className="tk-overlay">{pair?.symbol ?? '—'} / {NATIVE[chain]} · O H L C V {ohlcv.state === 'LIVE' ? '· live' : ''}</div>
+                    <ChartSvg candles={chart} state={ohlcv.state} />
                   </div>
                   <div className="tk-xaxis">
-                    <span className="tg on">6m</span><span className="tg">3m</span>
-                    <span className="tg">1m</span><span className="tg">5d</span><span className="tg">1d</span>
+                    <span>{ohlcv.lastTs ? `${new Date(ohlcv.lastTs * 1000).toISOString().slice(0, 16).replace('T', ' ')} UTC` : '—'}</span>
                     <span className="rgt">
-                      <span>01:05:17 UTC-7</span><span className="tg">%</span>
-                      <span className="tg">log</span><span className="tg on">auto</span>
+                      {ohlcv.reason && <span className="sw-reason" title={ohlcv.reason}>{ohlcv.state}</span>}
+                      <span className="tg on">auto</span>
                     </span>
                   </div>
                 </div>
               </section>
 
+              {/* bonding — GT pairs carry no graduated/bonding field (probed):
+                  a number here would be invented, so it stays an em dash */}
               <section className="tk-panel tk-bond" data-chain={chain}>
                 <ChainLogo chain={chain} size={26} />
                 <span className="t">BONDING CURVE PROGRESS</span>
-                <div className="rail"><i /></div>
-                <span className="pct">0.0%</span>
-                <span className="st">STATUS · ACTIVE</span>
-                <span className="tk-mock">SIMULATED</span>
+                <div className="rail"><i style={{ width: 0 }} /></div>
+                <span className="pct">—</span>
+                <abbr className="st" title="bonding progress: not in free feed — indexed source on roadmap">NOT IN FEED</abbr>
               </section>
 
               <section className="tk-panel">
                 <div className="tk-tabsrow">
-                  {['TRADES', 'HOLDERS (1)', 'XCHAIN', 'COMMENTS'].map((t) => (
+                  {['TRADES', 'HOLDERS', 'XCHAIN', 'SOCIALS'].map((t) => (
                     <span key={t} className={tab === t ? 'on' : ''}
                       onClick={() => setTab(t)} style={{ cursor: 'pointer' }}>{t}</span>
                   ))}
                   <span className="bubble">◉ BUBBLE MAP</span>
                 </div>
                 <div className="tk-table-wrap">
-                  <table className="tk-table">
-                    <thead>
-                      <tr>
-                        <th>ACCOUNT</th><th>TYPE</th><th>VALUE</th><th>AMOUNT</th><th>PRICE</th>
-                        <th>DATE</th><th>CHANNEL</th><th>SOURCE</th><th>TX</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {TRADES.map((t, i) => (
-                        <tr key={i}>
-                          <td className="acc"><span className="dot" style={{ background: t.buy ? 'var(--brand-2)' : 'var(--rose)' }} />{t.account}</td>
-                          <td className={t.buy ? 'buy' : 'sell'}>{t.buy ? 'BUY' : 'SELL'}</td>
-                          <td>{t.value}</td>
-                          <td>{t.amount}</td>
-                          <td>{fmtSub(t.price)}</td>
-                          <td>{t.date}</td>
-                          <td><ChainLogo chain={t.chain} size={16} /></td>
-                          <td><span className="tk-src" style={{ background: t.srcColor }}>{t.src}</span></td>
-                          <td className="tx">{t.tx}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <div className="tk-pagefoot">
-                    <button type="button" aria-label="previous">‹</button>
-                    <span>1</span>
-                    <button type="button" aria-label="next">›</button>
-                  </div>
+                  {tab === 'TRADES' && (
+                    <table className="tk-table">
+                      <thead>
+                        <tr><th>ACCOUNT</th><th>TYPE</th><th>VALUE</th><th>DATE</th><th>TX</th></tr>
+                      </thead>
+                      <tbody>
+                        {tapeRows.map((t, i) => {
+                          const buy = t.kind === 'buy'
+                          return (
+                            <tr key={i}>
+                              <td className="acc"><span className="dot" style={{ background: buy ? 'var(--brand-2)' : 'var(--rose)' }} />{t.wallet}</td>
+                              <td className={buy ? 'buy' : 'sell'}>{buy ? 'BUY' : 'SELL'}</td>
+                              <td>{t.usd != null ? fmtUsd(t.usd) : '—'}</td>
+                              <td>{'ts' in t && typeof t.ts === 'string' && t.ts ? t.ts.slice(11, 19) : (t as { _ago?: string })._ago ?? '—'}</td>
+                              <td className="tx">{t.tx ?? '—'}</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                  {tab === 'HOLDERS' && (
+                    <div className="tk-simnote">
+                      Holders have no $0 source on this terminal.
+                      <span className="tk-mock">SIMULATED</span>
+                      <p className="dim">Holder counts are not served by the free feeds (GeckoTerminal / DexScreener carry no holder endpoint). Nothing is invented here — the panel stays empty until a real source is wired.</p>
+                    </div>
+                  )}
+                  {tab === 'XCHAIN' && (
+                    <div className="tk-simnote">
+                      {xchain.length
+                        ? <>Also trading on: {xchain.map((c) => <span key={c.chain} className="tk-chip" title={`${c.symbol} · liq ${fmtUsd(c.liquidity_usd)}`}>{c.chain.toUpperCase()} <b>{c.symbol}</b></span>)}</>
+                        : <span className="dim">No other live-feed pair found for this token on the other four chains.</span>}
+                      <p className="dim">Source: /api/v1/detect on the token CA (DexScreener, $0).</p>
+                    </div>
+                  )}
+                  {tab === 'SOCIALS' && (
+                    <div className="tk-simnote">
+                      {socials.state === 'LOADING' && <span className="dim">loading links…</span>}
+                      {socials.state === 'LIVE' && (
+                        <div className="sw-links">
+                          {socials.websites.map((w) => (
+                            <a key={w.url} className="tk-chip link" href={w.url} target="_blank" rel="noopener noreferrer"
+                              title={w.url}>🌐 {w.label ?? 'Website'}</a>
+                          ))}
+                          {socials.links.map((l) => (
+                            <a key={l.url} className="tk-chip link" href={l.url} target="_blank" rel="noopener noreferrer"
+                              title={l.url}>
+                              {l.type === 'twitter' ? '𝕏' : l.type === 'telegram' ? '✈' : l.type === 'discord' ? '🎮' : '🔗'} {l.type ?? 'link'}
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                      {socials.state === 'EMPTY' && <span className="dim">No official links in feed.</span>}
+                      {socials.state === 'ERROR' && <span className="dim">links unavailable — {socials.reason}</span>}
+                      <p className="dim">There will never be fake comments here — only links the feed actually returns.</p>
+                    </div>
+                  )}
                 </div>
               </section>
             </div>
 
-            {/* right rail: swap + information + movement (fixed 380px, sticky) */}
             <aside className="tk-rail-r">
-              <SwapRail />
+              <SwapRail pair={pair} quote={quote} qErr={error} />
+
               <section className="tk-panel tk-info" data-chain={chain}>
-                <div className="tk-phd">INFORMATION <span className="tk-mock">SIMULATED</span></div>
+                <div className="tk-phd">INFORMATION <span className="tk-live">REAL · DEXSCREENER</span></div>
                 <div className="tk-info">
                   <div className="tk-info-row">
-                    <span className="tk-info-logo">{TOKEN.ticker.slice(0, 1)}</span>
+                    <TokenLogo src={socials.imageUrl ?? quote?.logoUrl ?? pair?.logo ?? null} symbol={pair?.symbol ?? '?'} size={40} />
                     <div className="tk-info-id">
-                      <b>{TOKEN.name}</b>
-                      <span>${TOKEN.ticker}</span>
+                      <b>{pair?.name ?? pair?.symbol ?? '—'}</b>
+                      <span>${pair?.symbol ?? '—'} · {LIVE_CHAIN_LABEL[chain]}</span>
                     </div>
                   </div>
-                  <div className="tk-kv"><span>CREATED BY</span><b>{TOKEN.creator} <CopyCa value={TOKEN.creator} /></b></div>
-                  <div className="tk-kv"><span>CREATION DATE</span><b>{TOKEN.created}</b></div>
+                  <div className="tk-kv"><span>CREATED</span><b>{quote?.pairCreatedAt ? new Date(quote.pairCreatedAt).toISOString().slice(0, 10) : '—'}</b></div>
+                  <div className="tk-kv"><span>AGE</span><b>{fmtAge(ageMs)}</b></div>
+                  <div className="tk-kv"><span>MARKET CAP</span>
+                    <b title={mcapKnown ? 'derived: price × supply (DexScreener marketCap field)' : 'no supply in the feed — never guessed'}>
+                      {mcapKnown ? `${fmtUsd(quote?.marketCap)} · LIVE · DEXSCREENER (derived: price×supply)` : '—'}
+                    </b></div>
+                  <div className="tk-kv"><span>CREATOR</span><b title="creator address is not in the free feed — never guessed">—</b></div>
                   <span className="tk-badge">MEMECOIN</span>
-                  <p className="sw2-note">Just few hours left to bond up hold. (simulated status line)</p>
                 </div>
               </section>
+
               <section className="tk-panel" data-chain={chain}>
-                <div className="tk-phd">MOVEMENT <span className="tk-mock">SIMULATED</span></div>
+                <div className="tk-phd">MOVEMENT <span className="tk-live">REAL · DEXSCREENER</span></div>
                 <div className="tk-grid2">
-                  {[['5M', '+0.4%', 'pos'], ['1H', '+1.2%', 'pos'], ['4H', '−2.1%', 'neg'], ['24H', '+5.6%', 'pos']].map(([t, v, c]) => (
-                    <div className="tk-cell" key={t}>
-                      <span className="t">{t}</span>
-                      <span className={`v ${c}`}>{v}</span>
+                  {[['1H', quote?.change?.h1], ['4H', quote?.change?.h6], ['24H', quote?.change?.h24], ['RSI', lastRsi]].map(([t, v]) => (
+                    <div className="tk-cell" key={t as string}>
+                      <span className="t">{t as string}</span>
+                      <span className={`v ${((v as number | null) ?? 0) >= 0 ? 'pos' : 'neg'}`}>
+                        {t === 'RSI' ? ((v as number | null) != null ? (v as number).toFixed(0) : '—')
+                          : (v as number | null) != null ? `${(v as number) > 0 ? '+' : ''}${(v as number).toFixed(2)}%` : '—'}
+                      </span>
                     </div>
                   ))}
                 </div>
                 <div className="tk-split">
-                  <div className="tk-split-row"><span className="t">TXNS</span>
-                    <span className="b up">BUY 1,204</span><span className="b dn">SELL 986</span></div>
-                  <div className="tk-split-bar"><i className="up" style={{ width: '55%' }} /><i className="dn" style={{ width: '45%' }} /></div>
-                  <div className="tk-split-row"><span className="t">VOL</span>
-                    <span className="b up">BUY $482K</span><span className="b dn">SELL $301K</span></div>
-                  <div className="tk-split-bar"><i className="up" style={{ width: '62%' }} /><i className="dn" style={{ width: '38%' }} /></div>
+                  <div className="tk-split-row"><span className="t">TXNS 24H</span>
+                    <span className="b up">BUY {(quote?.txns24?.buys ?? 0).toLocaleString('en-US')}</span>
+                    <span className="b dn">SELL {(quote?.txns24?.sells ?? 0).toLocaleString('en-US')}</span></div>
+                  <div className="tk-split-bar">
+                    <i className="up" style={{ width: `${pctBuys(quote)}%` }} />
+                    <i className="dn" style={{ width: `${100 - pctBuys(quote)}%` }} />
+                  </div>
+                  <div className="tk-split-row"><span className="t">VOL 24H</span>
+                    <span className="mono">{fmtUsd(quote?.vol24)}</span></div>
                 </div>
               </section>
             </aside>
@@ -450,5 +641,93 @@ export function TokenPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+function pctBuys(q: SwapQuote | null): number {
+  const b = q?.txns24?.buys
+  const s = q?.txns24?.sells
+  if (!b || !s || b + s === 0) return 50
+  return Math.round((b / (b + s)) * 100)
+}
+
+/* XCHAIN: where else does this token trade? = detect on the CA, minus the
+   active chain (real $0 source, was already real, now wired to the tab) */
+function useXchain(pair: ActivePair | null) {
+  const [cands, setCands] = useState<{ chain: string; symbol: string | null; liquidity_usd: number | null }[]>([])
+  useEffect(() => {
+    let on = true
+    setCands([])
+    if (!pair) return
+    fetch(`/api/v1/detect?address=${encodeURIComponent(pair.tokenAddress)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!on || !j) return
+        setCands(((j.candidates ?? []) as { chain: string; symbol: string | null; liquidity_usd: number | null }[])
+          .filter((c) => c.chain !== pair.chain))
+      })
+      .catch(() => { /* tab renders its honest empty state */ })
+    return () => { on = false }
+  }, [pair])
+  return cands
+}
+
+/* candle chart over the LIVE array; SEEDING keeps the page honest while the
+   first answer is in flight (declared watermark in the toolbar) */
+function ChartSvg({ candles, state }: { candles: Candle[] | null; state: string }) {
+  const W = 960, H = 400, PADR = 66, VOLH = 74, TOP = 12
+  if (!candles || candles.length < 2) {
+    return (
+      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="candlestick chart, awaiting live candles">
+        <text x={W / 2} y={H / 2} textAnchor="middle" className="tk-wait">
+          {state === 'SEEDING' ? 'SEEDING — first candles in flight…' : state === 'EMPTY' ? 'no candles in the free feed for this pool' : 'chart unavailable'}
+        </text>
+      </svg>
+    )
+  }
+  const hi = Math.max(...candles.map((b) => b.h))
+  const lo = Math.min(...candles.map((b) => b.l))
+  const vmax = Math.max(...candles.map((b) => b.v), 1e-9)
+  const cw = (W - PADR - 16) / candles.length
+  const y = (p: number) => TOP + ((hi - p) / (hi - lo || 1)) * (H - VOLH - TOP - 46)
+  const last = candles[candles.length - 1]
+  const closes = candles.map((b) => b.c)
+  const emaLine = ema(closes, 12)
+  const vwLine = vwap(candles)
+  const grid = [0, 1, 2, 3, 4].map((i) => lo + ((hi - lo) * i) / 4)
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="live candlestick chart, GeckoTerminal ohlcv">
+      {grid.map((p, i) => (
+        <g key={i}>
+          <line x1={0} x2={W - PADR} y1={y(p)} y2={y(p)} stroke="var(--border-soft)" strokeDasharray="3 6" />
+          <text x={W - PADR + 8} y={y(p) + 3} className="tk-yt">{fmtPrice(p)}</text>
+        </g>
+      ))}
+      {candles.map((b, i) => {
+        const x = 8 + i * cw + cw / 2
+        const up = b.c >= b.o
+        const col = up ? 'var(--brand-2)' : 'var(--rose)'
+        const yTop = y(Math.max(b.o, b.c))
+        const h = Math.max(1.5, Math.abs(y(b.o) - y(b.c)))
+        return (
+          <g key={b.ts}>
+            <line x1={x} x2={x} y1={y(b.h)} y2={y(b.l)} stroke={col} strokeWidth="1" />
+            <rect x={x - cw * 0.32} y={yTop} width={cw * 0.64} height={h} fill={col} rx="1" />
+            <rect x={x - cw * 0.32} y={H - 18 - (b.v / vmax) * (VOLH - 26)} width={cw * 0.64}
+              height={(b.v / vmax) * (VOLH - 26)} fill={col} opacity=".45" rx="1" />
+          </g>
+        )
+      })}
+      {/* indicators over the SAME live array (Fase 4, deterministic) */}
+      <polyline fill="none" stroke="var(--amber)" strokeWidth="1.2" opacity=".8"
+        points={emaLine.map((v, i) => v != null ? `${8 + i * cw + cw / 2},${y(v)}` : null)
+          .filter(Boolean).join(' ')} />
+      <polyline fill="none" stroke="var(--blue)" strokeWidth="1.2" opacity=".8"
+        points={vwLine.map((v, i) => v != null ? `${8 + i * cw + cw / 2},${y(v)}` : null)
+          .filter(Boolean).join(' ')} />
+      <line x1={0} x2={W - PADR} y1={y(last.c)} y2={y(last.c)} stroke="var(--brand)" strokeDasharray="2 4" opacity=".7" />
+      <rect x={W - PADR + 4} y={y(last.c) - 9} width={64} height={18} rx="4" fill="var(--brand)" />
+      <text x={W - PADR + 36} y={y(last.c) + 4} textAnchor="middle" className="tk-ychip">{fmtPrice(last.c)}</text>
+    </svg>
   )
 }

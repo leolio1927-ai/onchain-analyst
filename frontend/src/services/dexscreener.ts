@@ -14,14 +14,16 @@ export interface LiveRow {
 
 /* Minimal upstream shapes — DexScreener returns loose JSON; every field is
    optional and guarded before use (no `as any` casts on upstream data). */
-interface DsToken { address?: string; symbol?: string }
+interface DsToken { address?: string; symbol?: string; name?: string }
 interface DsPair {
   chainId?: string; dexId?: string; url?: string;
   baseToken?: DsToken | null; quoteToken?: DsToken | null;
   priceUsd?: string; priceNative?: string;
-  priceChange?: { h24?: number } | null;
+  priceChange?: { m5?: number; h1?: number; h6?: number; h24?: number } | null;
   liquidity?: { usd?: number | null } | null;
   volume?: { h24?: number } | null;
+  txns?: { h24?: { buys?: number; sells?: number } | null } | null;
+  marketCap?: number | null;
   pairCreatedAt?: number;
   info?: { imageUrl?: string } | null;
 }
@@ -159,6 +161,16 @@ export interface SwapQuote {
   url: string
   dexId: string
   liq: number
+  /* PROMPT-V Fase 4 (2026-08-30, additive): real pair facts for the token
+     page panels — verbatim from the same deepest pair the quote came from. */
+  change?: { m5?: number | null; h1?: number | null; h6?: number | null; h24?: number | null } | null
+  pairCreatedAt?: number | null
+  marketCap?: number | null
+  vol24?: number | null
+  txns24?: { buys?: number; sells?: number } | null
+  tokenAddress?: string | null
+  tokenName?: string | null
+  logoUrl?: string | null
 }
 
 const SWAP_DS_CHAIN: Record<string, string> = {
@@ -191,6 +203,14 @@ export async function fetchSwapQuote(chain: string, address: string): Promise<Sw
     url: pick.p.url ?? '',
     dexId: pick.p.dexId ?? '?',
     liq: pick.liq,
+    change: pick.p.priceChange ?? null,
+    pairCreatedAt: pick.p.pairCreatedAt ?? null,
+    marketCap: pick.p.marketCap ?? null,
+    vol24: pick.p.volume?.h24 ?? null,
+    txns24: pick.p.txns?.h24 ?? null,
+    tokenAddress: pick.p.baseToken?.address ?? null,
+    tokenName: pick.p.baseToken?.name ?? null,
+    logoUrl: pick.p.info?.imageUrl ?? null,
   }
 }
 

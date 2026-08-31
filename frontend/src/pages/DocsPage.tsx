@@ -327,6 +327,79 @@ export function DocsPage() {
                 </tbody>
               </table>
             </div>
+            {/* PROMPT-V Fase 4 (2026-08-30): the $0 wiring audit, written as the
+               law before the swap rebuild — every widget states its source or
+               its honest absence. */}
+            <div className="dd-card">
+              <p className="dd-cap">SWAP SURFACE — SIGNAL SOURCES (PROMPT-V, 2026-08-30). EVERY
+                WIDGET NAMES ITS $0 SOURCE; WHAT THE FREE FEEDS DO NOT CARRY RENDERS “—” WITH A
+                REASON, NEVER A NUMBER.</p>
+              <table className="dd-tbl">
+                <thead><tr><th>Widget</th><th>$0 source</th><th>Final status</th><th>Chip</th></tr></thead>
+                <tbody>
+                  <tr><td>QUOTE / RATE + PRICE · LIQ · DEX · ±24H · VOL · TXNS</td>
+                    <td>DexScreener deepest-pair payload (browser fetch, CORS *, no key)</td>
+                    <td>Live — the one quote the whole page shares (single identity via the token store)</td>
+                    <td><code>LIVE · DEXSCREENER</code></td></tr>
+                  <tr><td>CHART OHLCV</td>
+                    <td><code>GET /api/v1/market/ohlcv</code> → GeckoTerminal (keyless). The browser never calls GT directly — the zero-third-party-host claim holds.</td>
+                    <td>Live; first seconds show <code>SEEDING…</code>, then <code>LIVE · GECKOTERMINAL</code>. Empty pool → the degraded reason verbatim, never a filled series.</td>
+                    <td><code>LIVE · GECKOTERMINAL</code></td></tr>
+                  <tr><td>VOLUME PANE</td>
+                    <td>the <code>v</code> column of the same OHLCV array</td>
+                    <td>Live — no second source exists</td>
+                    <td><code>LIVE · GECKOTERMINAL</code></td></tr>
+                  <tr><td>INDICATORS (EMA 12 · VWAP · RSI 14)</td>
+                    <td>computed in the FE over the live OHLCV array — deterministic; formulas quoted in the chart legend</td>
+                    <td>Live (“honesty by construction”: same candles in, same lines out)</td>
+                    <td><code>COMPUTED FE</code></td></tr>
+                  <tr><td>TRADES</td>
+                    <td><code>/ws/tape</code> — real GT trade deltas for the active pool</td>
+                    <td>Live once frames arrive; the seeded tape renders only while the socket is quiet and is declared <code>SEEDING</code> in the header</td>
+                    <td><code>LIVE · WS TAPE</code> / <code>SEEDING</code></td></tr>
+                  <tr><td>SOCIALS (was COMMENTS — removed)</td>
+                    <td><code>GET /api/v1/socials</code> → DexScreener token-pairs info, keyed by the TOKEN address (a pair address answers 0 pairs — probed 2026-08-30)</td>
+                    <td>Live links (X/web/telegram) or the honest empty state: “No official links in feed.” There will never be fake comments.</td>
+                    <td><code>LIVE · DEXSCREENER</code></td></tr>
+                  <tr><td>XCHAIN</td>
+                    <td><code>GET /api/v1/detect</code> on the token CA, minus the active chain</td>
+                    <td>Live per-chain candidates; none → the honest empty sentence</td>
+                    <td><code>LIVE · DEXSCREENER</code></td></tr>
+                  <tr><td>BONDING %</td>
+                    <td>none — GT pairs carry no graduated/bonding field (probed 2026-08-30)</td>
+                    <td>“—” + “bonding progress: not in free feed — indexed source on roadmap”. The old 0.0% + STATUS·ACTIVE was a fabricated number and is gone.</td>
+                    <td><code>NOT IN FEED · ROADMAP</code></td></tr>
+                  <tr><td>HOLDERS</td>
+                    <td>no $0 source on this terminal</td>
+                    <td>Empty panel + reason sentence; never simulated numbers</td>
+                    <td><code>SIMULATED</code></td></tr>
+                  <tr><td>MARKET CAP</td>
+                    <td>DexScreener <code>marketCap</code> when supply is in the payload (derived: price×supply); absent → “—” + reason</td>
+                    <td>Live when the feed carries it</td>
+                    <td><code>LIVE · DEXSCREENER (derived)</code></td></tr>
+                  <tr><td>CREATED / AGE</td>
+                    <td>DexScreener <code>pairCreatedAt</code> — real</td>
+                    <td>Live (the “just few hours left…” simulated line is gone)</td>
+                    <td>—</td></tr>
+                  <tr><td>CREATOR</td>
+                    <td>not in the free feed</td>
+                    <td>“—” — never guessed</td>
+                    <td><code>NOT IN FEED</code></td></tr>
+                  <tr><td>BALANCE (header + rail — one number)</td>
+                    <td>wallet store (Fase 2): deterministic demo per (wallet, chain), address-only; extension adapters are read-only stubs that throw <code>READ_ONLY_BUILD</code></td>
+                    <td>Preview, labeled everywhere</td>
+                    <td><code>DEMO WALLET</code></td></tr>
+                  <tr><td>ADVANCED (slippage / deadline)</td>
+                    <td>n/a — read-only terminal</td>
+                    <td>Simulated inputs, declared</td>
+                    <td><code>SIMULATED</code></td></tr>
+                  <tr><td>CTA</td>
+                    <td>the quote’s real pair <code>url</code></td>
+                    <td>Live deep link, label from the observed dex id</td>
+                    <td><code>OPEN {'{DEX}'} PAIR ↗</code></td></tr>
+                </tbody>
+              </table>
+            </div>
           </Sec>
 
           {/* ── 5 · DATA SOURCES ─────────────────────────────── */}

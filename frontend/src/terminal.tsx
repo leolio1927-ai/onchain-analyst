@@ -1,15 +1,19 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Shell } from './layout/Shell'
+import { WalletProvider } from './wallet/WalletContext'
 import Dashboard from './pages/Dashboard'
 import { TokenPage } from './pages/TokenPage'
 import { ClusterPage, RugCheckPage, ScannerPage, WhalePage } from './pages/AnalysisPages'
 import { AiPage, AlertsPage, DocsPage, FeedbackPage, GatePage, HoldingsPage, PortfolioPage, SettingsPage } from './pages/Pages2'
 import './styles/app.css'
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <Shell
+const rootEl = document.getElementById('root')
+if (rootEl) {
+  createRoot(rootEl).render(
+    <StrictMode>
+      <WalletProvider>
+        <Shell
       pages={{
         dashboard: <Dashboard />,
         swap: <TokenPage />,
@@ -27,5 +31,7 @@ createRoot(document.getElementById('root')!).render(
         feedback: <FeedbackPage />,
       }}
     />
-  </StrictMode>,
-)
+      </WalletProvider>
+    </StrictMode>,
+  )
+}

@@ -267,3 +267,85 @@
 @media (prefers-reduced-motion: reduce) {
   .tk-root * { transition: none !important; animation: none !important; }
 }
+
+/* ═══════════════ PROMPT-V rebuild (2026-08-30) ═══════════════
+   Swap rail on the single identity source: native tile = ChainLogo + native
+   symbol; token tile = live logo w/ bordir glyph fallback. Everything that
+   can grow is ellipsized WITH a title (overflow-hidden without title =
+   lint error per founder rule 1.7). ═══════════════ */
+
+.sw-rail .tk-phd { gap: 8px; }
+.sw-chip-sym { font-family: var(--font-mono); font-size: 11.5px; font-weight: 700;
+  letter-spacing: .06em; color: var(--text); }
+.sw-logo-img { border-radius: 7px; background: rgba(255,255,255,.04);
+  border: 1px solid color-mix(in srgb, var(--acc, var(--brand)) 40%, transparent);
+  object-fit: cover; flex: none; }
+.sw-logo-glyph { display: grid; place-items: center; border-radius: 7px; flex: none;
+  font-family: var(--font-mono); font-weight: 700; color: color-mix(in srgb, var(--acc, var(--brand)) 80%, white 20%);
+  background: color-mix(in srgb, var(--acc, var(--brand)) 12%, var(--panel-2));
+  border: 2px solid color-mix(in srgb, var(--acc, var(--brand)) 55%, transparent); }
+
+.sw2-chip { display: inline-flex; align-items: center; gap: 7px; padding: 4px 9px;
+  border-radius: 9px; background: rgba(255,255,255,.03);
+  border: 1px solid color-mix(in srgb, var(--acc, var(--brand)) 35%, transparent);
+  max-width: 46%; overflow: hidden; }
+.sw2-chip .sw-chip-sym { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* compact rate line — fmtCompact, never the truncated long number */
+.sw2-rate { margin-top: 2px; padding: 7px 10px; border-radius: 8px; font-size: 11px;
+  color: var(--muted); background: rgba(255,255,255,.02);
+  border: 1px dashed color-mix(in srgb, var(--acc, var(--brand)) 22%, transparent); }
+
+/* info grid 2×2 (Fase 1.7): mono values, dim labels, ellipsis + title */
+.sw2-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.sw2-grid > div { display: grid; gap: 3px; padding: 8px 10px; border-radius: 8px;
+  background: rgba(255,255,255,.02); border: 1px solid var(--border-soft); min-width: 0; }
+.sw2-grid .l { font-family: var(--font-mono); font-size: 8.5px; letter-spacing: .16em;
+  color: var(--muted-deep); display: inline-flex; gap: 5px; align-items: center; }
+.sw2-grid b { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sw2-grid b.pos { color: var(--brand-2, #14F195); }
+.sw2-grid b.neg { color: var(--rose); }
+.sw-info-tip { text-decoration: none; color: var(--muted-deep); cursor: help; font-size: 8px; }
+.sw-abbr { text-decoration: underline dotted var(--muted-deep); text-underline-offset: 3px;
+  cursor: help; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* disclaimer: ONE line, natural wrap, never mid-word breaks */
+.sw2-disclaimer { margin: 10px 2px 0; font-size: 10.5px; line-height: 1.55;
+  color: var(--muted-deep); text-wrap: pretty; }
+.sw2-note.err { color: var(--rose); }
+
+/* quick chips + MAX guard */
+.sw2-quick { display: flex; gap: 6px; flex-wrap: wrap; }
+.sw2-quick button { min-width: 44px; padding: 4px 7px; }
+
+/* watermark in the chart toolbar: SEEDING… → LIVE · GECKOTERMINAL */
+.tk-watermark { font-family: var(--font-mono); font-size: 8px; font-weight: 700;
+  letter-spacing: .18em; padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
+.tk-watermark[data-state='LIVE'] { color: var(--brand-2, #14F195);
+  border: 1px solid color-mix(in srgb, var(--brand-2, #14F195) 45%, transparent);
+  background: color-mix(in srgb, var(--brand-2, #14F195) 8%, transparent); }
+.tk-watermark[data-state='SEEDING'] { color: var(--amber);
+  border: 1px solid color-mix(in srgb, var(--amber) 45%, transparent);
+  background: color-mix(in srgb, var(--amber) 8%, transparent);
+  animation: sw-blink 1s ease-in-out infinite; }
+.tk-watermark[data-state='EMPTY'], .tk-watermark[data-state='ERROR'] { color: var(--muted-deep);
+  border: 1px solid var(--border); }
+@keyframes sw-blink { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+.sw-legend { font-size: 9px; letter-spacing: .1em; color: var(--muted-deep);
+  cursor: help; text-decoration: underline dotted; text-underline-offset: 3px; }
+.sw-reason { font-family: var(--font-mono); font-size: 9px; color: var(--muted-deep);
+  cursor: help; text-decoration: underline dotted; margin-right: 8px; }
+.tk-wait { fill: var(--muted-deep); font-family: var(--font-mono); font-size: 13px;
+  letter-spacing: .08em; }
+
+/* tabs panels: socials links + honest empty states */
+.sw-links { display: flex; gap: 8px; flex-wrap: wrap; }
+.tk-chip.link { text-decoration: none; color: var(--text); }
+.tk-chip.link:hover { border-color: var(--brand); color: var(--brand-2); }
+.tk-simnote { display: grid; gap: 8px; padding: 14px; font-size: 12px; color: var(--text); }
+.tk-simnote .dim, .dim { color: var(--muted-deep); font-size: 10.5px; line-height: 1.5; }
+
+/* balance block in the hero (same number as the rail — Fase 1.2) */
+.tk-mc .s { font-family: var(--font-mono); font-size: 8px; letter-spacing: .16em;
+  color: var(--amber); margin-top: 3px; }
+.tk-mc .v { font-size: 20px; }

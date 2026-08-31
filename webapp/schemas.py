@@ -572,3 +572,99 @@ class ExplainResponse(Envelope):
     parse_ok: bool = False
     tier: str | None = None
     provider: str | None = None
+
+
+# ── market surface (PROMPT-V Fase 3/4: ohlcv · socials · detect) ─────────
+
+class CacheInfo(BaseModel):
+    """Provenance footer: was this served from the TTL cache, and how old."""
+
+    cached: bool = False
+    age_s: float | None = None
+    ttl_s: int = 0
+
+
+class Provenance(BaseModel):
+    """The FAKTA envelope law (2026-08-30): every new route carries WHERE a
+    payload came from and HOW fresh it is. `degraded` is None on a healthy
+    payload and a reason sentence otherwise — a degraded payload still ships
+    real data (or honest empties), never fabricated values."""
+
+    source: str | None = None
+    host: str | None = None
+    cache: CacheInfo = Field(default_factory=CacheInfo)
+    freshness: dict[str, object] = Field(default_factory=dict)
+    degraded: str | None = None
+
+
+class OhlcvCandle(BaseModel):
+    """One GT candle, verbatim floats (no rounding, no gap-filling). ts is
+    unix seconds UTC of the bucket OPEN."""
+
+    ts: int
+    o: float
+    h: float
+    l: float
+    c: float
+    v: float
+
+
+class OhlcvResponse(Envelope):
+    chain: str | None = None
+    network_id: str | None = None
+    pair: str | None = None
+    resolution: str | None = None
+    timeframe: str | None = None
+    aggregate: int | None = None
+    candles: list[OhlcvCandle] = Field(default_factory=list)
+    base_token: dict[str, str | None] | None = None
+    provenance: Provenance = Field(default_factory=Provenance)
+
+
+class WebsiteLink(BaseModel):
+    url: str
+    label: str | None = None
+
+
+class SocialLink(BaseModel):
+    url: str
+    type: str | None = None
+
+
+class SocialsResponse(Envelope):
+    """DS token-pairs info for a TOKEN address. Empty websites+links is the
+    honest 'no official links in feed' state — links are never invented."""
+
+    chain: str | None = None
+    token: str | None = None
+    image_url: str | None = None
+    header_url: str | None = None
+    websites: list[WebsiteLink] = Field(default_factory=list)
+    links: list[SocialLink] = Field(default_factory=list)
+    pair_address: str | None = None
+    dex_id: str | None = None
+    liquidity_usd: float | None = None
+    provenance: Provenance = Field(default_factory=Provenance)
+
+
+class DetectCandidate(BaseModel):
+    """One candidate pair on one founder chain — the deepest pool DS returned
+    for that chainId. `chain` is the founder key (sol|bnb|base|hype|hood)."""
+
+    chain: str | None = None
+    chain_id: str | None = None
+    symbol: str | None = None
+    name: str | None = None
+    token_address: str | None = None
+    pair_address: str | None = None
+    dex_id: str | None = None
+    liquidity_usd: float | None = None
+    price_usd: Verbatim = None
+    url: str | None = None
+
+
+class DetectResponse(Envelope):
+    query: str | None = None
+    kind: str | None = None
+    candidates: list[DetectCandidate] = Field(default_factory=list)
+    provenance: Provenance = Field(default_factory=Provenance)
