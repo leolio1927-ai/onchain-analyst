@@ -135,3 +135,58 @@ hidup tanpa key dan tanpa perjanjian bisnis hari ini = **Jupiter platformFeeBps 
 Chain lain = deploy hook sendiri (Uni v4 / Pancake Infinity) atau BD (Aerodrome, Hyperliquid,
 Robinhood). Implikasi R4: estimator 0.30/0.10/0.10 dihitung read-only; status chip per chain
 diambil dari matriks ini (LIVE-READY=SOL, BD/DEPLOY=sisanya).
+
+## MANDATE 0-V4 frontier scan (PROMPT-V4, semua baris live-checked 2026-08-31)
+
+**(a) WALLET STANDARD — teknologi connect 2026 (bukan window.solana 2021)**
+| temuan | sumber (URL) | tanggal | status |
+|---|---|---|---|
+| EIP-6963 (Multi Injected Provider Discovery) = **Final**, Standards Track: Interface. Mekanik: dapp mendengar `eip6963:announceProvider` + dispatch `eip6963:requestProvider`; wallet announce `EIP6963ProviderDetail` = `EIP6963ProviderInfo` {uuid,name,icon,rdns} + provider EIP-1193; rdns = reverse-DNS milik provider; objek dibekukan (frozen) | eips.ethereum.org/EIPS/eip-6963 | 2026-08-31 (doc fetch) | **FRONTIER-ADOPT (M2)** — discovery murni event API, zero dep |
+| Solana **Wallet Standard** = satu set interface+konvensi lintas chain; struktur paket `packages/core/base · /wallet · /app`; app-side `getWallets`, wallet-side `registerWallet`, global window events; repo aktif (75 releases, created 2022-07-25, topic "solana") | github.com/wallet-standard/wallet-standard | 2026-08-31 (doc fetch) | **FRONTIER-ADOPT (M2)** |
+| `@wallet-standard/base` **1.1.1** — dependencies `{}` (zero dep), published **2026-06-03**; `@wallet-standard/app` **1.1.1** — satu dep saja (`@wallet-standard/base ^1.1.1`), published 2026-06-03. Verifikasi via registry JSON resmi, bukan npmjs web | registry.npmjs.org/@wallet-standard%2fbase + %2fapp (probed) | 2026-08-31 (probed) | **ADOPT-opsi**: M2 tetap coba zero-dep hand-rolled dulu; dua paket ini = fallback resmi bila perlu (bukan lock-in) |
+| Phantom docs: mendukung Wallet Standard; legacy `window.solana` injection digantikan standar event — rekomendasi "latest release" adapter | docs.phantom.com/developer-powertools/wallet-standard | 2026-08-31 (doc fetch) | KONFIRMASI — window.solana = teknologi lama, jangan hardcode |
+
+**(b) AGENT-NATIVE**
+| temuan | sumber (URL) | tanggal | status |
+|---|---|---|---|
+| MCP rev **2026-07-28 = CURRENT** ("current protocol version is 2026-07-28"). Isi revisi: stateless protocol core (tanpa session setup, tiap request mandiri), Multi Round-Trip Requests (MRTR), Roots/Sampling/Logging **deprecated** (didukung ≥12 bulan), OAuth diperkuat (issuer check, DCR dipensiunkan), list results cacheable | modelcontextprotocol.io/docs/2026-07-28/learn/versioning + blog.modelcontextprotocol.io/posts/2026-07-28 | 2026-08-31 (doc fetch) | **TETAP + kompatibel**: /mcp kita sudah stateless single-POST JSON-RPC 2.0 — pas dengan arah spec baru |
+| **x402** (HTTP-402 agentic payments): production-ready, open-source, audited, zero protocol fee, "x402 Foundation"; metrik 30-hari per 2026-08-25: **75.41M transaksi · $24.24M volume · 94.06K buyers · 22K sellers**; blockchain-agnostic (EVM + Solana), stablecoin settlement | x402.org | 2026-08-31 (doc fetch) | **PARKIR-SEBAGAI-DESIGN-NOTE**: applicable utk API-tier berbayar NANTI; tidak diimplementasi sekarang (read-only v1 + zero-payment law) |
+| **llms.txt v2**: proposal Jeremy Howard (2024-09-03), revisi v2 modified **2026-08-10**; H1 wajib satu-satunya seksi wajib; ribuan situs publish, AI labs publik file serupa | llmstxt.org | 2026-08-31 (doc fetch) | **TETAP**: llms.txt kita (P6/V3) sudah sesuai bentuk v2; rawat terus |
+| RFC 9727 `.well-known/api-catalog` — sudah shipped P6 | (internal P6) | 2026-08-31 | TETAP |
+
+**(c) MONETIZATION — recheck 2026 (jangan ingat, cek ulang)**
+| temuan | sumber (URL) | tanggal | status |
+|---|---|---|---|
+| **Token-2022 TransferFee** (Solana): `TransferFeeConfig` di mint → fee dipotong saat transfer, withheld di akun tujuan, bisa di-withdraw per akun atau di-harvest ke mint lalu dipindah `withdraw_withheld_authority` ke fee receiver; `TransferCheckedWithFee` memverifikasi fee | solana.com/docs/tokens/extensions/transfer-fees (doc fetch 200) | 2026-08-31 (doc fetch) | **PARKIR-UNTUK-V3**: ini fee atas transfer token sendiri — VILMEI tidak mint token hari ini (VM-token-00 hold); relevan NANTI bila VM token lahir (juga: Jupiter feeAccount mendukung terima fee dalam token T22) |
+| **Jupiter platformFeeBps — RECHECK** (docs pindah ke developers.jup.ag/docs/swap/v1/add-fees-to-swap): `platformFeeBps` di /quote (contoh docs 20 bps = 0.2% input/output), `feeAccount` = "any valid token account for the swap pair mint" (harus initialized); ExactIn = input/output mint, ExactOut = input mint only; **TIDAK ada cap yang ditulis di halaman terkini**; sejak Jan 2025 Referral Program tidak wajib utk Metis Swap API; **baru: support Token2022 fee collection via `instructionVersion=V2` (changelog Oct 2025)** | developers.jup.ag/docs/swap/v1/add-fees-to-swap | 2026-08-31 (doc fetch) | **SIAP-$0 KOKOH** — tidak ada revisi cap yang merugikan; verdict R4 bertahan |
+| **Uniswap v4 hooks — direktori publik v4hooks.com** (updated **2026-08-27**): 51 listing = 43 patterns + **8 products production**: **Flaunch** (afterSwap distributes creator fees), **Clanker** (dynamic-fee launch + protocol delta), **Zora Coin Hook** (launch fee decay + fee swap + reward distribution), Doppler, DualPool, EulerSwap, Permissioned Pools, Super DCA. Pattern **FeeRouter**: "afterSwap skims protocolBps of output to an immutable treasury address" (MIT, experimental). Disclaimer situs: "Listing is not an audit" | v4hooks.com (probed, HTML 200) | 2026-08-31 (probed) | **UPGRADE TERUKUR**: TIDAK-ADA → **PERLU-DEPLOY-HOOK (pattern tersedia MIT + preseden production)** = FRONTIER-ADOPT candidate utk VM-fee-03. Tetap jujur: tidak ada API fee-integrator keyless instan; pool harus lahir dengan hook-nya |
+
+**(d) DATA $0 UNTUK HOLDINGS — probe langsung (key founder dari .env; nilai key tidak pernah dicetak)**
+| temuan | sumber (URL) | tanggal | status |
+|---|---|---|---|
+| **Helius free tier (key founder) LIVE**: standard RPC `getBalance` BONK mint → 200 (value 1089583620238 lamports, slot 443116536, apiVersion 4.3.0-alpha.2) + DAS `getAsset` → 200 (interface FungibleToken, Metaplex schema, json_uri arweave) | mainnet.helius-rpc.com (probed via .env key) | 2026-08-31 (probed) | **ADOPT (M5-SOL)**: getBalance + getAssetsByOwner (DAS) + price join GT |
+| **Alchemy free tier (key founder) LIVE di 2 chain**: `eth_getBalance` BASE (WETH contract) → 200 + BNB (CAKE contract) → 200 + `alchemy_getTokenBalances` BASE → 200 (tokenBalances[]). Pricing free resmi: **30M CU/bulan · 500 CU/s · "All mainnets & testnets"** termasuk Base + BNB Smart Chain + Solana | base-mainnet/bnb-mainnet.g.alchemy.com (probed) + alchemy.com/pricing | 2026-08-31 (probed + doc fetch) | **ADOPT (M5-EVM base+bnb)** — satu key, dua chain, token balances built-in |
+| **Blockscout public (keyless)**: `base.blockscout.com/api/v2` LIVE 200 (indexing-status; slow ~12s dari env ini → wajib cache); **BSC tidak punya instance keyless**: `bsc.blockscout.com` → 404 "default backend", `explorer.bnbchain.org/api/v2` → 404 (backend Spring, bukan Blockscout) | base.blockscout.com + bsc.blockscout.com + explorer.bnbchain.org (probed) | 2026-08-31 (probed) | base = **ADOPT-sekunder** (cross-check keyless); bnb = TOLAK via Blockscout → Alchemy |
+| **Etherscan V2 multichain (key founder)**: `api.etherscan.io/v2/api?chainid=56&8453` → 200 tapi `status 0 NOTOK: "Free API access is not supported for this chain"` — free plan = ETH mainnet saja; multichain = paid plan | api.etherscan.io/v2 (probed) | 2026-08-31 (probed) | **TOLAK-DENGAN-ALASAN** utk non-ETH (bayar); key founder tetap berharga utk ETH bila dibutuhkan nanti |
+| **.env baris 2 rusak** (`=` kosong tanpa nama) → `source .env` gagal load key apapun; parser M3 wajib skip baris rusak | .env (inspected, nilai masked) | 2026-08-31 | **M3 FIX**: parser tolerant + scripts/dev-server.sh |
+
+**(e) RWA / "WEB4" — feed $0 resmi**
+| temuan | sumber (URL) | tanggal | status |
+|---|---|---|---|
+| **Token Terminal**: Free $0 = core data via UI + 3 dashboards + Sheets/Excel plugin + **akses MCP** + CSV export; **REST API hanya di tier "API" custom pricing** (berbayar) | tokenterminal.com/pricing (probed HTML 200) | 2026-08-31 (probed) | **PARKIR-DENGAN-ALASAN**: tidak ada REST $0 utk proxy server; MCP pihak-ketiga = policy issue; data bukan token-level memecoin |
+| **RWA.xyz**: app.rwa.xyz/pricing → **403 dari env probe** (Cloudflare) — tidak bisa diverifikasi ada/tidaknya tier $0 | app.rwa.xyz/pricing (unreachable, 403) | 2026-08-31 (probed) | **PARKIR-DENGAN-ALASAN**: unverifiable dari environment; jargon tanpa data = dihindari |
+| **Dune API**: credit-based; **Queries endpoint hanya Plus/Enterprise**; free tier = export credits kecil (20 MB) + storage 100 MB | docs.dune.com/api-reference/overview/billing | 2026-08-31 (doc fetch) | **PARKIR-DENGAN-ALASAN**: API = paid; bukan $0 hari ini |
+
+**Ringkasan keputusan → M2 / M3 / M5:**
+- **M2 (wallet connect)**: EIP-6963 (Final) + Solana Wallet Standard via **hand-rolled zero-dep**
+  (event API murni); paket `@wallet-standard/*` 1.1.1 (zero/transitive-dep, 2026-06-03)
+  dicatat sebagai fallback resmi bila hand-rolled terbukti rapuh di test — keputusan tambah
+  dep = STOP + lapor founder dulu. Tidak ada signing/execution; address-only.
+- **M3 (vault)**: venue intake per chain mengikuti matriks V3 yang diperkuat hari ini —
+  sol = Jupiter `feeAccount` SIAP-$0 (T22-ready via V2); EVM = perlu deploy hook
+  (FeeRouter MIT pattern + 8 product production = bukti frontier, bukan lagi "blank");
+  hype/hood = TBD. Split 3 alamat (ops/buyback/rewards) = ledger off-chain + manual/claim.
+- **M5 (holdings)**: sol = Helius (key founder, RPC+DAS probed live); base+bnb = Alchemy
+  (key founder, probed live) + Blockscout base keyless sebagai sekunder; hype/hood =
+  PARTIAL dengan kalimat alasan verbatim (tidak ada sumber $0 publik terverifikasi);
+  Etherscan free = ETH-only. Semua angka probe di atas berasal dari data, bukan ingatan.
