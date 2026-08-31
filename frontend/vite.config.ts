@@ -30,6 +30,20 @@ export default defineConfig({
         docs: 'docs.html',
         roadmap: 'roadmap.html',
       },
+      output: {
+        // V5-G4 (AMBIL, decision recorded in docs/TECH-DECISIONS.md):
+        // Vite 8 = Rolldown, where output.manualChunks is replaced by
+        // advancedChunks. One stable framework group so react/jsx-runtime
+        // lands in a single long-cached chunk instead of per-route twins.
+        // dial3d (lazy route chunk, 130.10 kB gzip ≤ 150 budget) is
+        // deliberately NOT split further — the raw >500 kB warning is a
+        // known-warning, not a budget miss.
+        advancedChunks: {
+          groups: [
+            { name: 'react-vendor', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+          ],
+        },
+      },
     },
   },
 })

@@ -212,3 +212,27 @@ diambil dari matriks ini (LIVE-READY=SOL, BD/DEPLOY=sisanya).
   (key founder, probed live) + Blockscout base keyless sebagai sekunder; hype/hood =
   PARTIAL dengan kalimat alasan verbatim (tidak ada sumber $0 publik terverifikasi);
   Etherscan free = ETH-only. Semua angka probe di atas berasal dari data, bukan ingatan.
+
+## V5-G4 tech scan 2026 (PROMPT-V5G, semua baris dicek terhadap repo hari ini)
+
+- **Rolldown `output.advancedChunks` (Vite 8.2.2)** — **AMBIL, diterapkan sesi ini.**
+  `manualChunks` era Rollup sudah tidak eksis di jalur Vite 8/Rolldown; penggantinya
+  `advancedChunks.groups` (rolldown.rs/in-depth/manual-code-splitting). Diterapkan:
+  satu group `react-vendor` (react+react-dom+scheduler) → jsx-runtime twins per entry
+  (190.29 kB / 59.89 kB gzip) jadi SATU chunk stabil 189.62 kB / 59.61 kB gzip, long-cache.
+  $0, nol dep, build + tsc hijau. dial3d sengaja TIDAK dipecah: lazy route chunk,
+  130.10 kB gzip ≤ 150 budget; warning raw >500 kB = known-warning (G0 note), bukan miss.
+- **`preconnect` ke assets.geckoterminal.com** — **AMBIL, diterapkan sesi ini.**
+  Satu-satunya host gambar pihak ketiga yang tersisa (token logos di live/terminal;
+  fonts sudah self-hosted penuh). Hint `<link rel="preconnect" crossorigin>` di
+  live.html + terminal.html = socket dibuka sebelum feed pertama render. $0.
+- **React 19 `useTransition` untuk shimmer AI** — **TOLAK.** Skeleton "connecting"
+  sudah dirender sinkron di submit handler (<1 paint, before await fetch) dan
+  streaming render per-token tidak blocking (state update per delta di jsdom test);
+  useTransition menambah koordinasi tanpa mengubah byte-first-time yang kini 22-28 ms.
+- **SSE backpressure/WebSocket tape baru** — **BACKLOG.** /ws/tape route sudah ada
+  (Roadmap VM-103: route shipped, UI pending); upgrade board ke WS tape = kerja UI
+  terpisah, bukan gap teknologi 2026. Ditinjau saat UI tape masuk build.
+- **stale-while-revalidate server-side cache** — **TOLAK (untuk sekarang).** Live feed
+  sudah TTL-cache + flag `cached/stale` jujur yang dikonsumsi StatusChips; SWR HTTP
+  header butuh mengubah semantik cache per-route tanpa masalah pengguna nyata hari ini.
