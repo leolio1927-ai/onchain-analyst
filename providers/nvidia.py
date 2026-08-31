@@ -18,9 +18,13 @@ PROMPT-AI-V probe 2026-08-31 (raw evidence in logs/ai1-*, gitignored):
   account; and adding reasoning_effort stalled even kimi-k3 (0 bytes/240 s),
   so the default path sends NO extra params — VILMEI_AI_REASONING_EFFORT is
   strictly opt-in.
-- Verdict: FREE = moonshotai/kimi-k3 (stream-first, patient timeouts);
-  DEEP = deepseek-ai/deepseek-v4-pro-0813 kept behind env override with an
-  honest 504 if it stalls; backup = moonshotai/kimi-k2.6.
+- Verdict (V5-G2 routing, 2026-08-31): FREE = deepseek-ai/deepseek-v4-flash-0731
+  (fast tier, reasoning off, ~900 tok, 10 s open budget + fallback chain);
+  DEEP = moonshotai/kimi-k3 (reasoning tier, 25 s open budget — deep may be
+  slow, free may not); FALLBACK = deepseek-ai/deepseek-v4-pro-0813 behind the
+  FREE chain, then the honest busy sentence. G0 today: the free plane stalled
+  BOTH flash and kimi (0 bytes / 60 s ×3) — the fallback chain + 60 s
+  short-circuit cooldown in webapp.ai_ask absorb exactly that.
 
 LAWS (project-wide): the key travels ONLY as `Authorization: Bearer` — never
 in a URL, never in a log line, never in a response. stdlib urllib only — the
@@ -37,8 +41,9 @@ import urllib.request
 
 BASE_URL = "https://integrate.api.nvidia.com/v1"
 # Probe-picked defaults (2026-08-31); env overrides per .env.example.
-DEFAULT_MODEL_FREE = "moonshotai/kimi-k3"
-DEFAULT_MODEL_DEEP = "deepseek-ai/deepseek-v4-pro-0813"
+DEFAULT_MODEL_FREE = "deepseek-ai/deepseek-v4-flash-0731"
+DEFAULT_MODEL_DEEP = "moonshotai/kimi-k3"
+DEFAULT_MODEL_FALLBACK = "deepseek-ai/deepseek-v4-pro-0813"
 TIMEOUT_S = 60.0          # per socket op; streaming reads get one per chunk
 CONNECT_TIMEOUT_S = 20.0
 # AI-6 truth-run 2026-08-31: the free tier can hold the response HEADERS until
@@ -71,6 +76,11 @@ def model_free() -> str:
 
 def model_deep() -> str:
     return (os.environ.get("VILMEI_AI_MODEL_DEEP") or "").strip() or DEFAULT_MODEL_DEEP
+
+
+def model_fallback() -> str:
+    """V5-G2 FREE-chain fallback — one more shot before the honest busy copy."""
+    return (os.environ.get("VILMEI_AI_MODEL_FALLBACK") or "").strip() or DEFAULT_MODEL_FALLBACK
 
 
 def _request(url: str, payload: dict, key: str, accept: str) -> urllib.request.Request:

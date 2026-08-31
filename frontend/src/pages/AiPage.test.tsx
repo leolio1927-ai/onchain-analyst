@@ -111,3 +111,51 @@ describe('AiPage — live streaming', () => {
     await waitFor(() => expect(document.body.textContent).toContain('AI budget busy — try again in a minute'))
   })
 })
+
+/* ── V5-G2: fast lane ─────────────────────────────────────────────────── */
+
+describe('AiPage — V5-G2 fast lane', () => {
+  it('shows the REAL first-byte (TTFB) chip once the first event lands', async () => {
+    const d = deferredStream()
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(d.stream, { status: 200 })))
+    render(<AiPage />)
+    fireEvent.click(screen.getByRole('button', { name: 'Explain Score' }))
+    d.push(PROV)
+    d.push(delta('fast '))
+    await waitFor(() => expect(document.body.textContent).toContain('fast '))
+    d.push(USAGE)
+    d.push('data: [DONE]\n\n')
+    d.close()
+    await waitFor(() => expect(document.body.textContent).toMatch(/first byte \d+ms/))
+  })
+
+  it('unmount aborts the open stream — no orphan reader survives the page', async () => {
+    let aborted = false
+    const d = deferredStream()
+    vi.stubGlobal('fetch', vi.fn(async (_input: unknown, init?: { signal?: AbortSignal }) => {
+      init?.signal?.addEventListener('abort', () => { aborted = true })
+      return new Response(d.stream, { status: 200 })
+    }) as unknown as typeof fetch)
+    const { unmount } = render(<AiPage />)
+    fireEvent.click(screen.getByRole('button', { name: 'Explain Score' }))
+    d.push(PROV)
+    await waitFor(() => expect(document.body.textContent).toContain('moonshotai/kimi-k3'))
+    expect(aborted).toBe(false)
+    unmount()
+    expect(aborted).toBe(true)
+  })
+
+  it('an in-stream error renders the honest UPSTREAM panel — never silent loading', async () => {
+    const d = deferredStream()
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(d.stream, { status: 200 })))
+    render(<AiPage />)
+    fireEvent.click(screen.getByRole('button', { name: 'Explain Score' }))
+    d.push(PROV)
+    d.push('data: {"type":"error","kind":"cooldown","detail":"VILMEI AI is paused for a moment — the free tier is stalling right now, so the terminal skips the wait instead of loading. Try again in a minute; everything else stays live. (pause 57s)"}\n\n')
+    d.push('data: [DONE]\n\n')
+    d.close()
+    await waitFor(() => expect(document.body.textContent).toContain('UPSTREAM'))
+    await waitFor(() => expect(document.body.textContent).toContain('paused for a moment'))
+    await waitFor(() => expect(document.body.textContent).toContain('first byte'))
+  })
+})

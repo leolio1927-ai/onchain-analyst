@@ -51,6 +51,7 @@ type AiPageStatus =
   | { kind: 'streaming' }
   | { kind: 'done' }
   | { kind: 'http-error'; status: number; message: string }
+  | { kind: 'stream-error'; message: string }
   | { kind: 'network-error'; message: string }
 
 function AiStatusPanel({ status }: { status: AiPageStatus }) {
@@ -66,6 +67,15 @@ function AiStatusPanel({ status }: { status: AiPageStatus }) {
         {offline && (
           <div className="s">The rest of the terminal stays live — scans, rug check, whale feed and prices do not need the AI key.</div>
         )}
+      </div>
+    )
+  }
+  if (status.kind === 'stream-error') {
+    return (
+      <div className="ai-status-panel" style={{ borderColor: 'rgba(251,191,36,.4)' }}>
+        <div className="t" style={{ color: '#fbbf24' }}>UPSTREAM</div>
+        <div className="m">{status.message}</div>
+        <div className="s">The first byte arrived instantly — the free tier itself stalled. Nothing is loading silently; the rest of the terminal stays live.</div>
       </div>
     )
   }
@@ -90,9 +100,14 @@ export function AiPage() {
   const [log, setLog] = useState<GroundingRow[]>([])
   const [note, setNote] = useState<string | null>(null)
   const [elapsedMs, setElapsedMs] = useState<number | null>(null)
+  const [ttfbMs, setTtfbMs] = useState<number | null>(null)
   const ctrlRef = useRef<AbortController | null>(null)
   const startRef = useRef(0)
   const idRef = useRef(0)
+
+  /* V5-G2: leaving the page kills the stream — no orphan reader keeps
+     burning a server slot after the surface is gone. */
+  useEffect(() => () => ctrlRef.current?.abort(), [])
 
   const ask = async (raw: string, askMode: AiMode) => {
     const q = raw.trim()
@@ -100,7 +115,7 @@ export function AiPage() {
     ctrlRef.current?.abort()
     const ctrl = new AbortController()
     ctrlRef.current = ctrl
-    setAnswer(''); setProvenance(null); setNote(null); setElapsedMs(null)
+    setAnswer(''); setProvenance(null); setNote(null); setElapsedMs(null); setTtfbMs(null)
     setStatus({ kind: 'connecting' })
     /* P1: identity captured ATOMICALLY at ask-time — a newer applySwapToken
        bumps the generation and every later event for this run is dropped. */
@@ -117,19 +132,21 @@ export function AiPage() {
     let dropped = false
     let interrupted = false
     try {
+      let firstByte = true
       await askAiStream(req, (e) => {
         if (getGeneration() !== gen) {
           dropped = true
           ctrl.abort()
           return
         }
+        if (firstByte) { firstByte = false; setTtfbMs(Math.round(performance.now() - startRef.current)) }
         if (e.type === 'provenance') { got.prov = e; setProvenance(e) }
         else if (e.type === 'delta') {
           text += e.text
           setAnswer(text)
           setStatus({ kind: 'streaming' })
         } else if (e.type === 'usage') { got.usg = e }
-        else if (e.type === 'error') { interrupted = true; setNote(e.detail) }
+        else if (e.type === 'error') { interrupted = true; setNote(e.detail); setStatus({ kind: 'stream-error', message: e.detail }) }
       }, ctrl.signal)
       if (dropped) {
         setStatus({ kind: 'idle' })
@@ -150,7 +167,9 @@ export function AiPage() {
         if (p) rememberAnswer(answerKey(p.chain, p.tokenAddress, q),
           { text, provenance: provDone, usage: usgDone, interrupted })
       }
-      setStatus({ kind: 'done' })
+      /* an interrupted answer keeps its honest error panel — 'done' would
+         paint a happy end over a stream that actually died (V5-G2). */
+      if (!interrupted) setStatus({ kind: 'done' })
     } catch (err) {
       if (dropped) {
         setStatus({ kind: 'idle' })
@@ -213,6 +232,11 @@ export function AiPage() {
                 <span className="prov-chip">{provenance.mode.toUpperCase()}</span>
                 <span className="prov-chip">{provenance.persona.toUpperCase()}</span>
                 {provenance.cached && <span className="prov-chip">CACHED</span>}
+                {ttfbMs != null && (
+                  <span className="prov-chip" style={{ fontVariantNumeric: 'tabular-nums' }} title="time to the first real byte of this answer">
+                    · first byte {ttfbMs}ms
+                  </span>
+                )}
                 {elapsedMs != null && (
                   <span className="prov-chip" style={{ fontVariantNumeric: 'tabular-nums' }}>
                     {(elapsedMs / 1000).toFixed(1)}s{provenance.mode === 'deep' ? ' · deep' : ''}

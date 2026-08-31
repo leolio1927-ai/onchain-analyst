@@ -179,7 +179,9 @@ def test_analyst_evidence_in_system_prompt(monkeypatch, client):
     assert r.status_code == 200
     ev = _events(r.text)
     assert ev[0]["persona"] == "analyst"
-    assert "scan:heuristics" in ev[0]["evidence_sources"]
+    # V5-G2: chunk-0 flushes before evidence assembly; the second provenance
+    # carries the real evidence sources the answer was grounded in
+    assert "scan:heuristics" in ev[1]["evidence_sources"]
     system = calls["messages"][0]["content"]
     assert "EVIDENCE" in system
     assert '"risk_score":68' in system.replace(" ", "").replace("\\n", "") or "68" in system
@@ -196,7 +198,10 @@ def test_identical_question_served_from_cache(monkeypatch, client):
     assert r1.status_code == 200 and r2.status_code == 200
     assert calls["n"] == 1  # free-tier credits burned exactly once
     ev2 = _events(r2.text)
-    assert ev2[0]["cached"] is True
+    # V5-G2: ev[0] is the instant chunk-0 flush (cached:false); the real
+    # cached provenance follows before the delta
+    assert ev2[0]["type"] == "provenance" and ev2[0]["cached"] is False
+    assert ev2[1]["cached"] is True
     deltas = [e for e in ev2 if isinstance(e, dict) and e.get("type") == "delta"]
     assert "".join(d["text"] for d in deltas) == "cached answer"
 
@@ -306,3 +311,116 @@ def test_evidence_truncation_is_loud():
     out = ai_ask.truncate_evidence(big)
     assert len(out) <= ai_ask.EVIDENCE_MAX_CHARS + 200
     assert "EVIDENCE TRUNCATED" in out
+
+
+# ── V5-G2 fast lane ───────────────────────────────────────────────────────
+
+def test_provenance_flushes_before_the_open(monkeypatch, client):
+    """S-fix proof: chunk-0 leaves BEFORE upstream is touched — a stalled
+    plane can no longer hold the first byte hostage."""
+    import time
+
+    seen: dict = {"first_line": None, "open_at": None}
+
+    def slow_open(messages, *, model, **kw):
+        seen["open_at"] = "called"
+        time.sleep(0.4)                     # a plane that stalls
+        return FakeStream(_sse_lines(["late"]))
+    monkeypatch.setattr(nvidia, "open_stream", slow_open)
+    with client.stream("POST", "/api/v1/ai/ask",
+                       json={"question": "What is VILMEI?"}) as r:
+        first = next(line for line in r.iter_lines() if line.startswith("data:"))
+    seen["first_line"] = first
+    ev = json.loads(first[5:])
+    assert ev["type"] == "provenance" and ev["model"] == nvidia.DEFAULT_MODEL_FREE
+    assert seen["open_at"] == "called"      # the open ran, but only AFTER the flush
+
+
+def test_free_failure_falls_back_then_errors_honestly(monkeypatch, client):
+    """flash stalls → fallback model gets one 10s shot → both dead = honest
+    in-stream error + [DONE], never a hang; the circuit counts the loss."""
+    ai_ask._reset_circuit_for_tests()
+    models: list[str] = []
+
+    def dead_open(messages, *, model, **kw):
+        models.append(model)
+        raise nvidia.NvidiaError("timeout", "upstream stream-open timeout after 10s")
+
+    monkeypatch.setattr(nvidia, "open_stream", dead_open)
+    r = client.post("/api/v1/ai/ask", json={"question": "What is VILMEI?"})
+    assert r.status_code == 200
+    ev = _events(r.text)
+    assert ev[0]["type"] == "provenance"
+    err = next(e for e in ev if isinstance(e, dict) and e.get("type") == "error")
+    assert err["kind"] == "timeout" and "timed out" in err["detail"]
+    assert ev[-1] == "DONE"
+    assert models == [nvidia.DEFAULT_MODEL_FREE, nvidia.model_fallback()]
+    assert ai_ask.circuit_blocked_s() == 0.0   # one loss ≠ cooldown yet
+
+
+def test_two_losses_trip_the_cooldown_and_short_circuit(monkeypatch, client):
+    """2 consecutive dead opens → 60s cooldown → the third ask NEVER reaches
+    upstream: instant degraded provenance + honest busy copy, no charge."""
+    ai_ask._reset_circuit_for_tests()
+    calls = {"n": 0}
+
+    def dead_open(messages, *, model, **kw):
+        calls["n"] += 1
+        raise nvidia.NvidiaError("timeout", "stalled")
+
+    monkeypatch.setattr(nvidia, "open_stream", dead_open)
+    for _ in range(2):
+        client.post("/api/v1/ai/ask", json={"question": f"What is VILMEI? {_}"})
+    assert calls["n"] == 4                    # 2 asks × (primary + fallback)
+    assert ai_ask.circuit_blocked_s() > 0
+    r = client.post("/api/v1/ai/ask", json={"question": "still there?"})
+    ev = _events(r.text)
+    assert calls["n"] == 4                     # short-circuit: zero new opens
+    assert ev[0]["degraded"] is True
+    err = next(e for e in ev if isinstance(e, dict) and e.get("type") == "error")
+    assert err["kind"] == "cooldown" and "paused" in err["detail"]
+    assert ev[-1] == "DONE"
+
+
+def test_success_resets_the_circuit(monkeypatch, client):
+    ai_ask._reset_circuit_for_tests()
+    calls = _install_stream(monkeypatch, _sse_lines(["ok"]))
+    ai_ask.circuit_note(ok=False)              # one prior loss
+    client.post("/api/v1/ai/ask", json={"question": "What is VILMEI?"})
+    assert ai_ask.circuit_blocked_s() == 0.0 and ai_ask._circuit["fails"] == 0
+    assert calls["n"] == 1
+
+
+def test_deep_gets_no_fallback(monkeypatch, client):
+    models: list[str] = []
+
+    def dead_open(messages, *, model, **kw):
+        models.append(model)
+        raise nvidia.NvidiaError("timeout", "stalled")
+
+    monkeypatch.setattr(nvidia, "open_stream", dead_open)
+    r = client.post("/api/v1/ai/ask",
+                    json={"question": "What is VILMEI?", "mode": "deep"})
+    ev = _events(r.text)
+    err = next(e for e in ev if isinstance(e, dict) and e.get("type") == "error")
+    assert err["kind"] == "timeout"
+    assert models == [nvidia.DEFAULT_MODEL_DEEP]   # one 25s shot, no chain
+
+
+def test_fallback_answer_relabels_provenance(monkeypatch, client):
+    """Label law: if the fallback model answers, the chip must say so."""
+    ai_ask._reset_circuit_for_tests()
+
+    def open_picking(messages, *, model, **kw):
+        if model == nvidia.DEFAULT_MODEL_FREE:
+            raise nvidia.NvidiaError("timeout", "stalled")
+        return FakeStream(_sse_lines(["from fallback"]))
+
+    monkeypatch.setattr(nvidia, "open_stream", open_picking)
+    r = client.post("/api/v1/ai/ask", json={"question": "What is VILMEI?"})
+    ev = _events(r.text)
+    provs = [e for e in ev if isinstance(e, dict) and e.get("type") == "provenance"]
+    assert provs[0]["model"] == nvidia.DEFAULT_MODEL_FREE
+    assert provs[-1]["model"] == nvidia.model_fallback()
+    deltas = [e for e in ev if isinstance(e, dict) and e.get("type") == "delta"]
+    assert "".join(d["text"] for d in deltas) == "from fallback"

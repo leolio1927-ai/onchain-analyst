@@ -117,13 +117,14 @@ def clamp_history(history: list[dict]) -> list[dict]:
     return out
 
 
-def truncate_evidence(evidence: dict) -> str:
+def truncate_evidence(evidence: dict, max_chars: int = EVIDENCE_MAX_CHARS) -> str:
     """Evidence JSON → verbatim string, hard-clamped with a visible note so
-    the model knows it is looking at a truncated record."""
+    the model knows it is looking at a truncated record. V5-G2: FREE rides
+    the default 6 000-char cap (~1.5k tokens); DEEP may carry twice that."""
     raw = json.dumps(evidence, ensure_ascii=False, separators=(",", ":"))
-    if len(raw) <= EVIDENCE_MAX_CHARS:
+    if len(raw) <= max_chars:
         return raw
-    return raw[:EVIDENCE_MAX_CHARS] + ',"_note":"EVIDENCE TRUNCATED BY THE TERMINAL — fields beyond this point were cut for size; never invent what they might have said"}'
+    return raw[:max_chars] + ',"_note":"EVIDENCE TRUNCATED BY THE TERMINAL — fields beyond this point were cut for size; never invent what they might have said"}'
 
 
 def evidence_digest(evidence: dict | None) -> str:
@@ -224,6 +225,40 @@ def _reset_budget_state_for_tests() -> None:
     with _LOCK:
         _ip_window.clear()
         _daily = {}
+
+
+# ── V5-G2 short-circuit: 2 consecutive open failures → 60 s cooldown ──────
+# Founder law: "respon cepet, jangan loading." When the free plane stalls
+# (G0: flash AND kimi both 0-byte), every further ask would burn a 10 s +
+# 10 s open budget just to fail. The circuit skips upstream entirely and
+# answers instantly with the honest busy sentence; first success resets it.
+
+CIRCUIT_FAILS_BEFORE_COOLDOWN = 2
+CIRCUIT_COOLDOWN_S = 60.0
+BUSY_COPY = ("VILMEI AI is paused for a moment — the free tier is stalling "
+             "right now, so the terminal skips the wait instead of loading. "
+             "Try again in a minute; everything else stays live.")
+
+_circuit: dict = {"fails": 0, "cooldown_until": 0.0}
+
+
+def circuit_blocked_s() -> float:
+    """Seconds left on the cooldown; 0.0 means the door may try upstream."""
+    return max(0.0, _circuit["cooldown_until"] - time.time())
+
+
+def circuit_note(ok: bool) -> None:
+    if ok:
+        _circuit["fails"] = 0
+        _circuit["cooldown_until"] = 0.0
+        return
+    _circuit["fails"] += 1
+    if _circuit["fails"] >= CIRCUIT_FAILS_BEFORE_COOLDOWN:
+        _circuit["cooldown_until"] = time.time() + CIRCUIT_COOLDOWN_S
+
+
+def _reset_circuit_for_tests() -> None:
+    _circuit.update(fails=0, cooldown_until=0.0)
 
 
 # ── answer cache ──────────────────────────────────────────────────────────

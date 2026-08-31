@@ -501,6 +501,15 @@ async def api_explain(body: ExplainBody, request: Request) -> dict:
 
 _AI_SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
 
+# ── V5-G2 fast lane: the founder asked for fast answers, not loading ──────
+# FREE gets a 10 s open budget + one fallback model; DEEP may reason for 25 s.
+# STREAM_OPEN_TIMEOUT_S stays the probe-observed ceiling — per-call timeouts
+# below are what actually bound a user-visible wait.
+_AI_FREE_OPEN_TIMEOUT_S = 10.0
+_AI_DEEP_OPEN_TIMEOUT_S = 25.0
+_AI_FREE_MAX_TOKENS = 900          # routing spec: flash answers fast and short
+_AI_DEEP_EVIDENCE_CHARS = 12000    # deep may carry a richer evidence block
+
 
 def _ai_upstream_error_text(e: nvidia.NvidiaError) -> str:
     if e.kind == "rate_limited":
@@ -508,14 +517,6 @@ def _ai_upstream_error_text(e: nvidia.NvidiaError) -> str:
     if e.kind == "timeout":
         return "VILMEI AI upstream timed out — the free tier runs slow right now; try again"
     return f"VILMEI AI upstream error — {e.detail[:160] or 'unknown'}"
-
-
-def _ai_http_error(e: nvidia.NvidiaError) -> HTTPException:
-    if e.kind == "rate_limited":
-        return HTTPException(429, _ai_upstream_error_text(e))
-    if e.kind == "timeout":
-        return HTTPException(504, _ai_upstream_error_text(e))
-    return HTTPException(502, _ai_upstream_error_text(e))
 
 
 async def _ai_collect(resp) -> tuple[str, dict | None, bool]:
@@ -585,10 +586,35 @@ async def _ai_evidence(chain: str, token: str) -> tuple[dict, list[str]]:
     return ev, sources
 
 
-async def _ai_stream(resp, cache_key_: str, model: str, mode: str,
-                     persona: str, sources: list[str]):
-    yield ai_ask.provenance_event(model=model, mode=mode, persona=persona,
-                                  cached=False, evidence_sources=sources)
+async def _ai_open_with_fallback(messages: list[dict], *, model: str, mode: str,
+                                 max_tokens: int, temperature: float,
+                                 extra: dict | None):
+    """V5-G2: open the SSE stream with per-mode fast budgets and a FREE-tier
+    fallback chain (primary 10 s → fallback 10 s → None). DEEP gets one 25 s
+    shot — deep may be slow, free may not. Returns (resp | None, model_used,
+    NvidiaError of the LAST attempt | None); never raises."""
+    timeout = _AI_DEEP_OPEN_TIMEOUT_S if mode == "deep" else _AI_FREE_OPEN_TIMEOUT_S
+    try:
+        resp = await asyncio.to_thread(nvidia.open_stream, messages, model=model,
+                                       max_tokens=max_tokens, temperature=temperature,
+                                       extra=extra, timeout=timeout)
+        return resp, model, None
+    except nvidia.NvidiaError as primary_err:
+        if mode == "deep":
+            return None, model, primary_err
+        fallback = nvidia.model_fallback()
+        try:
+            resp = await asyncio.to_thread(nvidia.open_stream, messages, model=fallback,
+                                           max_tokens=max_tokens, temperature=temperature,
+                                           extra=extra, timeout=_AI_FREE_OPEN_TIMEOUT_S)
+            return resp, fallback, None
+        except nvidia.NvidiaError:
+            return None, model, primary_err
+
+
+async def _ai_relay(resp, cache_key_: str):
+    """Read one open upstream stream → delta/usage/[DONE] events. Provenance
+    is yielded by the caller BEFORE the open, so it is not repeated here."""
     parts: list[str] = []
     usage: dict | None = None
     errored = False
@@ -624,13 +650,65 @@ async def _ai_stream(resp, cache_key_: str, model: str, mode: str,
     yield "data: [DONE]\n\n"
 
 
-async def _ai_cached_stream(text: str, model: str, mode: str, persona: str,
-                            sources: list[str]):
+async def _ai_ask_lazy(*, question: str, history: list[dict], persona: str,
+                       chain: str, token: str, mode: str, model: str):
+    """V5-G2: chunk-0 provenance flushes BEFORE anything slow — evidence
+    assembly, cache lookup, and the upstream open all happen inside the
+    stream, so the founder sees words in <300 ms even when the free tier
+    stalls. A second provenance (real evidence sources + the model that
+    actually answered) follows before the first delta; the FE chips read the
+    latest one (label law intact)."""
     yield ai_ask.provenance_event(model=model, mode=mode, persona=persona,
-                                  cached=True, evidence_sources=sources)
-    yield ai_ask.sse({"type": "delta", "text": text})
-    yield ai_ask.sse({"type": "usage", "prompt_tokens": None,
-                      "completion_tokens": None, "total_tokens": None, "cached": True})
+                                  cached=False, evidence_sources=[])
+    sources: list[str] = []
+    evidence: dict | None = None
+    if persona == "analyst":
+        evidence, sources = await _ai_evidence(chain, token)
+    evidence_json = (ai_ask.truncate_evidence(evidence,
+                                              max_chars=_AI_DEEP_EVIDENCE_CHARS)
+                     if evidence and mode == "deep"
+                     else ai_ask.truncate_evidence(evidence) if evidence else None)
+    digest = ai_ask.evidence_digest(evidence)
+    ckey = ai_ask.cache_key(question, mode, model, persona, digest)
+    cached = ai_ask.cache_get(ckey)
+    if cached is not None:
+        yield ai_ask.provenance_event(model=model, mode=mode, persona=persona,
+                                      cached=True, evidence_sources=sources)
+        yield ai_ask.sse({"type": "delta", "text": cached})
+        yield ai_ask.sse({"type": "usage", "prompt_tokens": None,
+                          "completion_tokens": None, "total_tokens": None,
+                          "cached": True})
+        yield "data: [DONE]\n\n"
+        return
+    messages = ai_ask.build_messages(persona=persona, question=question,
+                                     history=history, evidence_json=evidence_json)
+    deep = mode == "deep"
+    effort = (os.environ.get("VILMEI_AI_REASONING_EFFORT") or "").strip()
+    extra = {"reasoning_effort": effort} if deep and effort else None
+    resp, model_used, err = await _ai_open_with_fallback(
+        messages, model=model, mode=mode,
+        max_tokens=1600 if deep else _AI_FREE_MAX_TOKENS,
+        temperature=0.3, extra=extra)
+    if resp is None:
+        ai_ask.circuit_note(ok=False)
+        yield ai_ask.provenance_event(model=model, mode=mode, persona=persona,
+                                      cached=False, evidence_sources=sources)
+        yield ai_ask.sse({"type": "error", "kind": getattr(err, "kind", "upstream_error"),
+                          "detail": _ai_upstream_error_text(err)})
+        yield "data: [DONE]\n\n"
+        return
+    ai_ask.circuit_note(ok=True)
+    yield ai_ask.provenance_event(model=model_used, mode=mode, persona=persona,
+                                  cached=False, evidence_sources=sources)
+    async for event in _ai_relay(resp, ckey):
+        yield event
+
+
+async def _ai_degraded_stream(detail: str, *, model: str, mode: str, persona: str):
+    """Short-circuit path: upstream skipped, honest sentence, <300 ms."""
+    yield ai_ask.provenance_event(model=model, mode=mode, persona=persona,
+                                  cached=False, degraded=True)
+    yield ai_ask.sse({"type": "error", "kind": "cooldown", "detail": detail})
     yield "data: [DONE]\n\n"
 
 
@@ -656,38 +734,29 @@ async def api_ai_ask(body: AiAskBody, request: Request):
         raise HTTPException(400, f"analyst persona needs chain ({'|'.join(sorted(geckoterminal.NETWORKS))}) + token — or ask the guide")
     if not nvidia.api_key():
         raise HTTPException(503, "VILMEI AI offline — NVIDIA_API_KEY not set (founder config)")
+    # V5-G2 short-circuit BEFORE the charge: a skipped upstream burns none of
+    # the founder's budget — speed wins over insisting on a stalled plane.
+    if (left := ai_ask.circuit_blocked_s()) > 0:
+        return StreamingResponse(
+            _ai_degraded_stream(f"{ai_ask.BUSY_COPY} (pause {left:.0f}s)",
+                                model=nvidia.model_free() if body.mode == "free"
+                                else nvidia.model_deep(),
+                                mode=body.mode, persona=persona),
+            media_type="text/event-stream", headers=_AI_SSE_HEADERS)
     ip = request.client.host if request.client else "unknown"
     ok, reason = ai_ask.charge(ip, body.surface)
     if not ok:
         raise HTTPException(429, ai_ask.DAILY_SPENT_COPY if reason == "daily"
                             else ai_ask.BUDGET_BUSY_COPY)
     model = nvidia.model_deep() if body.mode == "deep" else nvidia.model_free()
-    evidence: dict | None = None
-    sources: list[str] = []
-    if persona == "analyst":
-        evidence, sources = await _ai_evidence(chain, token)
-    evidence_json = ai_ask.truncate_evidence(evidence) if evidence else None
-    digest = ai_ask.evidence_digest(evidence)
-    ckey = ai_ask.cache_key(question, body.mode, model, persona, digest)
-    cached = ai_ask.cache_get(ckey)
-    if cached is not None:
-        return StreamingResponse(_ai_cached_stream(cached, model, body.mode, persona, sources),
-                                 media_type="text/event-stream", headers=_AI_SSE_HEADERS)
-    messages = ai_ask.build_messages(persona=persona, question=question,
-                                     history=[t.model_dump() for t in body.history],
-                                     evidence_json=evidence_json)
-    deep = body.mode == "deep"
-    effort = (os.environ.get("VILMEI_AI_REASONING_EFFORT") or "").strip()
-    extra = {"reasoning_effort": effort} if deep and effort else None
-    try:
-        resp = await asyncio.to_thread(nvidia.open_stream, messages, model=model,
-                                       max_tokens=1600 if deep else 700,
-                                       temperature=0.3, extra=extra,
-                                       timeout=nvidia.STREAM_OPEN_TIMEOUT_S)
-    except nvidia.NvidiaError as e:
-        raise _ai_http_error(e) from e
-    return StreamingResponse(_ai_stream(resp, ckey, model, body.mode, persona, sources),
-                             media_type="text/event-stream", headers=_AI_SSE_HEADERS)
+    # V5-G2: evidence + cache + the open all ride INSIDE the stream, after
+    # chunk-0 provenance — no path keeps the first byte waiting on upstream.
+    return StreamingResponse(
+        _ai_ask_lazy(question=question,
+                     history=[t.model_dump() for t in body.history],
+                     persona=persona, chain=chain, token=token,
+                     mode=body.mode, model=model),
+        media_type="text/event-stream", headers=_AI_SSE_HEADERS)
 
 
 @app.post("/api/v1/whale", response_model=schemas.WhaleResponse, tags=["whale"])
@@ -1285,6 +1354,10 @@ async def _mcp_ai_ask(a: dict) -> dict:
         raise ValueError(f"ai_ask: analyst needs chain ({'|'.join(sorted(geckoterminal.NETWORKS))}) + token — or drop them and ask the guide")
     if not nvidia.api_key():
         raise ValueError("VILMEI AI offline — NVIDIA_API_KEY not set (founder config)")
+    # V5-G2: same short-circuit + fast budgets as the REST door — one lane,
+    # one law. A cooldown skip burns no MCP budget either.
+    if (left := ai_ask.circuit_blocked_s()) > 0:
+        raise ValueError(f"{ai_ask.BUSY_COPY} (pause {left:.0f}s)")
     ok, reason = ai_ask.charge(_MCP_CLIENT_HOST.get(), "terminal")
     if not ok:
         raise ValueError(ai_ask.DAILY_SPENT_COPY if reason == "daily"
@@ -1294,7 +1367,10 @@ async def _mcp_ai_ask(a: dict) -> dict:
     sources: list[str] = []
     if persona == "analyst":
         evidence, sources = await _ai_evidence(chain, token)
-    evidence_json = ai_ask.truncate_evidence(evidence) if evidence else None
+    evidence_json = (ai_ask.truncate_evidence(evidence,
+                                              max_chars=_AI_DEEP_EVIDENCE_CHARS)
+                     if evidence and mode == "deep"
+                     else ai_ask.truncate_evidence(evidence) if evidence else None)
     digest = ai_ask.evidence_digest(evidence)
     ckey = ai_ask.cache_key(question, mode, model, persona, digest)
     cached = ai_ask.cache_get(ckey)
@@ -1308,13 +1384,16 @@ async def _mcp_ai_ask(a: dict) -> dict:
     deep = mode == "deep"
     effort = (os.environ.get("VILMEI_AI_REASONING_EFFORT") or "").strip()
     extra = {"reasoning_effort": effort} if deep and effort else None
-    try:
-        resp = await asyncio.to_thread(nvidia.open_stream, messages, model=model,
-                                       max_tokens=1600 if deep else 700,
-                                       temperature=0.3, extra=extra,
-                                       timeout=nvidia.STREAM_OPEN_TIMEOUT_S)
-    except nvidia.NvidiaError as e:
-        raise ValueError(_ai_upstream_error_text(e)) from e
+    resp, model_used, open_err = await _ai_open_with_fallback(
+        messages, model=model, mode=mode,
+        max_tokens=1600 if deep else _AI_FREE_MAX_TOKENS,
+        temperature=0.3, extra=extra)
+    if resp is None:
+        ai_ask.circuit_note(ok=False)
+        raise ValueError(_ai_upstream_error_text(open_err) if open_err
+                         else "VILMEI AI upstream failed to open a stream")
+    ai_ask.circuit_note(ok=True)
+    model = model_used
     try:
         text, usage, errored = await _ai_collect(resp)
     finally:
