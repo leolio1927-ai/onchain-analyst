@@ -70,7 +70,7 @@ def _get(path: str) -> dict:
     url = f"{_BASES['base']}{path}"
     for attempt in (1, 2):
         req = urllib.request.Request(url, headers={
-            "User-Agent": "terminal-alpha/0.1",   # mandatory: CF 403 without it
+            "User-Agent": "vilmei/2.0",   # mandatory: CF 403 without it
             "Accept": "application/json"})
         try:
             with urllib.request.urlopen(req, timeout=_TIMEOUT_S) as r:

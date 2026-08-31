@@ -10,7 +10,7 @@
 import { useMemo, useState } from 'react'
 import { classifyQuery, fetchDetect } from '../lib/detect'
 import type { DetectCandidate } from '../lib/detect'
-import { fetchSwapQuote } from '../services/dexscreener'
+import { fetchSwapQuote, ageOf } from '../services/dexscreener'
 import type { SwapQuote } from '../services/dexscreener'
 import { RiskBadge, RiskDisplay } from '../components/RiskDisplay'
 import type { RiskVerdict } from '../components/RiskDisplay'
@@ -54,6 +54,83 @@ function rugVerdict(level: 'low' | 'medium' | 'high' | 'nodata', score: number |
   return { level, score, label }
 }
 
+/* ── R1 (PROMPT-V3): never-red 3-layer result contract ─────────────────
+   Layer 1 = chain chip · Layer 2 = provider chips (OK/PARTIAL/NO COVERAGE) ·
+   Layer 3 = universal market signals (ALWAYS shown). Empty ≠ red: a provider
+   with no row is PARTIAL, never an error. Coverage below was verified live
+   2026-08-31 (mandate-0-V3): RugCheck is sol-only; GoPlus serves bnb/base
+   (live) and Robinhood chain 4663 (served, but no verified populated row yet
+   → PARTIAL), while HyperEVM chain 999 → GoPlus code 2022 "not supported". */
+type Cov = 'ok' | 'partial' | 'none'
+interface CovRow { chain: string; label: string; rugcheck: Cov; goplus: Cov; gt: Cov }
+const COVERAGE: CovRow[] = [
+  { chain: 'sol',  label: 'Solana',    rugcheck: 'ok',   goplus: 'none',    gt: 'ok' },
+  { chain: 'bnb',  label: 'BNB',       rugcheck: 'none', goplus: 'ok',      gt: 'ok' },
+  { chain: 'base', label: 'Base',      rugcheck: 'none', goplus: 'ok',      gt: 'ok' },
+  { chain: 'hype', label: 'HyperEVM',  rugcheck: 'none', goplus: 'none',    gt: 'ok' },
+  { chain: 'hood', label: 'Robinhood', rugcheck: 'none', goplus: 'partial', gt: 'ok' },
+]
+const COV_LABEL: Record<Cov, string> = { ok: 'OK', partial: 'PARTIAL', none: 'NO COVERAGE' }
+const COV_TIP: Record<Cov, string> = {
+  ok: 'provider returned a populated, verbatim result for this chain',
+  partial: 'provider serves this chain but returned no populated row for this token — empty is a fact, not an error',
+  none: 'no free provider indexes this chain yet — the market signals below are still live',
+}
+
+function CovChip({ name, cov }: { name: string; cov: Cov }) {
+  return (
+    <span className={`v2-chip mono cov-${cov}`} title={`${name}: ${COV_TIP[cov]}`} data-cov={cov}>
+      {name} · {COV_LABEL[cov]}
+    </span>
+  )
+}
+
+/* Layer 3 — universal market signals. Rendered on EVERY chain, even where the
+   rug signal set is limited: the $0 market feed (same one the swap surface
+   uses) always answers. FEE shows a dash because that feed does not expose the
+   pool fee tier — a dash is the honest value, never a fabricated number. */
+function SignalsPanel({ q }: { q: SwapQuote | null }) {
+  const cells = [
+    { l: 'PRICE', v: q?.priceUsd != null ? `$${q.priceUsd}` : '—' },
+    { l: 'LIQUIDITY', v: q ? `$${fmtC(q.liq)}` : '—' },
+    { l: 'DEX', v: q?.dexId ?? '—' },
+    { l: 'VOLUME 24H', v: q?.vol24 != null ? `$${fmtC(q.vol24)}` : '—' },
+    { l: 'AGE', v: q?.pairCreatedAt ? ageOf(q.pairCreatedAt) : '—' },
+    { l: 'FEE', v: '—' },
+  ]
+  return (
+    <div className="v2-grid3" data-testid="rug-signals">
+      {cells.map((c) => <div key={c.l}><span className="l">{c.l}</span><b className="mono">{c.v}</b></div>)}
+    </div>
+  )
+}
+
+/* provider × chain matrix, rendered ON-PAGE (parity + honesty in one table) */
+function MatrixTable() {
+  return (
+    <div style={{ overflowX: 'auto' }} data-testid="rug-matrix">
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+        <thead><tr className="mono dim" style={{ textAlign: 'left' }}>
+          <th style={{ padding: '4px 8px' }}>CHAIN</th>
+          <th style={{ padding: '4px 8px' }}>RUGCHECK</th>
+          <th style={{ padding: '4px 8px' }}>GOPLUS</th>
+          <th style={{ padding: '4px 8px' }}>MARKET (GT)</th>
+        </tr></thead>
+        <tbody>
+          {COVERAGE.map((r) => (
+            <tr key={r.chain} style={{ borderTop: '1px solid var(--border-soft)' }}>
+              <td style={{ padding: '5px 8px' }}><b className="mono">{r.chain.toUpperCase()}</b> <span className="dim">{r.label}</span></td>
+              <td style={{ padding: '5px 8px' }}><CovChip name="RugCheck" cov={r.rugcheck} /></td>
+              <td style={{ padding: '5px 8px' }}><CovChip name="GoPlus" cov={r.goplus} /></td>
+              <td style={{ padding: '5px 8px' }}><CovChip name="GT" cov={r.gt} /></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 /* ───────────────────────── RUG CHECK ───────────────────────── */
 export function RugCheckPageMulti() {
   const [chip, setChip] = useState<Chip>('AUTO')
@@ -61,6 +138,7 @@ export function RugCheckPageMulti() {
   const [resolved, setResolved] = useState<{ chain: string; note: string | null } | null>(null)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const [notFound, setNotFound] = useState(false)
   const [sol, setSol] = useState<Awaited<ReturnType<typeof solRug>> | null>(null)
   const [evm, setEvm] = useState<Awaited<ReturnType<typeof evmRug>> | null>(null)
   const [gt, setGt] = useState<SwapQuote | null>(null)
@@ -84,7 +162,7 @@ export function RugCheckPageMulti() {
 
   const run = async (chainOverride?: string) => {
     const q = addr.trim()
-    setErr(null); setCands(null); setSol(null); setEvm(null); setGt(null); setResolved(null)
+    setErr(null); setNotFound(false); setCands(null); setSol(null); setEvm(null); setGt(null); setResolved(null)
     if (!q) { setErr('paste a token address (CA) first'); return }
     const kind = classifyQuery(q)
     if (kind === 'invalid') { setErr('not a CA and not a $TICKER — 32-44 base58, 0x+40hex, or 1-24 chars'); return }
@@ -99,7 +177,7 @@ export function RugCheckPageMulti() {
           const real = det.candidates
           if (real.length === 1) { chain = real[0].chain; note = `chain resolved by detect: ${real[0].chain?.toUpperCase()} (deepest pool ${shorten(real[0].pair_address ?? '')})` }
           else if (real.length > 1) { setCands(real); setBusy(false); return }
-          else { setErr('Not found on the five live feeds — nothing to check, nothing invented.'); setBusy(false); return }
+          else { setNotFound(true); setBusy(false); return }
         } else { setErr('ticker detected — use the token scanner for tickers; paste a CA here'); setBusy(false); return }
       } else if (kind === 'base58' && chain !== 'sol') {
         note = `address is solana-shaped (base58) but you picked ${LABEL_OF[chain]} — suggesting SOL; running ${LABEL_OF[chain]} anyway, provider answers honestly`
@@ -108,10 +186,11 @@ export function RugCheckPageMulti() {
       }
       setResolved({ chain, note })
       if (chain === 'sol') setSol(await solRug(q))
-      else if (chain === 'bnb' || chain === 'base') setEvm(await evmRug(chain, q))
-      /* hype/hood: no $0 rug provider indexes them — never call rug/evm (a
-         400 would render as a red error); the honest limited panel below
-         carries the GT/DS market stats instead. */
+      else if (chain === 'bnb' || chain === 'base' || chain === 'hood') setEvm(await evmRug(chain, q))
+      /* hype: no $0 rug provider indexes it (GoPlus chain 999 → code 2022) —
+         never call rug/evm (a 400 would render as a red error). hood routes to
+         GoPlus (chain 4663); an empty row there is PARTIAL, not an error. The
+         universal signals panel below carries market stats on every chain. */
       const quote = await fetchSwapQuote(chain!, q)
       if (quote) setGt(quote)
     } catch (e) {
@@ -119,14 +198,17 @@ export function RugCheckPageMulti() {
     } finally { setBusy(false) }
   }
 
-  /* verdict per provider set (documented mapping — context, not audit) */
-  const verdict: RiskVerdict | null = useMemo(() => {
+  /* verdict per provider set (documented mapping — context, not audit).
+     Never null: hype has no provider, and GoPlus can return an empty row set
+     for a token it serves — both render an honest nodata medallion, because a
+     null verdict would hide the dial (empty ≠ hidden, empty ≠ red). */
+  const verdict: RiskVerdict = useMemo(() => {
     if (sol) {
       const n = sol.score_normalised
       const level = n == null ? 'nodata' : n <= 10 ? 'low' : n <= 40 ? 'medium' : 'high'
       return rugVerdict(level, sol.score_normalised, `RUGCHECK ${sol.score_normalised != null ? `· risk ${sol.score_normalised}/100` : ''}`)
     }
-    if (evm) {
+    if (evm && evm.rows.length) {
       const f = Object.fromEntries(evm.rows.map((r) => [r.field, r.value]))
       const honeypot = f.is_honeypot === 1 || f.is_honeypot === '1'
       const openSrc = f.is_open_source === 1 || f.is_open_source === '1'
@@ -134,8 +216,11 @@ export function RugCheckPageMulti() {
       const level = honeypot || tax > 0.1 ? 'high' : !openSrc || (f.is_mintable === 1) || tax > 0 ? 'medium' : 'low'
       return rugVerdict(level, null, `GOPLUS ${honeypot ? '· HONEYPOT' : openSrc ? '' : '· closed-source'}${tax > 0 ? ` · tax ${Math.round(tax * 100)}%` : ''}`)
     }
-    return null
-  }, [sol, evm])
+    const limited = resolved?.chain === 'hype'
+    return rugVerdict('nodata', null, limited
+      ? 'HYPE · SIGNAL SET LIMITED'
+      : 'NO SECURITY ROWS · MARKET SIGNALS ONLY')
+  }, [sol, evm, resolved])
 
   return (
     <div className="ta-page">
@@ -170,58 +255,71 @@ export function RugCheckPageMulti() {
       )}
       {resolved?.note && <div className="v2-note" role="status">{resolved.note}</div>}
       {err && <div className="v2-note err" role="alert">{err}</div>}
-
-      {/* honest limited panel — hype/hood: no $0 rug provider; GT/DS stats stay */}
-      {resolved && (resolved.chain === 'hype' || resolved.chain === 'hood') && (
-        <div className="v2-card">
-          <div className="v2-cardhead">
-            <b>RUG FLAGS — {LABEL_OF[resolved.chain].toUpperCase()}</b>
-            <RiskBadge level="nodata" label="SIGNAL SET LIMITED" />
-          </div>
-          <p className="dim" style={{ fontSize: 11.5 }}>
-            signal set limited: free coverage does not index this chain yet — indexed source on roadmap.
-          </p>
-          <div className="v2-grid3">
-            <div><span className="l">PRICE</span><b className="mono">{gt?.priceUsd != null ? `$${gt.priceUsd}` : '—'}</b></div>
-            <div><span className="l">LIQUIDITY</span><b className="mono">{gt ? `$${fmtC(gt.liq)}` : '—'}</b></div>
-            <div><span className="l">DEX</span><b className="mono">{gt?.dexId ?? '—'}</b></div>
-          </div>
-          <p className="dim" style={{ fontSize: 10.5 }}>liquidity/volume/age come from the same $0 feed as the swap surface — the rug signal set is the honest empty part.</p>
+      {notFound && (
+        <div className="v2-note" role="status" data-testid="rug-notfound">
+          No pool found for this address on any of the five live feeds — there is nothing to check and nothing was invented.{' '}
+          Try the <a href="#/scanner" className="mono">token scanner</a> for a ticker search, or double-check the address.
         </div>
       )}
 
-      {verdict && (
-        <div className="v2-card">
+      {/* R1 three-layer result — NEVER red. Layer 1 chain · Layer 2 provider
+          chips (OK/PARTIAL/NO COVERAGE) · Layer 3 universal market signals
+          (always shown). Empty ≠ red: a provider with no row is PARTIAL. */}
+      {resolved && (
+        <div className="v2-card" data-testid="rug-result">
           <div className="v2-cardhead">
-            <b>VERDICT — {evm?.token_symbol ?? 'SOL'} · {(resolved?.chain ?? '').toUpperCase()}</b>
+            <b>CHAIN · {LABEL_OF[resolved.chain].toUpperCase()}</b>
+            <span className="v2-candrow" data-testid="rug-provider-chips">
+              <CovChip name="RugCheck" cov={resolved.chain === 'sol' ? (sol ? 'ok' : 'partial') : 'none'} />
+              <CovChip name="GoPlus" cov={
+                resolved.chain === 'hype' || resolved.chain === 'sol' ? 'none'
+                  : evm ? (evm.rows.length ? 'ok' : 'partial') : 'partial'} />
+              <CovChip name="GT" cov="ok" />
+            </span>
+          </div>
+          <SignalsPanel q={gt} />
+          <div className="v2-cardhead" style={{ marginTop: 12 }}>
+            <b>VERDICT — {evm?.token_symbol ?? (resolved.chain === 'sol' ? 'SOL' : resolved.chain.toUpperCase())}</b>
+            {resolved.chain === 'hype' && <RiskBadge level="nodata" label="SIGNAL SET LIMITED" />}
             <span className="mono dim">context not audit</span>
           </div>
           <RiskDisplay verdict={{ ...verdict, rows: sol?.risks ?? evm?.rows.map((r) => ({
-            name: r.field, level: null, score: r.value, description: null })) ?? [] }} />
+            name: r.field, level: null, score: r.value, description: null })) ?? [] }}
+            seed={`rug:${resolved.chain}:${addr.trim()}`} />
           {sol && (
             <p className="dim" style={{ fontSize: 10.5 }}>
               LP locked {sol.lp_locked_pct != null ? `${Number(sol.lp_locked_pct).toFixed(1)}%` : '—'} · provider: RugCheck.xyz (server-proxied)
             </p>
           )}
-          {evm && (
+          {evm && evm.rows.length > 0 && (
             <p className="dim" style={{ fontSize: 10.5 }}>
               provider: GoPlus chain_id {evm.chain_id} — every row is the verbatim provider value (0/1 or string)
+            </p>
+          )}
+          {evm && evm.rows.length === 0 && (
+            <p className="dim" style={{ fontSize: 10.5 }}>
+              GoPlus serves this chain but returned no security row for this token — empty is a fact, not an error. Market signals above are live.
             </p>
           )}
         </div>
       )}
 
-      {!resolved && !err && !busy && !cands && (
+      {/* provider × chain coverage matrix — always rendered ON-PAGE (parity +
+          honesty in one table, probed 2026-08-31) */}
+      <div className="v2-card">
+        <div className="v2-cardhead"><b>PROVIDER × CHAIN COVERAGE</b><span className="mono dim">probed 2026-08-31</span></div>
+        <MatrixTable />
+      </div>
+
+      {!resolved && !err && !notFound && !busy && !cands && (
         <div className="v2-card">
           <div className="v2-empty">
             <MiniShield />
             <div>
-              <b className="mono" style={{ fontSize: 11, letterSpacing: '.1em' }}>WHAT WE CHECK PER CHAIN</b>
-              <ul className="v2-matrix">
-                <li><b>SOL</b> — RugCheck.xyz summary: score, normalised risk, LP lock %, named risks <span className="mono dim">[LIVE]</span></li>
-                <li><b>BNB · BASE</b> — GoPlus token_security: honeypot, open-source, buy/sell tax, mintable, freezable, holders, creator <span className="mono dim">[LIVE]</span></li>
-                <li><b>HYPE · HOOD</b> — no free provider indexes them yet: honest limited panel + live GT/DS market stats <span className="mono dim">[LIMITED]</span></li>
-              </ul>
+              <b className="mono" style={{ fontSize: 11, letterSpacing: '.1em' }}>ONE CHECK ACROSS FIVE CHAINS</b>
+              <p className="dim" style={{ fontSize: 12 }}>
+                Paste a token address — AUTO resolves the chain. The coverage matrix above shows exactly which provider answers where; partial coverage is stated, never hidden, and market signals load on every chain. Context, not an audit.
+              </p>
               <b className="mono" style={{ fontSize: 10, letterSpacing: '.1em' }}>TRY A REAL ONE</b>
               <div className="v2-candrow">
                 {EXAMPLES.map((ex) => (

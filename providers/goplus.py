@@ -20,7 +20,10 @@ import urllib.error
 import urllib.request
 
 _BASE = "https://api.gopluslabs.io/api/v1"
-_CHAIN_IDS = {"bnb": 56, "base": 8453}
+# 2026-08-31 (mandate-0-V3): supported_chains lists Robinhood=4663 and a live
+# token_security/4663 probe returns code 1 → hood gains GoPlus coverage. An
+# empty row for a specific token is data-level absence (PARTIAL), not an error.
+_CHAIN_IDS = {"bnb": 56, "base": 8453, "hood": 4663}
 _TIMEOUT_S = 15.0
 
 _CACHE_TTL_S = 300.0          # security fields move slowly
@@ -67,7 +70,7 @@ def _single_flight(key, fn):
 
 def _get(url: str) -> dict:
     req = urllib.request.Request(url, headers={
-        "User-Agent": "terminal-alpha/0.1", "Accept": "application/json"})
+        "User-Agent": "vilmei/2.0", "Accept": "application/json"})
     for attempt in (1, 2):
         try:
             with urllib.request.urlopen(req, timeout=_TIMEOUT_S) as r:

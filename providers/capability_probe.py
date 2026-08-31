@@ -39,7 +39,7 @@ _OUT_DIR = Path("docs/reports")
 
 
 def _json_get(url: str, timeout: float = 10.0) -> tuple[int | None, dict | str | None, dict]:
-    req = urllib.request.Request(url, headers={"User-Agent": "terminal-alpha-probe/0.1",
+    req = urllib.request.Request(url, headers={"User-Agent": "vilmei-probe/2.0",
                                                "Accept": "application/json"})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:

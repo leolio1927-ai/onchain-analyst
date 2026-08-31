@@ -71,7 +71,7 @@ def summary(mint: str) -> tuple[dict | None, str | None]:
     def fetch():
         try:
             req = urllib.request.Request(f"{_BASE}/tokens/{mint}/report/summary",
-                                         headers={"User-Agent": "terminal-alpha/0.1",
+                                         headers={"User-Agent": "vilmei/2.0",
                                                   "Accept": "application/json"})
             with urllib.request.urlopen(req, timeout=_TIMEOUT_S) as r:
                 data = json.load(r)

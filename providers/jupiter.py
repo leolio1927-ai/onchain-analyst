@@ -75,7 +75,7 @@ def _get(path: str) -> dict:
     """One HTTP GET with a single Retry-After-aware retry on 429."""
     url = f"{BASE}{path}"
     for attempt in (1, 2):
-        req = urllib.request.Request(url, headers={"User-Agent": "terminal-alpha/0.1",
+        req = urllib.request.Request(url, headers={"User-Agent": "vilmei/2.0",
                                                    "Accept": "application/json"})
         try:
             with urllib.request.urlopen(req, timeout=_TIMEOUT_S) as r:

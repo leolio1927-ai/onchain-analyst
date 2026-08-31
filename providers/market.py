@@ -73,7 +73,7 @@ def _fetch_gt(path: str) -> dict:
 
 def _fetch_ds(path: str) -> dict:
     req = urllib.request.Request(f"https://api.dexscreener.com{path}",
-                                 headers={"User-Agent": "terminal-alpha/0.1"})
+                                 headers={"User-Agent": "vilmei/2.0"})
     with urllib.request.urlopen(req, timeout=10) as r:
         return json.load(r)
 

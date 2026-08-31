@@ -616,8 +616,9 @@ async def api_rug_evm(chain: str, token: str) -> dict:
     """EVM rug rows (GoPlus) for bnb/base — verbatim values, provider chip
     per row, TTL-cached 300s (the provider module owns its cache)."""
     if chain not in goplus._CHAIN_IDS:
-        raise HTTPException(400, f"rug/evm: chain must be {'|'.join(goplus._CHAIN_IDS)} — "
-                                 "hype/hood have no free provider coverage yet (documented)")
+        raise HTTPException(400, "rug/evm covers " + ", ".join(goplus._CHAIN_IDS) +
+                                 " via GoPlus — this chain has no free provider coverage yet, "
+                                 "so no security rows exist to show (market signals still load)")
     if not _HEX40_RE.fullmatch(token or ""):
         raise HTTPException(400, "rug/evm: token must be a 0x + 40-hex address")
     row, note = await asyncio.to_thread(goplus.token_security, chain, token)
@@ -962,7 +963,7 @@ _WS_CLIENTS: set = set()
 # /ws/snap access control: WS_AUTH_TOKEN empty = dev-open (one-time warning);
 # set = every client must connect with ?token=<value>. MAX_WS_CLIENTS bounds
 # per-process fan-out so one box cannot open unbounded sockets.
-logger = logging.getLogger("terminal-alpha.ws")
+logger = logging.getLogger("vilmei.ws")
 _ws_open_warning_shown = False
 
 

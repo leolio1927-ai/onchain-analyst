@@ -38,7 +38,7 @@ def rpc(chain: str, method: str, params: list) -> dict | list | None:
         raise _EvmError("chain_unsupported")
     body = json.dumps({"jsonrpc": "2.0", "id": "ta", "method": method,
                        "params": params}).encode()
-    headers = {"User-Agent": "terminal-alpha/0.1", "Content-Type": "application/json",
+    headers = {"User-Agent": "vilmei/2.0", "Content-Type": "application/json",
                "Accept": "application/json"}
     for attempt in (1, 2):
         req = urllib.request.Request(_RPCS[chain], data=body, headers=headers)

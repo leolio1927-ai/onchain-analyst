@@ -74,7 +74,7 @@ def _single_flight(key, fn):
 def _call(url: str, *, body: dict | None = None) -> dict | list:
     """One keyed HTTP call; 429 honors Retry-Header once, then gives up.
     Raises _HeliusError with the reason note — callers translate."""
-    headers = {"User-Agent": "terminal-alpha/0.1", "Accept": "application/json"}
+    headers = {"User-Agent": "vilmei/2.0", "Accept": "application/json"}
     data = None
     if body is not None:
         headers["Content-Type"] = "application/json"
@@ -105,7 +105,7 @@ def fetch_balances(address: str) -> dict:
     # Key travels in a header, never the URL: urllib HTTPError messages embed
     # the request URL, so a query-string key would leak into error logs.
     url = f"{BASE}/v0/addresses/{address}/balances"
-    req = urllib.request.Request(url, headers={"User-Agent": "terminal-alpha/0.1",
+    req = urllib.request.Request(url, headers={"User-Agent": "vilmei/2.0",
                                                "X-API-Key": key})
     with urllib.request.urlopen(req, timeout=10) as r:
         data = json.load(r)

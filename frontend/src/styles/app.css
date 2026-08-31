@@ -644,6 +644,14 @@ input, select { font-family: inherit; }
   font-size: 10px; letter-spacing: .12em; }
 .v2-chip.on { color: var(--brand-2, #14F195);
   border-color: color-mix(in srgb, var(--brand-2, #14F195) 45%, transparent); }
+/* R1 coverage chips — status, not buttons; same --sev-* language as RiskDisplay */
+.v2-chip.cov-ok, .v2-chip.cov-partial, .v2-chip.cov-none { cursor: default; }
+.v2-chip.cov-ok { color: var(--sev-low);
+  border-color: color-mix(in srgb, var(--sev-low) 45%, transparent); }
+.v2-chip.cov-partial { color: var(--sev-medium);
+  border-color: color-mix(in srgb, var(--sev-medium) 45%, transparent); }
+.v2-chip.cov-none { color: var(--sev-nodata);
+  border-color: color-mix(in srgb, var(--sev-nodata) 40%, transparent); }
 .v2-card { background: linear-gradient(180deg, #0a1a12, #071410); border: 2px solid
   color-mix(in srgb, var(--brand, #00ffa3) 30%, transparent); border-radius: 14px;
   padding: 16px 18px; display: grid; gap: 12px; }

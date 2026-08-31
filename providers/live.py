@@ -278,7 +278,7 @@ def _dedupe(items: list[dict]) -> list[dict]:
 def _ds_get(path: str) -> list | dict:
     """DexScreener GET — the only upstream that returns token socials."""
     req = urllib.request.Request(f"https://api.dexscreener.com{path}",
-                                 headers={"User-Agent": "terminal-alpha/0.1",
+                                 headers={"User-Agent": "vilmei/2.0",
                                           "Accept": "application/json"})
     with urllib.request.urlopen(req, timeout=8) as r:
         return json.load(r)

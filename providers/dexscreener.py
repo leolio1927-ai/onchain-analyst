@@ -20,7 +20,7 @@ def _chain_id(chain_key: str) -> str:
 
 def fetch_pairs(chain_key: str, address: str) -> list[dict]:
     url = f"https://api.dexscreener.com/latest/dex/tokens/{address}"
-    req = urllib.request.Request(url, headers={"User-Agent": "terminal-alpha/0.1"})
+    req = urllib.request.Request(url, headers={"User-Agent": "vilmei/2.0"})
     with urllib.request.urlopen(req, timeout=10) as r:
         data = json.load(r)
     chain_id = _chain_id(chain_key)
