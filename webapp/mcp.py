@@ -85,6 +85,24 @@ TOOLS: list[dict] = [
             "required": ["chain", "token"],
         },
     },
+    {
+        "name": "fee_view",
+        "description": ("The PLANNED VILMEI fee (0.50% = ops 0.30 + buyback "
+                        "0.10 + rewards 0.10) for one notional on one chain, "
+                        "plus that chain's fee path verbatim from "
+                        "docs/FEE-MODELS-2026.md. A policy constant — nothing "
+                        "is charged; VILMEI is read-only. Same as "
+                        "GET /api/v1/fees/estimate."),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "chain": {"type": "string", "description": "sol|bnb|base|hype|hood"},
+                "amountUsd": {"type": "number", "minimum": 0,
+                              "description": "notional in USD (default 1000)"},
+            },
+            "required": ["chain"],
+        },
+    },
 ]
 
 

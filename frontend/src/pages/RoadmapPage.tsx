@@ -157,6 +157,11 @@ const QUEUE: { id: string; tag: string; title: string; kind: ChipKind; why: stri
     why: 'Taxonomy, rate budget and integrity tests keep growing with every route; no route ships without its contract.',
     proof: 'PROOF · every route arrives with its test suite (120 passing today) · ruff 0 · oxlint 0',
   },
+  {
+    id: 'ta-fee-01', tag: 'VM-fee-01', title: 'Buyback engine — the 0.10% fee slice', kind: 'design',
+    why: 'The planned fee (0.50% = ops 0.30 + buyback 0.10 + rewards 0.10, docs/FEE-MODELS-2026.md) is published as data, but its buyback slice is BLOCKED: VILMEI ships no execution surface and no custody, so nothing here could ever buy back anything until a founder decision changes that.',
+    proof: 'PROOF · a founder decision unblocks VM-fee-01 · the slice flips from declared-but-unwired to a dated design in §1 · estimator + swap-rail strip updated in the same commit',
+  },
 ]
 
 const NON_GOALS = [

@@ -32,6 +32,7 @@ const SECTIONS = [
   ['7', 'alpha', 'Alpha Lens'], ['8', 'networks', 'Networks'], ['9', 'surfaces', 'Surfaces Index'],
   ['10', 'security', 'Security'], ['11', 'qa', 'Quality Gates'], ['12', 'changelog', 'Changelog'],
   ['13', 'status', 'Status Legend'], ['14', 'roadmap', 'Roadmap'], ['15', 'glossary', 'Glossary'],
+  ['16', 'agents', 'For Agents'], ['17', 'fees', 'Fees'],
 ] as const
 
 function Chip({ kind, children }: { kind: 'live' | 'sim' | 'build' | 'design'; children: React.ReactNode }) {
@@ -742,11 +743,42 @@ export function DocsPage() {
             <div className="dd-card">
               <dl className="dd-gloss">
                 <div><dt>POST /mcp</dt><dd>Model Context Protocol server (spec revision 2026-07-28), JSON-RPC 2.0: initialize · ping · tools/list · tools/call.</dd></div>
-                <div><dt>tools</dt><dd>trending (live feed per chain) · scan (weighted verdict + evidence) · rug (RugCheck sol / GoPlus bnb+base / honest partial elsewhere) · whale_windows (large transfers + netflow).</dd></div>
+                <div><dt>tools</dt><dd>trending (live feed per chain) · scan (weighted verdict + evidence) · rug (RugCheck sol / GoPlus bnb+base / honest partial elsewhere) · whale_windows (large transfers + netflow) · fee_view (the planned fee as data — nothing is charged).</dd></div>
                 <div><dt>GET /.well-known/api-catalog</dt><dd>RFC 9727 discovery document (application/linkset+json) pointing at /openapi.json.</dd></div>
                 <div><dt>/assets/llms.txt</dt><dd>The machine-readable index of the project — the agent's map of everything above.</dd></div>
               </dl>
             </div>
+          </Sec>
+
+          {/* ── 17 · FEES (PROMPT-V3 R4) ─────────────────────── */}
+          <Sec id="fees" n="17" title="FEES — PLANNED, INSPECTABLE, NEVER CHARGED">
+            <p className="dd-p">
+              VILMEI is read-only: no execution, no custody, no keys — so <b>nothing is
+              charged today, and nothing can be</b>. The fee policy below is published as
+              data before a single basis point could ever flow: the estimator endpoint and
+              the swap-rail strip render exactly this table.
+            </p>
+            <div className="dd-card">
+              <dl className="dd-gloss">
+                <div><dt>planned total</dt><dd><b>0.50% (50 bps)</b> of swap notional — only if a fee surface ever ships.</dd></div>
+                <div><dt>split</dt><dd>operations 0.30% · buyback 0.10% (blocked: VM-fee-01) · rewards 0.10% — fixed in docs/FEE-MODELS-2026.md and mirrored in code.</dd></div>
+                <div><dt>GET /api/v1/fees/estimate</dt><dd>rate + split + per-chain fee path as data (data_mode: "static" — a policy constant, not a feed).</dd></div>
+                <div><dt>MCP fee_view</dt><dd>the same payload through the read-only machine door.</dd></div>
+              </dl>
+            </div>
+            <div className="dd-card">
+              <dl className="dd-gloss">
+                <div><dt>sol — SIAP-$0</dt><dd>Jupiter Swap API platformFeeBps: verified live, keyless, no agreement (probed 2026-08-31). Planned 50 bps is below every figure observed.</dd></div>
+                <div><dt>bnb · base — TIDAK-ADA</dt><dd>No keyless integrator-fee API. Escape hatch = deploy + audit our own hook (Uniswap v4 / PancakeSwap Infinity, cap 5% on the official dynamic-fee-hook) or BD (Aerodrome).</dd></div>
+                <div><dt>hype — PERLU-AGREEMENT-BISNIS</dt><dd>Hyperliquid HIP-3 builder fee share needs a builder application; HyperEVM spot is gas-only.</dd></div>
+                <div><dt>hood — TIDAK-ADA</dt><dd>No public scheme found (TBD); chain liveness proven via GoPlus id 4663.</dd></div>
+              </dl>
+            </div>
+            <blockquote className="dd-never">
+              <b>Blocker VM-fee-01:</b> the 0.10% buyback slice has no engine — VILMEI ships
+              no execution surface and designs no new token. Until a founder decision
+              unblocks it, the slice stays declared-but-unwired everywhere it appears.
+            </blockquote>
           </Sec>
 
           <footer className="dd-foot">

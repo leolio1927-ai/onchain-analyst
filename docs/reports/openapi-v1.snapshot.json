@@ -3,7 +3,7 @@
   "info": {
     "title": "VILMEI",
     "summary": "Evidence-first multichain memecoin risk terminal",
-    "description": "Read-only multichain memecoin research terminal — reduce noise, add context.\n\n- **POST /api/scan** — DexScreener pair + GeckoTerminal trade clustering → deterministic, weighted risk assessment\n- **GET /api/v1/discovery** — keyless trending/new pool radar (GeckoTerminal free tier)\n- **POST /api/explain** — evidence-first AI narrative; `provider: \"local\"` serves a deterministic heuristic narrative with zero API keys\n- **POST /api/whale** — Helius wallet balances (key required)\n- **GET /api/v1/whale/windows** — whale windows (1h/6h/24h) on the keyless GeckoTerminal trade tape, all five chains; threshold is a labelled heuristic, never an on-chain label\n- **GET /api/v1/whale/auto** — AUTO: resolve a contract across networks + trending top-N candidates\n- **WS /ws/snap** — full honest snapshot ticker · **WS /ws/tape** — live trade-tape deltas for the active pool\n\nEvery value is copied verbatim from the upstream APIs; absent fields stay absent —\nnothing is simulated, zero-filled or random-walked. Heuristic thresholds are public\nand auditable (heuristics/).",
+    "description": "Read-only multichain memecoin research terminal — reduce noise, add context.\n\n- **POST /api/scan** — DexScreener pair + GeckoTerminal trade clustering → deterministic, weighted risk assessment\n- **GET /api/v1/discovery** — keyless trending/new pool radar (GeckoTerminal free tier)\n- **POST /api/explain** — evidence-first AI narrative; `provider: \"local\"` serves a deterministic heuristic narrative with zero API keys\n- **POST /api/whale** — Helius wallet balances (key required)\n- **GET /api/v1/whale/windows** — whale windows (1h/6h/24h) on the keyless GeckoTerminal trade tape, all five chains; threshold is a labelled heuristic, never an on-chain label\n- **GET /api/v1/whale/auto** — AUTO: resolve a contract across networks + trending top-N candidates\n- **GET /api/v1/fees/estimate** — the PLANNED VILMEI fee (0.50% split 0.30/0.10/0.10) as inspectable data; nothing is charged, VILMEI is read-only\n- **WS /ws/snap** — full honest snapshot ticker · **WS /ws/tape** — live trade-tape deltas for the active pool\n\nEvery value is copied verbatim from the upstream APIs; absent fields stay absent —\nnothing is simulated, zero-filled or random-walked. Heuristic thresholds are public\nand auditable (heuristics/).",
     "license": {
       "name": "MIT",
       "identifier": "MIT"
@@ -1239,13 +1239,65 @@
         }
       }
     },
+    "/api/v1/fees/estimate": {
+      "get": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Api Fees Estimate",
+        "description": "The PLANNED VILMEI fee (0.50% = ops 0.30 + buyback 0.10 + rewards\n0.10) for one notional on one chain, plus that chain's fee path verbatim\nfrom the docs/FEE-MODELS-2026.md matrix (verdict vocabulary: SIAP-$0 ·\nPERLU-AGREEMENT-BISNIS · TIDAK-ADA). A policy constant — nothing is\ncharged, and VILMEI stays read-only. Unknown chain → 404 with the allowed\nlist; non-finite or negative amount → 400.",
+        "operationId": "api_fees_estimate_api_v1_fees_estimate_get",
+        "parameters": [
+          {
+            "name": "chain",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chain"
+            }
+          },
+          {
+            "name": "amountUsd",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "title": "Amountusd"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeeEstimateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/mcp": {
       "post": {
         "tags": [
           "system"
         ],
         "summary": "Mcp Rpc",
-        "description": "Read-only Model Context Protocol endpoint — JSON-RPC 2.0 (spec rev\n2026-07-28): initialize / ping / tools/list / tools/call over four\nread-only tools (trending, scan, rug, whale_windows). Nothing here\ntrades, custodies, or writes.",
+        "description": "Read-only Model Context Protocol endpoint — JSON-RPC 2.0 (spec rev\n2026-07-28): initialize / ping / tools/list / tools/call over five\nread-only tools (trending, scan, rug, whale_windows, fee_view). Nothing\nhere trades, custodies, or writes.",
         "operationId": "mcp_rpc_mcp_post",
         "responses": {
           "200": {
@@ -2093,6 +2145,149 @@
         "type": "object",
         "title": "ExplainResponse",
         "description": "Evidence-first narrative (LLM provider or the deterministic local tier).\n`limitations` keeps the wire's string type — typing it as a list would\n500 every explain call; widening it is a deliberate contract change."
+      },
+      "FeeEstimateResponse": {
+        "properties": {
+          "data_mode": {
+            "type": "string",
+            "enum": [
+              "live",
+              "fixture",
+              "unwired",
+              "static",
+              "partial"
+            ],
+            "title": "Data Mode",
+            "default": "static"
+          },
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version",
+            "default": "1.0"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "ts": {
+            "type": "string",
+            "title": "Ts"
+          },
+          "chain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chain"
+          },
+          "amount_usd": {
+            "type": "number",
+            "title": "Amount Usd",
+            "default": 0.0
+          },
+          "planned_rate_bps": {
+            "type": "integer",
+            "title": "Planned Rate Bps",
+            "default": 50
+          },
+          "split_bps": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Split Bps"
+          },
+          "estimate_usd": {
+            "type": "number",
+            "title": "Estimate Usd",
+            "default": 0.0
+          },
+          "split_usd": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Split Usd"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FeeProviderStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "matrix": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/FeeProviderStatus"
+            },
+            "type": "object",
+            "title": "Matrix"
+          },
+          "buyback_blocker": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Buyback Blocker"
+          },
+          "honest_note": {
+            "type": "string",
+            "title": "Honest Note",
+            "default": "planned — nothing is charged; VILMEI is read-only"
+          },
+          "provenance": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Provenance"
+          }
+        },
+        "type": "object",
+        "title": "FeeEstimateResponse",
+        "description": "The PLANNED VILMEI fee (0.50% = ops 0.30 + buyback 0.10 + rewards\n0.10) for one notional on one chain. data_mode='static': a policy\nconstant, not a live feed — and nothing is charged, VILMEI is read-only."
+      },
+      "FeeProviderStatus": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "mechanism": {
+            "type": "string",
+            "title": "Mechanism"
+          },
+          "verdict": {
+            "type": "string",
+            "title": "Verdict"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider",
+          "mechanism",
+          "verdict",
+          "note"
+        ],
+        "title": "FeeProviderStatus",
+        "description": "One chain's fee path, verbatim from the docs/FEE-MODELS-2026.md\nmatrix row. Verdict vocabulary: SIAP-$0 · PERLU-AGREEMENT-BISNIS ·\nTIDAK-ADA."
       },
       "FeedItem": {
         "properties": {

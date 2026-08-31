@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import logging
+import math
 import os
 import re
 import sys
@@ -41,6 +42,7 @@ from providers import (
     chains_map,
     dexscreener,
     discovery,
+    fee_models,
     geckoterminal,
     goplus,
     helius,
@@ -122,6 +124,7 @@ _DESCRIPTION = """Read-only multichain memecoin research terminal — reduce noi
 - **POST /api/whale** — Helius wallet balances (key required)
 - **GET /api/v1/whale/windows** — whale windows (1h/6h/24h) on the keyless GeckoTerminal trade tape, all five chains; threshold is a labelled heuristic, never an on-chain label
 - **GET /api/v1/whale/auto** — AUTO: resolve a contract across networks + trending top-N candidates
+- **GET /api/v1/fees/estimate** — the PLANNED VILMEI fee (0.50% split 0.30/0.10/0.10) as inspectable data; nothing is charged, VILMEI is read-only
 - **WS /ws/snap** — full honest snapshot ticker · **WS /ws/tape** — live trade-tape deltas for the active pool
 
 Every value is copied verbatim from the upstream APIs; absent fields stay absent —
@@ -872,6 +875,28 @@ async def api_whale_auto(ca: str, limit: int = 5) -> dict:
     return out
 
 
+# ── PROMPT-V3 R4: fee frontier — the planned fee as inspectable data ──
+# Matrix: docs/FEE-MODELS-2026.md (checked 2026-08-31). Nothing is charged:
+# VILMEI is read-only. data_mode='static' — a policy constant, not a feed.
+
+@app.get("/api/v1/fees/estimate", response_model=schemas.FeeEstimateResponse,
+         tags=["market"])
+async def api_fees_estimate(chain: str, amountUsd: float) -> dict:
+    """The PLANNED VILMEI fee (0.50% = ops 0.30 + buyback 0.10 + rewards
+    0.10) for one notional on one chain, plus that chain's fee path verbatim
+    from the docs/FEE-MODELS-2026.md matrix (verdict vocabulary: SIAP-$0 ·
+    PERLU-AGREEMENT-BISNIS · TIDAK-ADA). A policy constant — nothing is
+    charged, and VILMEI stays read-only. Unknown chain → 404 with the allowed
+    list; non-finite or negative amount → 400."""
+    chain_key = chain.strip().lower()
+    if chain_key not in fee_models.CHAINS:
+        raise HTTPException(404, f"unknown chain '{chain_key}' — "
+                                 f"pick {'|'.join(fee_models.CHAINS)}")
+    if not math.isfinite(amountUsd) or amountUsd < 0:
+        raise HTTPException(400, "amountUsd must be a finite number ≥ 0")
+    return fee_models.estimate(chain_key, amountUsd)
+
+
 # ── PROMPT-V2B P6: machine surfaces (read-only) ─────────────────────────
 # MCP spec revision 2026-07-28 (modelcontextprotocol.io/specification/latest,
 # checked 2026-08-31); discovery via RFC 9727 api-catalog. The tools are thin
@@ -909,18 +934,23 @@ async def _mcp_whales(a: dict) -> dict:
                             int(a.get("limit", 25)))
 
 
+async def _mcp_fees(a: dict) -> dict:
+    return await api_fees_estimate(str(a.get("chain", "sol")),
+                                   float(a.get("amountUsd", 1000)))
+
+
 _MCP_IMPL: dict[str, mcp.ToolImpl] = {
     "trending": _mcp_trending, "scan": _mcp_scan,
-    "rug": _mcp_rug, "whale_windows": _mcp_whales,
+    "rug": _mcp_rug, "whale_windows": _mcp_whales, "fee_view": _mcp_fees,
 }
 
 
 @app.post("/mcp", tags=["system"])
 async def mcp_rpc(request: Request) -> Response:
     """Read-only Model Context Protocol endpoint — JSON-RPC 2.0 (spec rev
-    2026-07-28): initialize / ping / tools/list / tools/call over four
-    read-only tools (trending, scan, rug, whale_windows). Nothing here
-    trades, custodies, or writes."""
+    2026-07-28): initialize / ping / tools/list / tools/call over five
+    read-only tools (trending, scan, rug, whale_windows, fee_view). Nothing
+    here trades, custodies, or writes."""
     try:
         payload = await request.json()
     except Exception:  # noqa: BLE001 — a broken body is a JSON-RPC error, not a 500

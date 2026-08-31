@@ -139,6 +139,12 @@ brackets) and was last re-verified 2026-08-29.
   networks via GT pool search (deepest pool per chain) + trending top-N
   candidates (small N, TTL caches, single Retry-After backoff on 429); every
   miss is a sentence in data_sources [providers/whale_windows.py].
+- GET /api/v1/fees/estimate?chain=&amountUsd= — PROMPT-V3 R4: the PLANNED
+  VILMEI fee (0.50% = ops 0.30 + buyback 0.10 + rewards 0.10) for one
+  notional, plus that chain's fee path and the full five-chain matrix verbatim
+  from docs/FEE-MODELS-2026.md. data_mode "static" — a policy constant, not a
+  feed; nothing is charged, VILMEI is read-only. Unknown chain → 404 with the
+  allowed list; non-finite/negative amount → 400 [providers/fee_models.py].
 - GET /api/v1/rug/sol/{mint} — Solana rug summary via RugCheck.xyz
   (score, score_normalised, lp_locked_pct, risks[] verbatim; TTL 300s,
   single-flight; a missing report ships empty risks + a degraded reason)
@@ -186,6 +192,21 @@ brackets) and was last re-verified 2026-08-29.
   1h cache; chain ids solana/bsc/base/robinhood [providers/dexscreener.py].
 - The 180s feed cache keeps steady-state at ~6 requests/minute against the ~10 rpm
   free tier (18 chain×source combinations) [providers/live.py].
+
+## Fees (planned — nothing is charged)
+
+- VILMEI is read-only: no execution, no custody, no keys — nothing is charged
+  today and nothing can be. The fee policy is published as data before a
+  single basis point could ever flow [docs/FEE-MODELS-2026.md].
+- Planned total 0.50% (50 bps) of swap notional, split: operations 0.30% ·
+  buyback 0.10% · rewards 0.10% [providers/fee_models.py SPLIT_BPS].
+- Per-chain verdicts (checked 2026-08-31): sol = SIAP-$0 (Jupiter Swap API
+  platformFeeBps, keyless probe live) · bnb/base = TIDAK-ADA (self-deployed
+  hook or BD) · hype = PERLU-AGREEMENT-BISNIS (HIP-3 builder application) ·
+  hood = TIDAK-ADA (no public scheme; TBD).
+- Blocker VM-fee-01: the buyback slice has no engine — no execution surface,
+  no custody, no new token design; it stays declared-but-unwired until a
+  founder decision unblocks it (/roadmap#ta-fee-01, /docs §17).
 
 ## Security & Custody Posture
 
@@ -239,7 +260,9 @@ promises outside the Locked band.
   - Tools: trending (live feed per chain/mode) · scan (weighted verdict + verbatim
     evidence + rug flags) · rug (RugCheck summary on sol, GoPlus token_security on
     bnb/base, honest partial reason elsewhere) · whale_windows (large transfers +
-    per-wallet netflow; declared-null probe reason where no $0 feed exists).
+    per-wallet netflow; declared-null probe reason where no $0 feed exists) ·
+    fee_view (the planned fee as data: rate + split + per-chain matrix; nothing
+    is charged).
   - Every tool answers the same payloads the REST routes serve — one truth, two
     doors. Tool errors arrive as content (isError:true), never as an HTTP 500.
 - GET /.well-known/api-catalog — RFC 9727 discovery document

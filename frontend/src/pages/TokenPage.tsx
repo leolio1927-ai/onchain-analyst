@@ -241,6 +241,39 @@ function TokenLogo({ src, symbol, size = 34 }: { src: string | null; symbol: str
 
 const QUICK = [0.001, 0.01, 0.05, 0.1, 0.5]
 
+/* ── R4 fee frontier: the PLANNED fee as inspectable data ─────────────────
+   GET /api/v1/fees/estimate serves docs/FEE-MODELS-2026.md as data — a
+   policy constant (data_mode 'static'). Nothing is charged; VILMEI is
+   read-only. The strip fetches once per open of ADVANCED, never per
+   keystroke. */
+interface FeeMatrixRow { provider: string; mechanism: string; verdict: string; note: string }
+interface FeeEstimate {
+  planned_rate_bps: number
+  split_bps: Record<string, number>
+  estimate_usd: number
+  amount_usd: number
+  matrix: Record<string, FeeMatrixRow>
+  buyback_blocker: string
+  honest_note: string
+}
+function useFeeEstimate(open: boolean, chain: string, notionalUsd: number): FeeEstimate | null {
+  const [fees, setFees] = useState<FeeEstimate | null>(null)
+  useEffect(() => {
+    if (!open) return
+    let on = true
+    const basis = Number.isFinite(notionalUsd) && notionalUsd > 0 ? Math.round(notionalUsd * 100) / 100 : 1000
+    fetch(`/api/v1/fees/estimate?chain=${chain}&amountUsd=${basis}`)
+      .then(async (r) => {
+        const j = await r.json().catch(() => null)
+        if (on && r.ok && j) setFees(j as FeeEstimate)
+      })
+      .catch(() => { /* policy fetch failed — the strip stays quiet, never red */ })
+    return () => { on = false }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- notional is captured at open; typing does not re-fetch
+  }, [open, chain])
+  return fees
+}
+
 /* ── the swap rail (Fase 1) ───────────────────────────────────────────── */
 
 function SwapRail({ pair, quote, qErr }: { pair: ActivePair | null; quote: SwapQuote | null; qErr: string | null }) {
@@ -268,6 +301,12 @@ function SwapRail({ pair, quote, qErr }: { pair: ActivePair | null; quote: SwapQ
   const rate = quote?.priceNative && quote.priceNative > 0 ? 1 / quote.priceNative : 0
   /* interconvert both fields (1.4): the other side always mirrors the input */
   const getAmt = quote ? (payingNative ? payAmt * rate : payAmt / quote.priceNative) : 0
+
+  /* R4 fee strip: planned 0.50% as data — fetch fires only when ADVANCED
+     opens; the live line below re-derives from the payload's rate bps */
+  const notionalUsd = payingNative ? payAmt * nativeUsd : payAmt * (quote?.priceUsd ?? 0)
+  const fees = useFeeEstimate(adv, chain, notionalUsd)
+  const liveFeeUsd = fees ? (notionalUsd > 0 ? (notionalUsd * fees.planned_rate_bps) / 10000 : fees.estimate_usd) : null
 
   const setFromPay = (v: string) => {
     setAmount(v)
@@ -390,6 +429,36 @@ function SwapRail({ pair, quote, qErr }: { pair: ActivePair | null; quote: SwapQ
           <div className="sw2-adv-body">
             <label>SLIPPAGE TOLERANCE <span className="tk-mock">SIMULATED</span><input placeholder="1.0 %" readOnly tabIndex={-1} /></label>
             <label>DEADLINE <span className="tk-mock">SIMULATED</span><input placeholder="30 min" readOnly tabIndex={-1} /></label>
+
+            {/* R4 fee frontier — planned, inspectable, never charged */}
+            <div className="sw2-fees" data-testid="fee-strip">
+              <div className="sw2-fees-hd">
+                <span className="l">PLANNED FEE</span><span className="tk-mock">PLANNED</span>
+              </div>
+              {fees ? (
+                <>
+                  <div className="sw2-fees-rate mono">
+                    <b>{(fees.planned_rate_bps / 100).toFixed(2)}%</b>
+                    <span>OPS {(fees.split_bps.ops / 100).toFixed(2)} · BUYBACK {(fees.split_bps.buyback / 100).toFixed(2)} · REWARDS {(fees.split_bps.rewards / 100).toFixed(2)}</span>
+                  </div>
+                  <div className="sw2-fees-est mono" title={`server estimate $${fees.estimate_usd.toFixed(2)} at $${fees.amount_usd} — line re-derives from the payload rate`}>
+                    ≈ ${liveFeeUsd != null ? liveFeeUsd.toFixed(2) : fees.estimate_usd.toFixed(2)} at {notionalUsd > 0 ? fmtUsd(notionalUsd) : fmtUsd(fees.amount_usd)} notional
+                  </div>
+                  <div className="sw2-fees-chips">
+                    {Object.entries(fees.matrix).map(([c, row]) => (
+                      <span key={c} className={`fee-chip${c === chain ? ' on' : ''}`}
+                        data-verdict={row.verdict}
+                        title={`${row.provider} — ${row.mechanism}. ${row.note}`}>
+                        {c.toUpperCase()} · {row.verdict}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="sw2-fees-note">{fees.honest_note} — buyback slice blocked by <abbr title={fees.buyback_blocker}>VM-fee-01</abbr>.</p>
+                </>
+              ) : (
+                <div className="sw2-fees-est mono dim2">READING THE FEE POLICY</div>
+              )}
+            </div>
           </div>
         )}
 

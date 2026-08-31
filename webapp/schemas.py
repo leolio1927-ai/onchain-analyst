@@ -796,3 +796,36 @@ class WhaleAutoResponse(Envelope):
     candidates: list[WhaleCandidate] = Field(default_factory=list)
     trending: list[WhaleCandidate] = Field(default_factory=list)
     data_sources: list[str] = Field(default_factory=list)
+
+
+# ── PROMPT-V3 R4: fee frontier — the planned fee as inspectable data ────
+
+class FeeProviderStatus(BaseModel):
+    """One chain's fee path, verbatim from the docs/FEE-MODELS-2026.md
+    matrix row. Verdict vocabulary: SIAP-$0 · PERLU-AGREEMENT-BISNIS ·
+    TIDAK-ADA."""
+
+    provider: str
+    mechanism: str
+    verdict: str
+    note: str
+
+
+class FeeEstimateResponse(Envelope):
+    """The PLANNED VILMEI fee (0.50% = ops 0.30 + buyback 0.10 + rewards
+    0.10) for one notional on one chain. data_mode='static': a policy
+    constant, not a live feed — and nothing is charged, VILMEI is read-only."""
+
+    data_mode: DataMode = "static"
+
+    chain: str | None = None
+    amount_usd: float = 0.0
+    planned_rate_bps: int = 50
+    split_bps: dict[str, int] = Field(default_factory=dict)
+    estimate_usd: float = 0.0
+    split_usd: dict[str, float] = Field(default_factory=dict)
+    provider: FeeProviderStatus | None = None
+    matrix: dict[str, FeeProviderStatus] = Field(default_factory=dict)
+    buyback_blocker: str | None = None
+    honest_note: str = "planned — nothing is charged; VILMEI is read-only"
+    provenance: dict = Field(default_factory=dict)

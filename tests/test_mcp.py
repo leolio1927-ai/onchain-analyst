@@ -34,7 +34,7 @@ def test_initialize_announces_protocol_revision(client):
 def test_tools_list_is_the_catalog(client):
     b = rpc(client, "tools/list").json()
     names = {t["name"] for t in b["result"]["tools"]}
-    assert names == {"trending", "scan", "rug", "whale_windows"}
+    assert names == {"trending", "scan", "rug", "whale_windows", "fee_view"}
     for t in b["result"]["tools"]:
         assert t["inputSchema"]["type"] == "object"
 

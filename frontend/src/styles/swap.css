@@ -359,3 +359,33 @@
   .sw2-hd { font-size: 8px; }
   .sw2-quick button { padding: 2px 6px; }
 }
+
+/* ═══ PROMPT-V3 R4 (2026-08-31): fee frontier strip — planned, never
+   charged. Verdict chips reuse THE --sev-* severity tokens: SIAP-$0 = low,
+   PERLU-AGREEMENT-BISNIS = medium, TIDAK-ADA = nodata. ═══ */
+.sw2-fees { display: grid; gap: 6px; padding-top: 7px;
+  border-top: 1px dashed color-mix(in srgb, var(--acc, var(--brand)) 22%, transparent); }
+.sw2-fees-hd { display: flex; align-items: center; gap: 7px; font-family: var(--font-mono);
+  font-size: 8px; letter-spacing: .16em; color: var(--muted-deep); }
+.sw2-fees-rate { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  font-size: 9px; color: var(--muted); }
+.sw2-fees-rate b { font-size: 13px; color: var(--text); font-variant-numeric: tabular-nums; }
+.sw2-fees-est { font-size: 9px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.sw2-fees-est.dim2 { color: var(--muted-deep); }
+.sw2-fees-chips { display: flex; gap: 4px; flex-wrap: wrap; }
+.fee-chip { font-family: var(--font-mono); font-size: 7.5px; letter-spacing: .08em;
+  padding: 2px 6px; border-radius: 5px; cursor: help;
+  border: 1px solid color-mix(in srgb, var(--sev-nodata) 40%, transparent);
+  color: var(--sev-nodata); background: color-mix(in srgb, var(--sev-nodata) 7%, transparent);
+  transition: opacity .2s ease; }
+.fee-chip[data-verdict='SIAP-$0'] { color: var(--sev-low);
+  border-color: color-mix(in srgb, var(--sev-low) 45%, transparent);
+  background: color-mix(in srgb, var(--sev-low) 8%, transparent); }
+.fee-chip[data-verdict='PERLU-AGREEMENT-BISNIS'] { color: var(--sev-medium);
+  border-color: color-mix(in srgb, var(--sev-medium) 45%, transparent);
+  background: color-mix(in srgb, var(--sev-medium) 8%, transparent); }
+.fee-chip.on { box-shadow: 0 0 0 1px color-mix(in srgb, var(--acc, var(--brand)) 40%, transparent); }
+.sw2-fees-note { margin: 0; font-family: var(--font-mono); font-size: 8.5px;
+  line-height: 1.5; color: var(--muted-deep); }
+.sw2-fees-note abbr { text-decoration: underline dotted; text-underline-offset: 3px;
+  color: var(--amber); cursor: help; }
