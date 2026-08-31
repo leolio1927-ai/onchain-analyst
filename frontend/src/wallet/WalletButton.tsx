@@ -37,7 +37,7 @@ export function WalletButton({ compact = false }: { compact?: boolean }) {
             </div>
             {Object.entries(session.balances).map(([chain, bal]) => (
               <div className="ta-wallet-row" key={chain}>
-                <span className="dim">{chain.toUpperCase()}</span>
+                <span className="ta-chain-tag">{chain === 'sol' ? 'SOL' : 'EVM'}</span>
                 <span className="mono">{bal.toFixed(3)}</span>
               </div>
             ))}
@@ -68,7 +68,7 @@ export function WalletButton({ compact = false }: { compact?: boolean }) {
             <button type="button" key={p.id} className="ta-wallet-row btn" role="menuitem"
               onClick={() => { setOpen(false); connect(p.id) }}>
               <span>{p.label}</span>
-              <span className="dim2">{p.chainFam === 'solana' ? 'solana' : 'evm'}</span>
+              <span className="ta-chain-tag">{p.chainFam === 'solana' ? 'SOL' : 'EVM'}</span>
             </button>
           ))}
         </div>
