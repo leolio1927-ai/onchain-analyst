@@ -36,9 +36,11 @@ from providers import (
     dexscreener,
     discovery,
     geckoterminal,
+    goplus,
     helius,
     live,
     market,
+    rugcheck,
     whales,
 )
 from webapp import chains, db, schemas
@@ -563,6 +565,68 @@ async def api_detect(address: str) -> dict:
     out = _prov(out, "dexscreener", "api.dexscreener.com")
     out["sources"] = ["dexscreener"]
     return out
+
+
+# ── PROMPT-V2 P3: rug surface (multi-chain, $0) ─────────────────────────
+# sol → RugCheck.xyz summary (proxied: browser never calls the third party);
+# evm (bnb/base) → GoPlus token_security, verbatim 0/1-string rows. hype/hood
+# have no free provider coverage — the FE renders the honest limited panel,
+# this API simply 400s an unsupported chain so nothing is invented.
+
+_RUG_EVM_FIELDS = ("token_symbol", "is_honeypot", "is_open_source", "buy_tax",
+                   "sell_tax", "is_mintable", "is_freezable", "holder_count",
+                   "contract_creator")
+_BASE58_RE = re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$")
+_HEX40_RE = re.compile(r"^0x[a-fA-F0-9]{40}$")
+
+
+@app.get("/api/v1/rug/sol/{mint}", response_model=schemas.RugSolResponse, tags=["market"])
+async def api_rug_sol(mint: str) -> dict:
+    """Solana rug summary (RugCheck.xyz), TTL-cached 300s, provenance
+    attached. A missing report ships empty risks + a degraded reason —
+    an unindexed token is a fact, never an invented verdict."""
+    if not _BASE58_RE.fullmatch(mint or ""):
+        raise HTTPException(400, "rug/sol: mint must be a base58 address (32-44)")
+    data, note = await asyncio.to_thread(rugcheck.summary, mint)
+    if data is None:
+        out: dict = {"mint": mint, "score": None, "score_normalised": None,
+                     "lp_locked_pct": None, "risks": []}
+    else:
+        out = {"mint": mint,
+               "score": data.get("score"),
+               "score_normalised": data.get("score_normalised"),
+               "lp_locked_pct": data.get("lpLockedPct"),
+               "risks": data.get("risks") or []}
+    prov = {"source": "rugcheck", "host": "api.rugcheck.xyz",
+            "cache": {"cached": False, "age_s": None, "ttl_s": 300},
+            "freshness": {"path": "/v1/tokens/{mint}/report/summary (probed 2026-08-31)"},
+            "degraded": note}
+    return {**out, "provenance": prov, "sources": ["rugcheck"],
+            "data_mode": "live" if note is None else "partial"}
+
+
+@app.get("/api/v1/rug/evm/{chain}/{token}", response_model=schemas.RugEvmResponse, tags=["market"])
+async def api_rug_evm(chain: str, token: str) -> dict:
+    """EVM rug rows (GoPlus) for bnb/base — verbatim values, provider chip
+    per row, TTL-cached 300s (the provider module owns its cache)."""
+    if chain not in goplus._CHAIN_IDS:
+        raise HTTPException(400, f"rug/evm: chain must be {'|'.join(goplus._CHAIN_IDS)} — "
+                                 "hype/hood have no free provider coverage yet (documented)")
+    if not _HEX40_RE.fullmatch(token or ""):
+        raise HTTPException(400, "rug/evm: token must be a 0x + 40-hex address")
+    row, note = await asyncio.to_thread(goplus.token_security, chain, token)
+    rows: list[dict] = []
+    symbol = None
+    if row is not None:
+        symbol = row.get("token_symbol")
+        rows = [{"field": f, "value": row.get(f)} for f in _RUG_EVM_FIELDS]
+    prov = {"source": "goplus", "host": "api.gopluslabs.io",
+            "cache": {"cached": False, "age_s": None, "ttl_s": 300},
+            "freshness": {"path": f"/api/v1/token_security/{goplus._CHAIN_IDS[chain]}"},
+            "degraded": note}
+    return {"chain": chain, "chain_id": goplus._CHAIN_IDS[chain], "token": token,
+            "token_symbol": symbol, "rows": rows, "provenance": prov,
+            "sources": ["goplus"], "data_mode": "live" if note is None else "partial"}
 
 
 @app.get("/api/v1/live/{chain}", response_model=schemas.LiveResponse, tags=["live"])

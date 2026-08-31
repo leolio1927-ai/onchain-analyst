@@ -668,3 +668,48 @@ class DetectResponse(Envelope):
     kind: str | None = None
     candidates: list[DetectCandidate] = Field(default_factory=list)
     provenance: Provenance = Field(default_factory=Provenance)
+
+
+# ── rug surface (PROMPT-V2 P3: multi-chain rug check, $0 providers) ──────
+
+class RugRiskRow(BaseModel):
+    """One RugCheck.xyz risk entry, verbatim (name/level/score/description)."""
+
+    name: str | None = None
+    level: str | None = None
+    score: Verbatim = None
+    description: str | None = None
+
+
+class RugSolResponse(Envelope):
+    """Solana rug summary via RugCheck.xyz — proxied server-side so the
+    browser never calls a third-party host (zero-third-party law)."""
+
+    mint: str | None = None
+    score: Verbatim = None
+    score_normalised: Verbatim = None
+    lp_locked_pct: Verbatim = None
+    risks: list[RugRiskRow] = Field(default_factory=list)
+    provenance: Provenance = Field(default_factory=Provenance)
+
+
+class RugEvmRow(BaseModel):
+    """One GoPlus field → one panel row, verbatim string value (GoPlus sends
+    0/1 and '0.05' style strings — no coercion, the FE renders them as-is)."""
+
+    field: str
+    value: Verbatim = None
+    note: str | None = None
+
+
+class RugEvmResponse(Envelope):
+    """EVM rug surface via GoPlus token_security (bnb=56, base=8453). Rows
+    are the verbatim mapping of the fields we display; provider chip rides
+    on every row ('GoPlus'). 'context not audit' stays the standing law."""
+
+    chain: str | None = None
+    chain_id: int | None = None
+    token: str | None = None
+    token_symbol: str | None = None
+    rows: list[RugEvmRow] = Field(default_factory=list)
+    provenance: Provenance = Field(default_factory=Provenance)
