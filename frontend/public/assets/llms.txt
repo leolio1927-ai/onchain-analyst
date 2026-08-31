@@ -333,7 +333,10 @@ promises outside the Locked band.
     per-wallet netflow; declared-null probe reason where no $0 feed exists) ·
     fee_view (the planned fee as data: rate + split + per-chain matrix; nothing
     is charged) · fee_destinations (the claim-based vault map: public
-    addresses founder-claimed in .env, else awaiting-founder sentences).
+    addresses founder-claimed in .env, else awaiting-founder sentences) ·
+    ai_ask (the VILMEI AI answer as ONE JSON object — same personas, evidence
+    and budget guards as POST /api/v1/ai/ask, not a stream; chain+token selects
+    the analyst persona, omitting them the guide).
   - Every tool answers the same payloads the REST routes serve — one truth, two
     doors. Tool errors arrive as content (isError:true), never as an HTTP 500.
 - GET /.well-known/api-catalog — RFC 9727 discovery document

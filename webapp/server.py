@@ -21,6 +21,7 @@ import sys
 import time
 import urllib.error
 from collections import defaultdict, deque
+from contextvars import ContextVar
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -501,12 +502,48 @@ async def api_explain(body: ExplainBody, request: Request) -> dict:
 _AI_SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
 
 
+def _ai_upstream_error_text(e: nvidia.NvidiaError) -> str:
+    if e.kind == "rate_limited":
+        return "VILMEI AI upstream is rate-limiting the free tier — try again in a minute"
+    if e.kind == "timeout":
+        return "VILMEI AI upstream timed out — the free tier runs slow right now; try again"
+    return f"VILMEI AI upstream error — {e.detail[:160] or 'unknown'}"
+
+
 def _ai_http_error(e: nvidia.NvidiaError) -> HTTPException:
     if e.kind == "rate_limited":
-        return HTTPException(429, "VILMEI AI upstream is rate-limiting the free tier — try again in a minute")
+        return HTTPException(429, _ai_upstream_error_text(e))
     if e.kind == "timeout":
-        return HTTPException(504, "VILMEI AI upstream timed out — the free tier runs slow right now; try again")
-    return HTTPException(502, f"VILMEI AI upstream error — {e.detail[:160] or 'unknown'}")
+        return HTTPException(504, _ai_upstream_error_text(e))
+    return HTTPException(502, _ai_upstream_error_text(e))
+
+
+async def _ai_collect(resp) -> tuple[str, dict | None, bool]:
+    """Read one NVIDIA SSE stream to the end → (text, usage, errored). The
+    MCP door answers one JSON object, so it collects instead of forwarding;
+    the caller owns resp.close()."""
+    parts: list[str] = []
+    usage: dict | None = None
+    errored = False
+    try:
+        while True:
+            raw = await asyncio.to_thread(resp.readline)
+            if not raw:
+                break
+            parsed = nvidia.parse_sse_line(raw.decode("utf-8", "replace"))
+            if parsed == "DONE":
+                break
+            if not isinstance(parsed, dict):
+                continue
+            u = parsed.get("usage")
+            if isinstance(u, dict):
+                usage = u
+            text = nvidia.delta_text(parsed)
+            if text:
+                parts.append(text)
+    except (OSError, ValueError):
+        errored = True
+    return "".join(parts), usage, errored
 
 
 async def _ai_evidence(chain: str, token: str) -> tuple[dict, list[str]]:
@@ -1216,19 +1253,91 @@ async def _mcp_fee_destinations(_a: dict) -> dict:
         await api_fees_destinations()).model_dump()
 
 
+# the /mcp door needs the caller's IP for the per-IP AI budget; mcp_rpc sets
+# this before dispatch so tool impls stay plain (args → dict) functions
+_MCP_CLIENT_HOST: ContextVar[str] = ContextVar("mcp_client_host", default="mcp")
+
+
+async def _mcp_ai_ask(a: dict) -> dict:
+    """VILMEI AI through the MCP door — one JSON answer (not a stream), built
+    with the SAME personas, evidence, budget and cache guards the REST door
+    serves (POST /api/v1/ai/ask). MCP calls are stateless: no history."""
+    question = str(a.get("question") or "").strip()
+    if not question:
+        raise ValueError("ai_ask: question must be a non-empty string")
+    if len(question) > ai_ask.QUESTION_MAX_CHARS:
+        raise ValueError(f"ai_ask: keep the question under {ai_ask.QUESTION_MAX_CHARS} characters")
+    mode = str(a.get("mode") or "free").strip().lower()
+    if mode not in ("free", "deep"):
+        raise ValueError("ai_ask: mode must be 'free' or 'deep'")
+    chain = str(a.get("chain") or "").strip().lower()
+    token = str(a.get("token") or "").strip()
+    persona = "analyst" if chain and token else "guide"
+    if persona == "analyst" and chain not in geckoterminal.NETWORKS:
+        raise ValueError(f"ai_ask: analyst needs chain ({'|'.join(sorted(geckoterminal.NETWORKS))}) + token — or drop them and ask the guide")
+    if not nvidia.api_key():
+        raise ValueError("VILMEI AI offline — NVIDIA_API_KEY not set (founder config)")
+    ok, reason = ai_ask.charge(_MCP_CLIENT_HOST.get(), "terminal")
+    if not ok:
+        raise ValueError(ai_ask.DAILY_SPENT_COPY if reason == "daily"
+                         else ai_ask.BUDGET_BUSY_COPY)
+    model = nvidia.model_deep() if mode == "deep" else nvidia.model_free()
+    evidence: dict | None = None
+    sources: list[str] = []
+    if persona == "analyst":
+        evidence, sources = await _ai_evidence(chain, token)
+    evidence_json = ai_ask.truncate_evidence(evidence) if evidence else None
+    digest = ai_ask.evidence_digest(evidence)
+    ckey = ai_ask.cache_key(question, mode, model, persona, digest)
+    cached = ai_ask.cache_get(ckey)
+    if cached is not None:
+        return {"question": question, "mode": mode, "persona": persona,
+                "model": model, "cached": True, "text": cached,
+                "prompt_version": ai_ask.PROMPT_VERSION,
+                "evidence_sources": sources}
+    messages = ai_ask.build_messages(persona=persona, question=question,
+                                     history=[], evidence_json=evidence_json)
+    deep = mode == "deep"
+    effort = (os.environ.get("VILMEI_AI_REASONING_EFFORT") or "").strip()
+    extra = {"reasoning_effort": effort} if deep and effort else None
+    try:
+        resp = await asyncio.to_thread(nvidia.open_stream, messages, model=model,
+                                       max_tokens=1600 if deep else 700,
+                                       temperature=0.3, extra=extra)
+    except nvidia.NvidiaError as e:
+        raise ValueError(_ai_upstream_error_text(e)) from e
+    try:
+        text, usage, errored = await _ai_collect(resp)
+    finally:
+        resp.close()
+    if errored:
+        raise ValueError("the upstream stream dropped mid-answer — ask again")
+    if not text:
+        raise ValueError("VILMEI AI upstream returned no answer — the free tier runs slow; try again")
+    ai_ask.cache_put(ckey, text)
+    return {"question": question, "mode": mode, "persona": persona,
+            "model": model, "cached": False, "text": text,
+            "usage": {"prompt_tokens": (usage or {}).get("prompt_tokens"),
+                      "completion_tokens": (usage or {}).get("completion_tokens"),
+                      "total_tokens": (usage or {}).get("total_tokens")},
+            "prompt_version": ai_ask.PROMPT_VERSION,
+            "evidence_sources": sources}
+
+
 _MCP_IMPL: dict[str, mcp.ToolImpl] = {
     "trending": _mcp_trending, "scan": _mcp_scan,
     "rug": _mcp_rug, "whale_windows": _mcp_whales, "fee_view": _mcp_fees,
-    "fee_destinations": _mcp_fee_destinations,
+    "fee_destinations": _mcp_fee_destinations, "ai_ask": _mcp_ai_ask,
 }
 
 
 @app.post("/mcp", tags=["system"])
 async def mcp_rpc(request: Request) -> Response:
     """Read-only Model Context Protocol endpoint — JSON-RPC 2.0 (spec rev
-    2026-07-28): initialize / ping / tools/list / tools/call over six
+    2026-07-28): initialize / ping / tools/list / tools/call over seven
     read-only tools (trending, scan, rug, whale_windows, fee_view,
-    fee_destinations). Nothing here trades, custodies, or writes."""
+    fee_destinations, ai_ask). Nothing here trades, custodies, or writes."""
+    _MCP_CLIENT_HOST.set(request.client.host if request.client else "mcp")
     try:
         payload = await request.json()
     except Exception:  # noqa: BLE001 — a broken body is a JSON-RPC error, not a 500

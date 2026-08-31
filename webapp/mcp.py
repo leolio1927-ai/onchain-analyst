@@ -113,6 +113,31 @@ TOOLS: list[dict] = [
                         "GET /api/v1/fees/destinations."),
         "inputSchema": {"type": "object", "properties": {}},
     },
+    {
+        "name": "ai_ask",
+        "description": ("VILMEI AI (NVIDIA NIM free tier) with the SAME server-side "
+                        "personas, evidence and budget guards as POST /api/v1/ai/ask, "
+                        "answered as ONE JSON object — the MCP door is not a stream. "
+                        "Send chain+token to get the analyst persona (numbers only "
+                        "from terminal evidence); omit them for the guide persona "
+                        "(project facts only). Key-off or over budget, the tool says "
+                        "so as content (isError:true) — never an HTTP error."),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "question": {"type": "string",
+                             "description": "the question (≤2000 characters)"},
+                "chain": {"type": "string",
+                          "description": ("sol|bnb|base|hype|hood — together with "
+                                          "token selects the analyst persona")},
+                "token": {"type": "string",
+                          "description": "token contract address (CA)"},
+                "mode": {"type": "string", "enum": ["free", "deep"],
+                         "description": "default free"},
+            },
+            "required": ["question"],
+        },
+    },
 ]
 
 

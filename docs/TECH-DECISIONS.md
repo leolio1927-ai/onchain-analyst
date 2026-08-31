@@ -28,6 +28,9 @@ Raw probe transcripts live in the PROMPT-V2 report; probe dates inline below.
 | 18 | wallet | wagmi / viem / ethers / @rainbowkit / @solana/wallet-adapter | (none) | n/a | **TOLAK-DENGAN-ALASAN** | read-only build law (V1 Fase 2.3): extension adapters throw READ_ONLY_BUILD; zero wallet libs until execution ships — maturity signal, not a loss |
 | 19 | P3 empty-state | SSR-snapshot computed-style guard | — | n/a | **TOLAK-DENGAN-ALASAN** | jsdom applies no stylesheet cascade; alpha-gate implemented as CSS-source parse test (same guarantee, real evidence) |
 | 20 | feeds sunset audit | GeckoTerminal /api/v2 + DS latest/dex + GoPlus v1 + RugCheck v1 + Helius | in use | verified 2026-08-30/31 | TETAP | no sunset endpoint wired; GT /api/v2/search confirmed nonexistent (404 probed) and never adopted — detect uses DS search instead |
+| 21 | AI-V provider | NVIDIA NIM — integrate.api.nvidia.com/v1 (OpenAI-compatible chat/completions) | (new) | probed live 2026-08-31 | **ADOPT** | GET /v1/models 200 @0.7 s (83 models, entries carry NO tier labels); kimi-k3 STREAM = HTTP 200 SSE; POST path alive (bogus id → fast 404); key header-only Bearer, stdlib urllib [providers/nvidia.py] |
+| 22 | AI-V model ids | moonshotai/kimi-k3 · deepseek-ai/deepseek-v4-pro-0813 · moonshotai/kimi-k2.6 | (new) | probed live 2026-08-31 | **ADOPT** | shortlist verdict: FREE=kimi-k3 (only stream-verified id; reasoning phase first, ~4.5 KB/280 s) · DEEP=v4-pro kept behind env override (0 bytes/300 s on probe day → honest 504) · backup=kimi-k2.6; small models 404 not-hosted |
+| 23 | AI-V SDK | openai / nvidia python SDK | (none) | n/a | **TOLAK-DENGAN-ALASAN** | $0 read-only law: stdlib urllib speaks the OpenAI-compatible shape in ~170 auditable lines; one endpoint shape buys zero dependency benefit |
 
 Frontier adoption per utility module (the founder's core question — "mana teknologinya baru?"):
 
@@ -40,6 +43,7 @@ Frontier adoption per utility module (the founder's core question — "mana tekn
 - **Charting**: three 0.185.1 DIAL (P5, lazy, budget-proven) + zero-dep canvas fallback
 - **i18n-safe formatting**: `Intl.NumberFormat` compact everywhere (already; TETAP)
 - **Motion**: compositor-only rule + frame telemetry (P5)
+- **AI ANALYST**: NVIDIA NIM free-tier streaming proxy (AI-V) — server-side personas, per-IP + global daily budget, evidence-only grounding, MCP `ai_ask` tool as the non-streaming door
 
 ## Frontier rows per utility module (PROMPT-V2B P8, all checked 2026-08-31)
 
@@ -78,6 +82,24 @@ Frontier adoption per utility module (the founder's core question — "mana tekn
 | Helius enhanced-transactions tape (sol, key-gated feed) | docs.helius.dev | 2026-08-31 (wiring re-verified) | TETAP |
 | USD sizing via DexScreener pair price — null when absent, never fabricated | api.dexscreener.com (keyless) | 2026-08-31 (probed) | TETAP |
 | Tape-window aggregation 1h/6h/24h/7d + CSV blob export | developer.mozilla.org/docs/Web/API/URL/createObjectURL | 2026-08-31 | ADOPT |
+
+## AI-V — VILMEI AI layer (PROMPT-AI-V, all rows probe-verified 2026-08-31)
+
+Raw probe transcripts: `logs/ai1-*` (gitignored). Rate semantics: the NVIDIA
+free tier is a BUDGET, not credits — the account limit is ~40 req/min, and the
+server guards stay far under it: 8 RPM per IP + one global daily pool
+(`VILMEI_AI_DAILY_MAX_QUESTIONS`, default 240) + a smaller separate landing
+pool. Over budget = honest 429 copy, never a red wall.
+
+| temuan | sumber (URL) | tanggal | status |
+|---|---|---|---|
+| **Endpoint shape**: OpenAI-compatible POST /v1/chat/completions; `stream:true` speaks SSE `data:` lines terminated by `data: [DONE]`; GET /v1/models entries carry only {created,id,object,owned_by} — no tier labels, so probe-not-docs picked the models | integrate.api.nvidia.com/v1 (probed) | 2026-08-31 | ADOPT [providers/nvidia.py] |
+| **Streaming-proxy decision**: kimi-k3 streams reasoning_content deltas FIRST (~4.5 KB over 280 s) → the REST door forwards the stream (fast first token + honest mid-stream drop copy) while the MCP door collects one JSON answer | probe diag1 (logs/ai1-diag1.sh) | 2026-08-31 | ADOPT (two doors, one engine) |
+| **deepseek-v4 ids stalled on probe day**: 0 bytes through the full 300 s budget while the POST path stayed alive (bogus id → fast 404) → kept as DEEP behind env override with an honest 504 | probe diag1 | 2026-08-31 | PARKIR-SADAR-DIRI (behind `VILMEI_AI_MODEL_DEEP`) |
+| **reasoning_effort is harmful on this plane**: adding `reasoning_effort=low` stalled even kimi-k3 (0 bytes/240 s) → default path sends NO extra params; `VILMEI_AI_REASONING_EFFORT` strictly opt-in | probe diag2 (logs/ai1-diag2.sh) | 2026-08-31 | TOLAK-DENGAN-ALASAN as a default |
+| **Small models not hosted for this free account**: mistral-7b-instruct-v0.3 / deepseek-coder-6.7b → 404 "Function … Not found for account" | probe diag2 | 2026-08-31 | TOLAK-DENGAN-ALASAN (unavailable) |
+| **MCP spec rev 2026-07-28 re-checked**: /mcp stays current; `ai_ask` added as tool #7 — one JSON answer through the SAME personas, evidence, budget and cache guards as the REST door (tool errors = content, isError:true) | modelcontextprotocol.io/specification/latest | 2026-07-28 (rev) / 2026-08-31 (re-check) | FRONTIER-ADOPT |
+| **x402 agentic payments**: design-note only — VILMEI AI is budget-gated and free; a payment rail would matter only for a paid API tier later (see §(b) AGENT-NATIVE below) | x402.org | 2026-08-31 | PARKIR-SEBAGAI-DESIGN-NOTE |
 
 ## MANDATE 0-V3 frontier scan (PROMPT-V3, all rows live-checked 2026-08-31)
 

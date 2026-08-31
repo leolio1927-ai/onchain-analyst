@@ -1455,7 +1455,7 @@
           "system"
         ],
         "summary": "Mcp Rpc",
-        "description": "Read-only Model Context Protocol endpoint — JSON-RPC 2.0 (spec rev\n2026-07-28): initialize / ping / tools/list / tools/call over six\nread-only tools (trending, scan, rug, whale_windows, fee_view,\nfee_destinations). Nothing here trades, custodies, or writes.",
+        "description": "Read-only Model Context Protocol endpoint — JSON-RPC 2.0 (spec rev\n2026-07-28): initialize / ping / tools/list / tools/call over seven\nread-only tools (trending, scan, rug, whale_windows, fee_view,\nfee_destinations, ai_ask). Nothing here trades, custodies, or writes.",
         "operationId": "mcp_rpc_mcp_post",
         "responses": {
           "200": {

@@ -35,7 +35,7 @@ def test_tools_list_is_the_catalog(client):
     b = rpc(client, "tools/list").json()
     names = {t["name"] for t in b["result"]["tools"]}
     assert names == {"trending", "scan", "rug", "whale_windows", "fee_view",
-                     "fee_destinations"}
+                     "fee_destinations", "ai_ask"}
     for t in b["result"]["tools"]:
         assert t["inputSchema"]["type"] == "object"
 
@@ -92,6 +92,87 @@ def test_tools_call_scan_reuses_scan_pipeline(client, monkeypatch):
     b = rpc(client, "tools/call",
             {"name": "scan", "arguments": {"chain": "sol", "address": BONK}}).json()
     assert json.loads(b["result"]["content"][0]["text"])["score"] == 42
+
+
+# ── ai_ask (PROMPT-AI-V AI-5): one JSON answer, SAME guards as the REST door ──
+
+from webapp import ai_ask
+
+
+class FakeStream:
+    def __init__(self, lines: list[bytes]):
+        self._lines = list(lines)
+        self.closed = False
+
+    def readline(self) -> bytes:
+        return self._lines.pop(0) if self._lines else b""
+
+    def close(self):
+        self.closed = True
+
+
+SSE_LINES = [
+    b'data: {"choices":[{"delta":{"content":"VILMEI"}}]}\n',
+    b'data: {"choices":[{"delta":{"content":" is read-only."}}],"usage":{"prompt_tokens":11,"completion_tokens":5,"total_tokens":16}}\n',
+    b"data: [DONE]\n",
+]
+
+
+@pytest.fixture
+def ai_clean(monkeypatch, tmp_path):
+    ai_ask._reset_budget_state_for_tests()
+    ai_ask._reset_cache_for_tests()
+    monkeypatch.setenv("VILMEI_AI_BUDGET_FILE", str(tmp_path / "ai-budget.json"))
+    monkeypatch.delenv("NVIDIA_API_KEY", raising=False)
+    yield
+    ai_ask._reset_budget_state_for_tests()
+    ai_ask._reset_cache_for_tests()
+
+
+def test_tools_call_ai_ask_no_key_is_honest_content(client, ai_clean):
+    b = rpc(client, "tools/call",
+            {"name": "ai_ask", "arguments": {"question": "What is VILMEI?"}}).json()
+    assert b["result"]["isError"] is True
+    text = b["result"]["content"][0]["text"]
+    assert "NVIDIA_API_KEY not set" in text
+    assert "founder config" in text
+
+
+def test_tools_call_ai_ask_collects_stream_and_caches(client, ai_clean, monkeypatch):
+    from providers import nvidia
+    monkeypatch.setattr(nvidia, "api_key", lambda: "nv-test-key")
+    calls: list[str] = []
+
+    def fake_open(messages, *, model, max_tokens=1024, temperature=0.2,
+                  extra=None, timeout=60.0):
+        calls.append(model)
+        return FakeStream(SSE_LINES)
+
+    monkeypatch.setattr(nvidia, "open_stream", fake_open)
+    args = {"question": "What is VILMEI?"}
+    b = rpc(client, "tools/call", {"name": "ai_ask", "arguments": args}).json()
+    assert b["result"]["isError"] is False
+    payload = json.loads(b["result"]["content"][0]["text"])
+    assert payload["text"] == "VILMEI is read-only."
+    assert payload["persona"] == "guide" and payload["cached"] is False
+    assert payload["usage"]["total_tokens"] == 16
+    assert payload["model"] == nvidia.model_free()
+    assert payload["prompt_version"] == ai_ask.PROMPT_VERSION
+    # identical second question is served from the answer cache — no second burn
+    b2 = rpc(client, "tools/call", {"name": "ai_ask", "arguments": args}).json()
+    payload2 = json.loads(b2["result"]["content"][0]["text"])
+    assert payload2["cached"] is True and payload2["text"] == payload["text"]
+    assert len(calls) == 1
+
+
+def test_tools_call_ai_ask_analyst_needs_supported_chain(client, ai_clean, monkeypatch):
+    from providers import nvidia
+    monkeypatch.setattr(nvidia, "api_key", lambda: "nv-test-key")
+    b = rpc(client, "tools/call",
+            {"name": "ai_ask", "arguments": {"question": "risks?",
+                                              "chain": "eth", "token": "0x" + "a" * 40}}).json()
+    assert b["result"]["isError"] is True
+    assert "analyst needs chain" in b["result"]["content"][0]["text"]
 
 
 def test_unknown_method_and_tool_are_jsonrpc_errors(client):
