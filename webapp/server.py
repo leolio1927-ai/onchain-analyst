@@ -682,7 +682,8 @@ async def api_ai_ask(body: AiAskBody, request: Request):
     try:
         resp = await asyncio.to_thread(nvidia.open_stream, messages, model=model,
                                        max_tokens=1600 if deep else 700,
-                                       temperature=0.3, extra=extra)
+                                       temperature=0.3, extra=extra,
+                                       timeout=nvidia.STREAM_OPEN_TIMEOUT_S)
     except nvidia.NvidiaError as e:
         raise _ai_http_error(e) from e
     return StreamingResponse(_ai_stream(resp, ckey, model, body.mode, persona, sources),
@@ -1303,7 +1304,8 @@ async def _mcp_ai_ask(a: dict) -> dict:
     try:
         resp = await asyncio.to_thread(nvidia.open_stream, messages, model=model,
                                        max_tokens=1600 if deep else 700,
-                                       temperature=0.3, extra=extra)
+                                       temperature=0.3, extra=extra,
+                                       timeout=nvidia.STREAM_OPEN_TIMEOUT_S)
     except nvidia.NvidiaError as e:
         raise ValueError(_ai_upstream_error_text(e)) from e
     try:

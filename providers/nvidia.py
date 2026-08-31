@@ -41,6 +41,11 @@ DEFAULT_MODEL_FREE = "moonshotai/kimi-k3"
 DEFAULT_MODEL_DEEP = "deepseek-ai/deepseek-v4-pro-0813"
 TIMEOUT_S = 60.0          # per socket op; streaming reads get one per chunk
 CONNECT_TIMEOUT_S = 20.0
+# AI-6 truth-run 2026-08-31: the free tier can hold the response HEADERS until
+# reasoning begins — diag1's full kimi-k3 stream took ~280 s, and serial asks
+# still 504'd at a 180 s open. Stream opens therefore get the probe-observed
+# 300 s budget: a queued answer is a wait, not a 504.
+STREAM_OPEN_TIMEOUT_S = 300.0
 USER_AGENT = "vilmei-ai-analyst/1.0 (read-only research terminal)"
 
 
