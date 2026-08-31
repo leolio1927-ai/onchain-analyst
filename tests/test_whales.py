@@ -82,8 +82,27 @@ def test_no_key_is_not_configured(client, monkeypatch):
     r = client.get(f"/api/v1/whales/sol/{_MINT}")
     j = r.json()
     assert r.status_code == 200
-    assert j["data_mode"] == "unwired" and j["transfers"] == []
+    # V5-G1 status-truth: the feed IS wired — a missing key reads "partial"
+    # with the real reason, never "unwired" (that would claim no engine).
+    assert j["data_mode"] == "partial" and j["transfers"] == []
     assert j["data_sources"] == ["helius:not_configured"]
+
+
+def test_key_rejected_is_partial_not_unwired(client, monkeypatch):
+    """V5-G1 offline-truth: a junk key that upstream 401s must read as a
+    provider failure (partial), not as an unwired chain."""
+    import urllib.error
+
+    def boom(url, body=None):
+        raise urllib.error.HTTPError(url, 401, "Unauthorized", {}, None)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(helius, "_call", boom)
+    r = client.get(f"/api/v1/whales/sol/{_MINT}")
+    j = r.json()
+    assert r.status_code == 200
+    assert j["data_mode"] == "partial" and j["transfers"] == []
+    src = j["data_sources"][0]
+    assert src.startswith(("helius:", "whales:failed"))  # the real reason, verbatim
 
 
 def test_unwired_chain_carries_probe_reason(client):

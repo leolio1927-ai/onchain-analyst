@@ -366,12 +366,15 @@ export default function Dashboard() {
                 title={`WHALE ACTIVITY — ${(token?.symbol ?? 'BONK')} · ${(token?.chain ?? 'sol').toUpperCase()}`}
                 right={whalesErr ? <Badge color="red">ERR</Badge>
                   : whales?.data_mode === 'live' ? <Badge color="green">LIVE</Badge>
+                  : whales?.data_mode === 'partial' ? <Badge color="amber">PARTIAL</Badge>
                   : whales?.data_mode === 'unwired' ? <Badge color="muted">DECLARED NULL</Badge>
                   : <Badge color="muted">…</Badge>}>
                 {whalesErr ? (
                   <EmptyState title="Whale route did not answer" hint={whalesErr} />
                 ) : whales == null ? (
                   <Skeleton h={160} />
+                ) : whales.data_mode === 'partial' ? (
+                  <EmptyState title="Whale feed upstream failed" hint={whales.data_sources.join(' · ') || 'keyed provider error — the feed exists, the fetch did not'} />
                 ) : whales.data_mode === 'unwired' ? (
                   <EmptyState title="No $0 whale feed on this chain" hint={whales.data_sources.join(' · ') || 'declared null in the capability catalog'} />
                 ) : whales.transfers.length === 0 ? (

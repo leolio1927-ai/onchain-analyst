@@ -1034,8 +1034,15 @@ async def api_whales(chain: str, token: str, threshold_usd: float = 1000.0,
     except Exception as e:  # noqa: BLE001 — a provider failure is a note, not a 500
         data, note = None, f"whales:failed ({str(e)[:40]})"
     if data is None:
+        # V5-G1 status-truth: this route IS wired (helius+dexscreener); a
+        # provider/key failure must read "partial" with the real reason —
+        # "unwired" is reserved for chains the signed-delta view does not
+        # cover (providers/whales.py "null on this chain"), and junk-key
+        # 401s used to masquerade as it.
         out["data_sources"].append(note or "whales unavailable")
-        out["data_mode"] = "unwired"
+        out["data_mode"] = ("partial"
+                            if (note or "").startswith(("helius:", "whales:failed"))
+                            else "unwired")
         return out
     out.update(data)
     out["data_mode"] = "live"       # a served window is real data; quiet tokens included

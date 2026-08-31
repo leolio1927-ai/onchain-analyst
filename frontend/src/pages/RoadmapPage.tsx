@@ -148,9 +148,9 @@ const QUEUE: { id: string; tag: string; title: string; kind: ChipKind; why: stri
     proof: 'PROOF · board ticker consumes /ws/tape · back-pressure policy documented · snap schema untouched (3741173, 5428dfd)',
   },
   {
-    id: 'ta-104', tag: 'VM-104', title: 'AI analyst panel', kind: 'design',
-    why: 'Evidence-first narratives over live data — the /api/explain contract already serves a deterministic keyless local tier.',
-    proof: 'PROOF · panel renders its sources beside every claim · provider-agnostic · never trades',
+    id: 'ta-104', tag: 'VM-104', title: 'AI analyst panel', kind: 'shipped',
+    why: 'Evidence-first narratives over live data — the VILMEI AI went live in the AI-V phase: streaming SSE proxy /api/v1/ai/ask (NVIDIA free tier, server-side key) + MCP ai_ask tool #7.',
+    proof: 'PROOF · /api/v1/ai/ask SSE (provenance → deltas → usage → [DONE]) · ANALYST evidence-first + GUIDE grounded in AI-BRIEF.md · per-IP/daily budgets, cache, honest 429/502/503/504 · never trades',
   },
   {
     id: 'ta-105', tag: 'VM-105', title: 'Backend foundations — one additive route at a time', kind: 'build',
@@ -281,7 +281,7 @@ export function RoadmapPage() {
                 <span className="rr-alias" id={'vm-' + q.id.slice(3)} aria-hidden="true" />
                 <span className="tid">{q.tag}</span>
                 <div>
-                  <div className="t">{q.title} <Chip kind={q.kind}>{q.kind === 'build' ? 'in build' : 'design'}</Chip></div>
+                  <div className="t">{q.title} <Chip kind={q.kind}>{q.kind === 'build' ? 'in build' : q.kind === 'shipped' ? 'shipped' : q.kind}</Chip></div>
                   <p><b>WHY:</b> {q.why}</p>
                   <span className="proof">{q.proof}</span>
                 </div>

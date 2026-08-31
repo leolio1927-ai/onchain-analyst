@@ -73,10 +73,10 @@ const BRANCH = [
   { x: 228, t: 'SWAP DESK UI', k: 'sim', s: 'DETERMINISTIC DATA SET' },
   { x: 436, t: 'WALLET SESSION', k: 'design', s: 'SESSION + KEYS' },
   { x: 644, t: 'WS TAPE', k: 'build', s: 'ROUTE SHIPPED · UI PENDING' },
-  { x: 852, t: 'AI ANALYST', k: 'design', s: 'EVIDENCE NARRATIVE' },
+  { x: 852, t: 'AI ANALYST', k: 'live', s: 'EVIDENCE FIRST · NEVER TRADES' },
 ]
 const BRANCH_COLOR: Record<string, string> = {
-  build: '#9cc3b2', sim: 'var(--amber)', design: 'var(--muted-deep)',
+  build: '#9cc3b2', sim: 'var(--amber)', design: 'var(--muted-deep)', live: 'var(--brand)',
 }
 
 function Pipeline() {
