@@ -1,13 +1,26 @@
 """Provider NVIDIA NIM — OpenAI-compatible chat endpoint, FREE tier.
 
-PROMPT-AI-V probe 2026-08-31 (raw evidence in logs/ai1-*.raw, gitignored):
-- GET /v1/models → 200, 83-model catalog; entries carry only
+PROMPT-AI-V probe 2026-08-31 (raw evidence in logs/ai1-*, gitignored):
+- GET /v1/models → 200 in ~0.7s, 83-model catalog; entries carry only
   {created, id, object, owned_by} — NO per-model free/tier label, so the
   model docs page is the source of "which endpoints are free".
 - Exact ids present: moonshotai/kimi-k3, moonshotai/kimi-k2.6,
   deepseek-ai/deepseek-v4-pro-0813, deepseek-ai/deepseek-v4-flash-0731.
 - /v1/chat/completions is OpenAI-compatible (choices/usage/finish_reason);
   stream=true speaks SSE `data: {...}` lines terminated by `data: [DONE]`.
+- diag1: moonshotai/kimi-k3 STREAM → HTTP 200 SSE with reasoning_content
+  deltas first (long reasoning phase: ~4.5 KB over 280 s). The deepseek-v4
+  ids returned 0 bytes through a full 300 s budget (inference plane stalled
+  on those ids today); a bogus model id → fast 404, so the POST path itself
+  is alive.
+- diag2: small models (mistral-7b-instruct-v0.3, deepseek-coder-6.7b) →
+  404 "Function … Not found for account" — not hosted for this free-tier
+  account; and adding reasoning_effort stalled even kimi-k3 (0 bytes/240 s),
+  so the default path sends NO extra params — VILMEI_AI_REASONING_EFFORT is
+  strictly opt-in.
+- Verdict: FREE = moonshotai/kimi-k3 (stream-first, patient timeouts);
+  DEEP = deepseek-ai/deepseek-v4-pro-0813 kept behind env override with an
+  honest 504 if it stalls; backup = moonshotai/kimi-k2.6.
 
 LAWS (project-wide): the key travels ONLY as `Authorization: Bearer` — never
 in a URL, never in a log line, never in a response. stdlib urllib only — the
