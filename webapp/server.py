@@ -33,6 +33,7 @@ from fastapi.responses import (
     JSONResponse,
     RedirectResponse,
     Response,
+    StreamingResponse,
 )
 from pydantic import BaseModel
 
@@ -50,13 +51,14 @@ from providers import (
     holdings,
     live,
     market,
+    nvidia,
     portfolio,
     rugcheck,
     vaults,
     whale_windows,
     whales,
 )
-from webapp import chains, db, mcp, schemas
+from webapp import ai_ask, chains, db, mcp, schemas
 from webapp import lineage as lineage_mod
 
 CACHE_TTL_S = 30.0
@@ -104,6 +106,21 @@ class WhaleBody(BaseModel):
     address: str
 
 
+class AiHistoryTurn(BaseModel):
+    role: str  # user | assistant — anything else is dropped server-side
+    content: str
+
+
+class AiAskBody(BaseModel):
+    question: str
+    mode: str = "free"            # free | deep — depth, never data correctness
+    persona: str | None = None    # analyst | guide; defaults from token context
+    chain: str | None = None      # analyst context — server re-fetches evidence
+    token: str | None = None
+    history: list[AiHistoryTurn] = []
+    surface: str = "terminal"     # terminal | landing — separate budget pools
+
+
 def _apply_cors(app: FastAPI) -> None:
     """CORS is opt-in for split FE/BE hosting: CORS_ALLOW_ORIGINS is a comma
     list of origins (e.g. "https://alpha.example.com,https://alpha.pages.dev").
@@ -127,6 +144,7 @@ _DESCRIPTION = """Read-only multichain memecoin research terminal — reduce noi
 - **POST /api/scan** — DexScreener pair + GeckoTerminal trade clustering → deterministic, weighted risk assessment
 - **GET /api/v1/discovery** — keyless trending/new pool radar (GeckoTerminal free tier)
 - **POST /api/explain** — evidence-first AI narrative; `provider: "local"` serves a deterministic heuristic narrative with zero API keys
+- **POST /api/v1/ai/ask** — VILMEI AI (free-tier NVIDIA endpoint, server-side key): evidence-first analyst for token questions + brief-grounded guide for VILMEI questions. Streams SSE (provenance → deltas → usage → [DONE]); per-IP RPM + daily budget pools; identical questions answered from a short-TTL cache; no key → honest 503, over budget → honest 429
 - **POST /api/whale** — Helius wallet balances (key required)
 - **GET /api/v1/whale/windows** — whale windows (1h/6h/24h) on the keyless GeckoTerminal trade tape, all five chains; threshold is a labelled heuristic, never an on-chain label
 - **GET /api/v1/whale/auto** — AUTO: resolve a contract across networks + trending top-N candidates
@@ -472,6 +490,166 @@ async def api_explain(body: ExplainBody, request: Request) -> dict:
         raise HTTPException(503, f"{e} — or provider='local' for the keyless heuristic narrative") from e
     return {**out, "tier": token_gate.resolve_tier(), "provider": body.provider,
             "sources": scan.get("sources", [])}
+
+
+# ── PROMPT-AI-V: VILMEI AI — free-tier NVIDIA endpoint, evidence-first ───
+# Law: the client sends only a question (+optional token context); the system
+# prompt and the evidence block are assembled HERE, server-side, so a client
+# can never forge evidence or inject a persona. No key = honest 503; over
+# budget = honest 429; upstream failure = honest 502/504. Never red-solo.
+
+_AI_SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
+
+
+def _ai_http_error(e: nvidia.NvidiaError) -> HTTPException:
+    if e.kind == "rate_limited":
+        return HTTPException(429, "VILMEI AI upstream is rate-limiting the free tier — try again in a minute")
+    if e.kind == "timeout":
+        return HTTPException(504, "VILMEI AI upstream timed out — the free tier runs slow right now; try again")
+    return HTTPException(502, f"VILMEI AI upstream error — {e.detail[:160] or 'unknown'}")
+
+
+async def _ai_evidence(chain: str, token: str) -> tuple[dict, list[str]]:
+    """Assemble the EVIDENCE block from routes that already exist: scan
+    verdict (heuristics) + rug provider summary + fee matrix. Whale windows
+    need a WALLET, not a token, so they stay out of token evidence. Every
+    section is fail-soft: evidence degrades instead of failing the answer."""
+    ev: dict = {"chain": chain, "token": token}
+    sources = ["scan:heuristics"]
+    scan = await _get_scan(chain, token)  # 404 propagates: no pair = no evidence
+    pair = scan.get("pair") or {}
+    ev["scan"] = {
+        "pair": {k: pair.get(k) for k in ("pairAddress", "label", "baseToken", "quoteToken",
+                                          "priceUsd", "liquidityUsd", "volume24h", "fdvUsd",
+                                          "pairCreatedAt", "dexId") if k in pair},
+        "assessment": scan.get("assessment"),
+        "clustering": scan.get("clustering"),
+    }
+    try:
+        if chain == "sol":
+            row, _note = await asyncio.to_thread(rugcheck.summary, token)
+            if row:
+                ev["rug"] = {"provider": "rugcheck", "score_normalised": row.get("score_normalised"),
+                             "lp_locked_pct": row.get("lp_locked_pct"),
+                             "risks": (row.get("risks") or [])[:8]}
+                sources.append("rug:rugcheck")
+        elif chain in goplus._CHAIN_IDS:
+            row, _note = await asyncio.to_thread(goplus.security_flags, chain, token)
+            if row:
+                ev["rug"] = {"provider": "goplus", **row}
+                sources.append("rug:goplus")
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+        pass  # rug enrichment is optional evidence — absent stays absent
+    try:
+        ev["fee_matrix"] = fee_models.estimate(chain, 1000.0)
+        sources.append("fees:planned")
+    except (KeyError, ValueError, TypeError):
+        pass
+    return ev, sources
+
+
+async def _ai_stream(resp, cache_key_: str, model: str, mode: str,
+                     persona: str, sources: list[str]):
+    yield ai_ask.provenance_event(model=model, mode=mode, persona=persona,
+                                  cached=False, evidence_sources=sources)
+    parts: list[str] = []
+    usage: dict | None = None
+    errored = False
+    try:
+        while True:
+            raw = await asyncio.to_thread(resp.readline)
+            if not raw:
+                break
+            parsed = nvidia.parse_sse_line(raw.decode("utf-8", "replace"))
+            if parsed == "DONE":
+                break
+            if not isinstance(parsed, dict):
+                continue
+            u = parsed.get("usage")
+            if isinstance(u, dict):
+                usage = u
+            text = nvidia.delta_text(parsed)
+            if text:
+                parts.append(text)
+                yield ai_ask.sse({"type": "delta", "text": text})
+    except (OSError, ValueError):
+        errored = True
+        yield ai_ask.sse({"type": "error", "kind": "stream_interrupted",
+                          "detail": "the upstream stream dropped mid-answer — ask again"})
+    finally:
+        resp.close()
+    if parts and not errored:  # only COMPLETED answers enter the cache
+        ai_ask.cache_put(cache_key_, "".join(parts))
+    yield ai_ask.sse({"type": "usage",
+                      "prompt_tokens": (usage or {}).get("prompt_tokens"),
+                      "completion_tokens": (usage or {}).get("completion_tokens"),
+                      "total_tokens": (usage or {}).get("total_tokens")})
+    yield "data: [DONE]\n\n"
+
+
+async def _ai_cached_stream(text: str, model: str, mode: str, persona: str,
+                            sources: list[str]):
+    yield ai_ask.provenance_event(model=model, mode=mode, persona=persona,
+                                  cached=True, evidence_sources=sources)
+    yield ai_ask.sse({"type": "delta", "text": text})
+    yield ai_ask.sse({"type": "usage", "prompt_tokens": None,
+                      "completion_tokens": None, "total_tokens": None, "cached": True})
+    yield "data: [DONE]\n\n"
+
+
+@app.post("/api/v1/ai/ask", tags=["ai"])
+async def api_ai_ask(body: AiAskBody, request: Request):
+    """VILMEI AI. Streams SSE: provenance → delta* → usage → [DONE]."""
+    question = (body.question or "").strip()
+    if not question:
+        raise HTTPException(400, "question must be a non-empty string")
+    if len(question) > ai_ask.QUESTION_MAX_CHARS:
+        raise HTTPException(400, f"question too long — keep it under {ai_ask.QUESTION_MAX_CHARS} characters")
+    if body.mode not in ("free", "deep"):
+        raise HTTPException(400, "mode must be 'free' or 'deep'")
+    if body.surface not in ("terminal", "landing"):
+        raise HTTPException(400, "surface must be 'terminal' or 'landing'")
+    persona = body.persona or ("analyst" if body.chain and body.token else "guide")
+    if persona not in ("analyst", "guide"):
+        raise HTTPException(400, "persona must be 'analyst' or 'guide'")
+    # invalid analyst context fails BEFORE burning any budget or credit
+    chain = (body.chain or "").strip().lower()
+    token = (body.token or "").strip()
+    if persona == "analyst" and (chain not in geckoterminal.NETWORKS or not token):
+        raise HTTPException(400, f"analyst persona needs chain ({'|'.join(sorted(geckoterminal.NETWORKS))}) + token — or ask the guide")
+    if not nvidia.api_key():
+        raise HTTPException(503, "VILMEI AI offline — NVIDIA_API_KEY not set (founder config)")
+    ip = request.client.host if request.client else "unknown"
+    ok, reason = ai_ask.charge(ip, body.surface)
+    if not ok:
+        raise HTTPException(429, ai_ask.DAILY_SPENT_COPY if reason == "daily"
+                            else ai_ask.BUDGET_BUSY_COPY)
+    model = nvidia.model_deep() if body.mode == "deep" else nvidia.model_free()
+    evidence: dict | None = None
+    sources: list[str] = []
+    if persona == "analyst":
+        evidence, sources = await _ai_evidence(chain, token)
+    evidence_json = ai_ask.truncate_evidence(evidence) if evidence else None
+    digest = ai_ask.evidence_digest(evidence)
+    ckey = ai_ask.cache_key(question, body.mode, model, persona, digest)
+    cached = ai_ask.cache_get(ckey)
+    if cached is not None:
+        return StreamingResponse(_ai_cached_stream(cached, model, body.mode, persona, sources),
+                                 media_type="text/event-stream", headers=_AI_SSE_HEADERS)
+    messages = ai_ask.build_messages(persona=persona, question=question,
+                                     history=[t.model_dump() for t in body.history],
+                                     evidence_json=evidence_json)
+    deep = body.mode == "deep"
+    effort = (os.environ.get("VILMEI_AI_REASONING_EFFORT") or "").strip()
+    extra = {"reasoning_effort": effort} if deep and effort else None
+    try:
+        resp = await asyncio.to_thread(nvidia.open_stream, messages, model=model,
+                                       max_tokens=1600 if deep else 700,
+                                       temperature=0.3, extra=extra)
+    except nvidia.NvidiaError as e:
+        raise _ai_http_error(e) from e
+    return StreamingResponse(_ai_stream(resp, ckey, model, body.mode, persona, sources),
+                             media_type="text/event-stream", headers=_AI_SSE_HEADERS)
 
 
 @app.post("/api/v1/whale", response_model=schemas.WhaleResponse, tags=["whale"])
