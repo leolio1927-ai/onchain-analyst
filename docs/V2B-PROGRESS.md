@@ -16,3 +16,10 @@ One line per phase. Source of truth for resume: `phase | status | commit sha | g
 | P7 brand | DONE | 78bcfb7 | vitest 42/42 · grep 'Terminal Alpha' frontend/src+*.html = 0 (kecuali DocsPage §12 changelog rename line) · grep vilmei.com = 0 · ledger VM-xx display + #ta-xx anchor + #vm-xx alias (RoadmapPage.test) · migration-once alpha.*→vilmei.* preserve+remove (prefs.test 4/4) · OpenAPI info.title VILMEI |
 | openapi snapshot | DONE | 98ec3e5 | pytest test_contracts snapshot gate green — snapshot regenerated after P3+P6 routes + P7 title; llms.txt §Live API gains rug routes in the same change |
 | P8 gates | DONE | 1e77046 | node v24.20.0 · tsc 0 · vitest 12 files/42 tests ✓ · build ✓ (dial3d 130.10 kB gzip ≤ 150 kB) · oxlint 19 warnings/0 errors (per-line triage in report; 7 new-code justified, 12 pre-existing patterns newly flagged by oxlint 1.80 react-compiler rules) · ruff All checks passed · pytest 227/227 + 1 snapshot · identity-race ✓ · overlay alpha ✓ · curl /mcp+.well-known ✓ · brand-sweep grep ✓ · ledger updated per phase |
+
+# V3-PROGRESS — resume ledger (PROMPT-V3: RUG-WHALE PARITY + FEE FRONTIER + PREMIUM BAR)
+
+| phase | status | commit | gate evidence |
+|---|---|---|---|
+| P0-V3 baseline | DONE | (this line) | git tree clean @ aff2163 · node v24.20.0 · tsc 0 · vitest 12 files/42 tests ✓ (V2B state confirmed) |
+| mandate-0-V3 | DONE | (next commit) | docs/TECH-DECISIONS.md §MANDATE 0-V3 — 6 areas live-probed 2026-08-31: RugCheck summary+report 200 keyless · GoPlus 45 chains incl Robinhood 4663 (code1 live), HyperEVM 999→code2022 unsupported · Birdeye 401 keyless=TOLAK · GT pool trades 200 keyless 300/page paginated=whale feed · Helius 401 keyless=key-gated · monetization: Jupiter platformFeeBps live keyless=SIAP-$0, Uni v4/Pancake Infinity=deploy-hook, Aerodrome/HyperEVM/Robinhood=BD/TBD (raw in logs/v3-probe-*) |

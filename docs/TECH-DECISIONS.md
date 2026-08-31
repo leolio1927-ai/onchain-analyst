@@ -78,3 +78,60 @@ Frontier adoption per utility module (the founder's core question — "mana tekn
 | Helius enhanced-transactions tape (sol, key-gated feed) | docs.helius.dev | 2026-08-31 (wiring re-verified) | TETAP |
 | USD sizing via DexScreener pair price — null when absent, never fabricated | api.dexscreener.com (keyless) | 2026-08-31 (probed) | TETAP |
 | Tape-window aggregation 1h/6h/24h/7d + CSV blob export | developer.mozilla.org/docs/Web/API/URL/createObjectURL | 2026-08-31 | ADOPT |
+
+## MANDATE 0-V3 frontier scan (PROMPT-V3, all rows live-checked 2026-08-31)
+
+Raw probe transcripts: `logs/v3-probe-*.json` + `logs/v3-probe-*.sh` (gitignored).
+Method: raw keyless curl first (docs beat memory; when a docs host was unreachable
+from the probe environment, that is stated in the row — no blog answers).
+
+**(a) RugCheck (sol)**
+| temuan | sumber (URL) | tanggal | status |
+|---|---|---|---|
+| `/v1/tokens/{mint}/report/summary` hidup, keyless — BONK 200 @0.94s (score_normalised 7, lpLockedPct 23.98, risks[Mutable metadata]) | api.rugcheck.xyz/v1/tokens/{mint}/report/summary | 2026-08-31 (probed) | TETAP — path aktif |
+| `/v1/tokens/{mint}/report` hidup juga — BONK 200 @2.83s, rich keys (mintAuthority, freezeAuthority, insiderNetworks, lockers, markets, launchpad) | api.rugcheck.xyz/v1/tokens/{mint}/report | 2026-08-31 (probed) | ADOPT di R1 (field-level mapping, null-safe) |
+| Tidak ada path v2 / deprecation header terdeteksi pada probe; swagger UI ada di api.rugcheck.xyz/swagger (spec JSON tidak terekspos: 404 untuk swagger/v1/swagger.json, openapi.json) | api.rugcheck.xyz/swagger/index.html | 2026-08-31 (probed) | TETAP |
+
+**(b) GoPlus token_security (EVM coverage)**
+| temuan | sumber (URL) | tanggal | status |
+|---|---|---|---|
+| Endpoint resmi daftar chain: `/api/v1/supported_chains` → **45 chain**: 1 ETH, **56 BSC**, **8453 Base**, solana, 130 Unichain, 143 Monad, 146 Sonic, 1868 Soneium, **4663 Robinhood**, dll | api.gopluslabs.io/api/v1/supported_chains | 2026-08-31 (probed) | **FRONTIER-ADOPT — Robinhood coverage BARU** |
+| `token_security/4663` melayani Robinhood chain (code 1 OK) — konfirmasi live, bukan cuma terdaftar | api.gopluslabs.io/api/v1/token_security/4663 | 2026-08-31 (probed) | ADOPT di R1 (hood = GoPlus) |
+| HyperEVM TIDAK dicover: probe chain 999 → `code 2022 "The main chain is not supported"`; 999 absen dari supported_chains | api.gopluslabs.io/api/v1/token_security/999 | 2026-08-31 (probed) | hype tetap honest PARTIAL |
+| Free-tier rate limit: tidak terverifikasi (docs.gopluslabs.io SPA, halaman reference 404/block dari env probe) — cache TTL 300s + single-flight tetap jadi pelindung | docs.gopluslabs.io | 2026-08-31 (probed) | TETAP (defensive caching) |
+
+**(c) Birdeye**
+| temuan | sumber (URL) | tanggal | status |
+|---|---|---|---|
+| Keyless probe `public-api.birdeye.so/defi/tokenlist` → **HTTP 401 {"success":false,"message":"Unauthorized"}** — semua endpoint butuh API key; tier gratis pun key-gated | public-api.birdeye.so | 2026-08-31 (probed) | **TOLAK-DENGAN-ALASAN**: zero-key law; whale tape pindah ke GeckoTerminal pool trades (d) |
+
+**(d) GeckoTerminal POOL TRADES — whale feed baru ($0, keyless)**
+| temuan | sumber (URL) | tanggal | status |
+|---|---|---|---|
+| `GET /api/v2/networks/{network}/pools/{pool}/trades` hidup keyless — BONK/SOL Orca pool 200 @1.5s, **300 trades/page**, atribut lengkap: `kind` (buy/sell), `volume_in_usd`, `block_timestamp`, `tx_from_address`, `tx_hash`, `price_to_in_usd` | api.geckoterminal.com/api/v2/networks/solana/pools/{addr}/trades | 2026-08-31 (probed) | **FRONTIER-ADOPT (R2 whale feed)** |
+| Pagination `?page=N` terbukti: page=2 → 300 trades lagi, ts lebih baru (tape hidup) | sama + `?page=2` | 2026-08-31 (probed) | ADOPT (backfill window 1h/6h/24h) |
+| `GET /api/v1/search/pools?query=` keyless (resolusi CA/nama → pool address per network) | api.geckoterminal.com/api/v1/search/pools | 2026-08-31 (probed) | ADOPT (AUTO mode) |
+| `GET /api/v2/networks/{network}/trending_pools` keyless — 20 pools + volume_usd.h24 | api.geckoterminal.com/api/v2/networks/solana/trending_pools | 2026-08-31 (probed) | ADOPT (AUTO top-N) |
+| Rate limit: docs apiguide.geckoterminal.com hanya menyebut "Beta, subject to changes" tanpa angka; mitigasi = backoff + cache + N kecil | apiguide.geckoterminal.com | 2026-08-31 (probed) | GUARD di R2 |
+
+**(e) Helius (sol whale tape)**
+| temuan | sumber (URL) | tanggal | status |
+|---|---|---|---|
+| Keyless probe `mainnet.helius-rpc.com` → **HTTP 401 Unauthorized** — selalu key-gated | mainnet.helius-rpc.com | 2026-08-31 (probed) | TETAP (key dari founder .env, hanya sol) |
+| Enhanced Transactions API (parse tx + by-address) ada dan aktif di docs; enhanced vs standard: enhanced = parsed instructions (human-readable), standard = raw getSignaturesForAddress | docs.helius.dev/solana-apis/enhanced-transactions-api | 2026-08-31 (doc fetch 200) | TETAP di sol; chain lain = GT tape |
+
+**(f) MONETIZATION STACK — finding: ada/tidaknya fee integrator $0 tanpa perjanjian bisnis**
+| provider | mekanisme | sumber (URL) | tanggal | verdict |
+|---|---|---|---|---|
+| **Jupiter (SOL)** | `platformFeeBps` di /quote (+/swap), dibayar ke fee token account; **probe keyless live**: lite-api.jup.ag/swap/v1/quote menerima feeBps 100/101/5000 dan echo `platformFee:{amount,feeBps}` — tanpa key, tanpa agreement | lite-api.jup.ag/swap/v1/quote (probed) + developers.jup.ag "Add Integrator Fees" | 2026-08-31 (probed) | **SIAP-$0-DI-SINI** (target 50bps ≪ ambang mana pun; docs historis menyebut cap 100bps — angka di atas itu pun diterima quote saat probe, dicatat sebagai temuan live) |
+| **Uniswap v4 (base/bnb)** | hook fee (dynamic LP fee via hook `beforeSwap`) + protocol fee via `ProtocolFeeController` milik pool; tidak ada param fee integrator di API publik | developers.uniswap.org/docs/protocols/v4/concepts/dynamic-fees (redirect 303 saat fetch; konsep terkonfirmasi via search index) | 2026-08-31 (checked) | **PERLU-DEPLOY-HOOK** (bukan $0-instant; deploy+audit hook sendiri) |
+| **PancakeSwap Infinity (bnb/base)** | hooks + official `dynamic-fee-hook` + admin fee per pool | docs.pancakeswap.finance/trade/pancakeswap-infinity/hooks/dynamic-fee-hook (URL dari search index; host SPA tak bisa di-scrape dari env probe) | 2026-08-31 (checked) | **PERLU-DEPLOY-HOOK** |
+| **Aerodrome (base)** | docs host tak terjangkau dari env probe (000); tidak ada API fee integrator keyless yang ditemukan; model veAERO/gauge | aerodrome.finance/docs (unreachable dari env probe) | 2026-08-31 (checked) | **TIDAK-ADA / TBD** (BD) |
+| **Hyperliquid / HyperEVM (hype)** | HIP-3 builder-deployed perps (builder fee share) + builder codes; HyperEVM = gas saja, tidak ada skema fee integrator spot | hyperliquid.gitbook.io/hyperliquid-docs (root+builder-tools 200; HIP-3 via search index) | 2026-08-31 (checked) | **PERLU-AGREEMENT-BISNIS** (builder application) |
+| **Robinhood Chain (hood, chain id 4663)** | docs.robinhood.com tak terjangkau dari env probe; GoPlus membuktikan chain hidup + id 4663; tidak ada skema fee integrator publik yang ditemukan | docs.robinhood.com/chain (unreachable) + GoPlus supported_chains (probed) | 2026-08-31 (checked) | **TBD** (chain baru; BD) |
+
+**Kesimpulan mandate 0-V3**: satu-satunya skema fee integrator $0 yang terverifikasi
+hidup tanpa key dan tanpa perjanjian bisnis hari ini = **Jupiter platformFeeBps (SOL)**.
+Chain lain = deploy hook sendiri (Uni v4 / Pancake Infinity) atau BD (Aerodrome, Hyperliquid,
+Robinhood). Implikasi R4: estimator 0.30/0.10/0.10 dihitung read-only; status chip per chain
+diambil dari matriks ini (LIVE-READY=SOL, BD/DEPLOY=sisanya).
