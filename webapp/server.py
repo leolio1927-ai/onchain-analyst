@@ -47,6 +47,7 @@ from providers import (
     live,
     market,
     rugcheck,
+    whale_windows,
     whales,
 )
 from webapp import chains, db, mcp, schemas
@@ -119,6 +120,8 @@ _DESCRIPTION = """Read-only multichain memecoin research terminal — reduce noi
 - **GET /api/v1/discovery** — keyless trending/new pool radar (GeckoTerminal free tier)
 - **POST /api/explain** — evidence-first AI narrative; `provider: "local"` serves a deterministic heuristic narrative with zero API keys
 - **POST /api/whale** — Helius wallet balances (key required)
+- **GET /api/v1/whale/windows** — whale windows (1h/6h/24h) on the keyless GeckoTerminal trade tape, all five chains; threshold is a labelled heuristic, never an on-chain label
+- **GET /api/v1/whale/auto** — AUTO: resolve a contract across networks + trending top-N candidates
 - **WS /ws/snap** — full honest snapshot ticker · **WS /ws/tape** — live trade-tape deltas for the active pool
 
 Every value is copied verbatim from the upstream APIs; absent fields stay absent —
@@ -169,8 +172,8 @@ async def _scan_chain(chain_key: str, address: str) -> dict | None:
 
     Per-chain denominator note (BE-F4 wiring decision, deliberately not
     joined yet — same no-join rule as F3 labels): when it ships, it reads the
-    chain's capabilities from webapp/chains.py CHAIN_CATALOG (e.g. hood has
-    clustering=False → an honest "5 of 6 signals available on this chain")."""
+    chain's capabilities from webapp/chains.py CHAIN_CATALOG (e.g. hype has
+    scan=False → an honest "signals unavailable on this chain")."""
     try:
         pairs = await asyncio.to_thread(dexscreener.fetch_pairs, chain_key, address)
     except urllib.error.HTTPError as e:
@@ -783,9 +786,11 @@ async def api_chains() -> dict:
 async def api_whales(chain: str, token: str, threshold_usd: float = 1000.0,
                      limit: int = 25) -> dict:
     """Large recent transfers + per-wallet netflow for one token. Solana =
-    Helius enhanced transactions (keyed); bnb/base/hood/hype carry the probe
-    reason — no $0 trade feed exists there. USD sizing uses the DexScreener
-    pair price; when absent, `usd` stays None and token amounts stand alone."""
+    Helius enhanced transactions (keyed); the other chains stay unwired HERE
+    (this is the signed-delta view) — the GT trade tape at
+    /api/v1/whale/windows covers all five chains keyless. USD sizing uses the
+    DexScreener pair price; when absent, `usd` stays None and token amounts
+    stand alone."""
     out: dict = {"chain": chain.strip().lower(), "token": token.strip().lower(),
                  "threshold_usd": threshold_usd, "transfers": [], "netflow": [],
                  "window_txs": 0, "price_usd": None,
@@ -811,6 +816,59 @@ async def api_whales(chain: str, token: str, threshold_usd: float = 1000.0,
         f"whales: helius enhanced txs (window={data['window_txs']} txs, "
         f"threshold ${threshold_usd}) + dexscreener pair price"
         + ("" if data["price_usd"] is not None else " — price absent: usd stays null"))
+    return out
+
+
+# ── PROMPT-V3 R2: whale windows on the GeckoTerminal trade tape ──
+# The $0 whale feed on all five chains: GT pool trades (probe 2026-08-31).
+# A "whale" is a labelled heuristic (one trade ≥ chain threshold), never an
+# on-chain label — the threshold sentence ships inside every payload.
+
+@app.get("/api/v1/whale/windows", response_model=schemas.WhaleWindowsResponse,
+         tags=["market"])
+async def api_whale_windows(chain: str, ca: str) -> dict:
+    """Whale windows (1h/6h/24h) for one contract on one chain, from the
+    GeckoTerminal trade tape. Threshold is a labelled heuristic per chain
+    (sol $50K · bnb/base $30K · hype/hood = native qty × live native price,
+    $30K fallback stated). No pool for the contract = an honest unwired
+    envelope with the reason, never a red wall."""
+    chain_key = chain.strip().lower()
+    out: dict = {"chain": chain_key, "token": ca.strip(),
+                 "data_mode": "unwired", "schema_version": "1.0",
+                 "sources": [], "ts": schemas._utc_now_iso(),
+                 "data_sources": []}
+    try:
+        data, note = await asyncio.to_thread(whale_windows.whale_windows,
+                                             chain_key, ca.strip())
+    except Exception as e:  # noqa: BLE001 — a provider failure is a note, not a 500
+        data, note = None, f"whale_windows:failed ({str(e)[:40]})"
+    if data is None:
+        out["data_sources"].append(note or "whale_windows unavailable")
+        return out
+    out.update(data)
+    out["data_mode"] = "live"
+    out["sources"] = ["geckoterminal"]
+    return out
+
+
+@app.get("/api/v1/whale/auto", response_model=schemas.WhaleAutoResponse,
+         tags=["market"])
+async def api_whale_auto(ca: str, limit: int = 5) -> dict:
+    """AUTO mode: resolve the contract across networks via GT search, run
+    whale windows on every chain that lists it, and add the trending top-N
+    (small N, one call per chain, cached + backoff) as candidates. Every
+    miss or rate-limit is a sentence in data_sources."""
+    out: dict = {"token": ca.strip(), "results": [], "candidates": [],
+                 "trending": [], "data_mode": "live", "schema_version": "1.0",
+                 "sources": ["geckoterminal"], "ts": schemas._utc_now_iso(),
+                 "data_sources": []}
+    try:
+        data = await asyncio.to_thread(whale_windows.whale_auto, ca.strip(),
+                                       max(1, min(int(limit), 10)))
+    except Exception as e:  # noqa: BLE001 — never a 500; the note is the answer
+        out["data_sources"].append(f"whale_auto:failed ({str(e)[:40]})")
+        return out
+    out.update(data)
     return out
 
 

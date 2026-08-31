@@ -190,10 +190,10 @@ def test_discovery_trending_and_new(client, monkeypatch):
 
 
 def test_discovery_bad_chain_and_mode(client):
-    # hood is a valid scan chain but GeckoTerminal does not serve it
-    r = client.get("/api/v1/discovery", params={"chain": "hood"})
+    # R2 probe 2026-08-31: GT now serves hood (robinhood) + hype (hyperevm);
+    # avax stays parked 2026-08-30 → it is the "not served" chain now
+    r = client.get("/api/v1/discovery", params={"chain": "avax"})
     assert r.status_code == 400 and "not served" in r.json()["detail"]
-    assert client.get("/api/v1/discovery", params={"chain": "hype"}).status_code == 400
     assert client.get("/api/v1/discovery", params={"mode": "hot"}).status_code == 400
 
 

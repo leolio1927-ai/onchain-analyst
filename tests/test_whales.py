@@ -90,7 +90,8 @@ def test_unwired_chain_carries_probe_reason(client):
     r = client.get("/api/v1/whales/bnb/0x" + "a" * 40)
     j = r.json()
     assert r.status_code == 200 and j["data_mode"] == "unwired"
-    assert "404 on the free tier" in j["data_sources"][0]
+    # PROMPT-V3 R2: non-sol note now points at the GT tape endpoint
+    assert "/api/v1/whale/windows" in j["data_sources"][0]
 
 
 def test_quiet_token_is_live_data(client, monkeypatch):

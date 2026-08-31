@@ -24,6 +24,14 @@ from webapp.chains import CHAIN_CATALOG
 _EVM_NO_HOLDERS = ("probe 2026-08-30: top-holder enumeration needs an indexer "
                    "key; alchemy free RPC cannot enumerate holders")
 
+# R2 (2026-08-31) flipped this sentence: the GT trade tape IS a $0 whale feed
+# now (all five chains) — it is served at GET /api/v1/whale/windows and
+# deliberately not embedded in the scan context (a scan-context embed would
+# spend GT rate budget for a block the context never renders).
+_WHALES_ON_TAPE = ("a $0 whale feed exists (GeckoTerminal pool trades, probe "
+                   "2026-08-31) — served at GET /api/v1/whale/windows, not "
+                   "embedded in the scan context")
+
 _CAPABILITIES: dict[str, dict[str, dict]] = {
     "sol": {
         "deployer": {"source": "helius", "fn": helius.get_creation},
@@ -41,7 +49,7 @@ _CAPABILITIES: dict[str, dict[str, dict]] = {
         "sell_test": {"source": None,
                       "reason": "1inch quote requires an API key "
                                 "(probe: 401 unauthenticated)"},
-        "whales": {"source": None, "reason": "birdeye trade endpoints answer 404 on the free tier (probe 2026-08-30); no $0 trade feed"},
+        "whales": {"source": None, "reason": _WHALES_ON_TAPE},
     },
     "base": {
         # FASE-1 probe: blockscout primary (LIVE, law-3 verified on AERO);
@@ -52,7 +60,7 @@ _CAPABILITIES: dict[str, dict[str, dict]] = {
         "sell_test": {"source": None,
                       "reason": "1inch quote requires an API key "
                                 "(probe: 401 unauthenticated)"},
-        "whales": {"source": None, "reason": "birdeye trade endpoints answer 404 on the free tier (probe 2026-08-30); no $0 trade feed"},
+        "whales": {"source": None, "reason": _WHALES_ON_TAPE},
     },
     # avax row parked 2026-08-30 (founder: 5-chain lineup) — was: "avax": {         "deployer": {"source": None, "reason": _EVM_NO_DEPLOYER},         "holders": {"source": None, "reason": _EVM_NO_HOLDERS},         "sell_test": {"source": None,                       "reason": "1inch quote requires an API key "                                 "(probe: 401 unauthenticated)"},     },
 
@@ -64,7 +72,7 @@ _CAPABILITIES: dict[str, dict[str, dict]] = {
                     "reason": "no $0 holder source for robinhood"},
         "sell_test": {"source": None,
                       "reason": "DEX-less venues: no route concept"},
-        "whales": {"source": None, "reason": "birdeye trade endpoints answer 404 on the free tier (probe 2026-08-30); no $0 trade feed"},
+        "whales": {"source": None, "reason": _WHALES_ON_TAPE},
         "rug_flags": {"source": None,
                       "reason": "no security API covers robinhood at $0 (probe 2026-08-30)"},
     },
@@ -76,7 +84,7 @@ _CAPABILITIES: dict[str, dict[str, dict]] = {
                     "reason": "no $0 holder source for hyperevm"},
         "sell_test": {"source": None,
                       "reason": "DEX-less venues: no route concept"},
-        "whales": {"source": None, "reason": "birdeye trade endpoints answer 404 on the free tier (probe 2026-08-30); no $0 trade feed"},
+        "whales": {"source": None, "reason": _WHALES_ON_TAPE},
         "rug_flags": {"source": None,
                       "reason": "no security API covers hyperevm at $0 (probe 2026-08-30)"},
     },

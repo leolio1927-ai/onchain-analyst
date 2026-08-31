@@ -4,9 +4,12 @@
    GoPlus rows (server-proxied), hype/hood → honest "signal set limited" + live
    GT/DS stats (never a blank red error). Verdict renders through RiskDisplay
    (one severity language for every module).
-   WHALE: per-chain thresholds are a LABELED heuristic (SOL 50K / EVM 30K,
-   formula in tooltip), tape-window aggregation with timeframe chips, CSV
-   export, seeding banner when windows are shorter than 24h. */
+   WHALE (PROMPT-V3 R2): the tape is GeckoTerminal pool trades on ALL FIVE
+   chains (GET /api/v1/whale/windows + /auto). A whale = labelled heuristic
+   (one trade ≥ per-chain threshold — sol $50K · bnb/base $30K · hype/hood
+   native-anchored with a $30K fallback, the server ships the sentence),
+   never an on-chain label. Windows 1h/6h/24h, filled net-flow sparkline,
+   per-chain bars, merged tape with chain chips, REAL CSV, seeded FIELD. */
 import { useMemo, useState } from 'react'
 import { classifyQuery, fetchDetect } from '../lib/detect'
 import type { DetectCandidate } from '../lib/detect'
@@ -15,7 +18,7 @@ import type { SwapQuote } from '../services/dexscreener'
 import { RiskBadge, RiskDisplay } from '../components/RiskDisplay'
 import type { RiskVerdict } from '../components/RiskDisplay'
 import { api } from '../api'
-import type { WhalesResult } from '../api'
+import type { WhaleAutoResult, WhaleWindowsResult } from '../api'
 import { shorten } from '../lib/liveFormat'
 
 const CHAIN_CHIPS = ['AUTO', 'SOL', 'BNB', 'BASE', 'HYPE', 'HOOD'] as const
@@ -337,74 +340,123 @@ export function RugCheckPageMulti() {
   )
 }
 
-/* ───────────────────────── WHALE TRACKER ───────────────────────── */
-const THRESHOLD: Record<string, number> = { sol: 50_000, bnb: 30_000, base: 30_000, hype: 30_000, hood: 30_000 }
-const TIMEFRAMES = ['1h', '6h', '24h', '7d'] as const
-type Timeframe = (typeof TIMEFRAMES)[number]
-const TF_MS: Record<Timeframe, number> = { '1h': 3.6e6, '6h': 2.16e7, '24h': 8.64e7, '7d': 6.048e8 }
+/* ───────────────────────── WHALE TRACKER (PROMPT-V3 R2) ───────────────────────── */
+const WINDOWS = ['1h', '6h', '24h'] as const
+type Win = (typeof WINDOWS)[number]
+const WIN_MS: Record<Win, number> = { '1h': 3.6e6, '6h': 2.16e7, '24h': 8.64e7 }
+const SPARK_BUCKETS = 24
 
-interface WhaleRow { wallet: string; usd: number; direction: string; ts: string | number | null; tx: string | null; chain: string }
+interface MergedRow { chain: string; wallet: string; kind: string; ts: string | null; usd: number; tx: string | null }
+
+/* filled net-flow sparkline — buckets are computed from the SAME whale tape
+   shown in the table; positive area above the zero line, negative below. */
+function NetSpark({ buckets }: { buckets: number[] }) {
+  const width = 600
+  const height = 96
+  const max = Math.max(...buckets.map((b) => Math.abs(b)), 1)
+  const mid = height / 2
+  const step = width / Math.max(buckets.length - 1, 1)
+  const y = (v: number) => mid - (v / max) * (mid - 6)
+  const pts = buckets.map((v, i) => `${(i * step).toFixed(1)},${y(v).toFixed(1)}`)
+  const line = `M${pts.join(' L')}`
+  const area = `${line} L${width},${mid} L0,${mid} Z`
+  const net = buckets.reduce((a, b) => a + b, 0)
+  const color = net >= 0 ? 'var(--sev-low)' : 'var(--sev-high)'
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="v2-spark" role="img"
+      aria-label="net whale flow sparkline" preserveAspectRatio="none" data-testid="whale-spark">
+      <line x1="0" y1={mid} x2={width} y2={mid} stroke="var(--border-soft)" strokeWidth="1" />
+      <path d={area} fill={color} opacity="0.28" />
+      <path d={line} fill="none" stroke={color} strokeWidth="1.6" />
+    </svg>
+  )
+}
 
 export function WhalePageMulti() {
   const [chip, setChip] = useState<Chip>('AUTO')
   const [token, setToken] = useState('DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263')
-  const [tf, setTf] = useState<Timeframe>('24h')
+  const [tf, setTf] = useState<Win>('24h')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
-  const [per, setPer] = useState<{ chain: string; res: WhalesResult }[]>([])
+  const [per, setPer] = useState<{ chain: string; res: WhaleWindowsResult }[]>([])
+  const [auto, setAuto] = useState<WhaleAutoResult | null>(null)
+  const [scanTs, setScanTs] = useState(0)
 
-  /* AUTO = fan out to all five chains in parallel; a chip narrows to one.
-     Every chain keeps its own USD threshold (labeled heuristic) and answers
-     honestly — live transfers or the probe reason verbatim. */
+  /* AUTO = server resolves the CA across networks (deepest pool per chain) +
+     trending top-N; a chip narrows to one chain. Every miss is a sentence. */
   const run = async () => {
     const tok = token.trim()
     if (!tok) { setErr('paste a token address (CA) first'); return }
-    const chains = chip === 'AUTO' ? ['sol', 'bnb', 'base', 'hype', 'hood'] : [CHAIN_OF[chip]]
-    setBusy(true); setErr(null); setPer([])
+    setBusy(true); setErr(null); setPer([]); setAuto(null); setScanTs(Date.now())
     try {
-      const settled = await Promise.allSettled(
-        chains.map((c) => api.whales(c, tok, THRESHOLD[c], 40)))
-      const out: { chain: string; res: WhalesResult }[] = []
-      settled.forEach((s, i) => { if (s.status === 'fulfilled') out.push({ chain: chains[i], res: s.value }) })
-      if (!out.length) setErr('whale scan failed on every chain — is the API server running?')
-      setPer(out)
-    } catch { setErr('whale scan failed') } finally { setBusy(false) }
+      if (chip === 'AUTO') {
+        const a = await api.whaleAuto(tok)
+        setAuto(a)
+        setPer(a.results.map((r) => ({ chain: r.chain, res: r })))
+      } else {
+        const r = await api.whaleWindows(CHAIN_OF[chip], tok)
+        setPer([{ chain: r.chain, res: r }])
+      }
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'whale scan failed')
+    } finally { setBusy(false) }
   }
 
-  const rows: WhaleRow[] = useMemo(() => per.flatMap((p) =>
-    (p.res.data_mode === 'live' ? p.res.transfers : []).map((t) => ({
-      wallet: t.wallet, usd: t.usd ?? 0, direction: t.direction, ts: t.ts, tx: t.tx, chain: p.chain,
-    }))), [per])
+  const livePer = per.filter((p) => p.res.data_mode === 'live')
 
-  const tsOf = (r: WhaleRow): number => {
-    const t = typeof r.ts === 'number' ? r.ts : Date.parse(String(r.ts ?? ''))
-    return Number.isFinite(t) ? t : NaN
-  }
-  const cutoff = Date.now() - TF_MS[tf]
-  const filtered = rows.filter((r) => { const t = tsOf(r); return Number.isNaN(t) || t >= cutoff })
-  const netflow = filtered.reduce((a, r) => a + (r.direction === 'buy' ? r.usd : -r.usd), 0)
+  /* the merged whale tape — verbatim rows from every live chain, ts desc */
+  const merged: MergedRow[] = useMemo(() => per.filter((p) => p.res.data_mode === 'live')
+    .flatMap((p) => (p.res.tape ?? []).map((t) => ({
+      chain: p.chain, wallet: t.wallet ?? '?', kind: t.kind ?? '?',
+      ts: t.ts, usd: t.usd ?? 0, tx: t.tx,
+    }))).sort((a, b) => Date.parse(b.ts ?? '') - Date.parse(a.ts ?? '')), [per])
 
-  /* seeding = the tape is younger than the selected window — say so, never
-     backfill fake history */
-  const oldest = filtered.map(tsOf).filter((t) => Number.isFinite(t))
-  const seeding = oldest.length > 0 && (Date.now() - Math.min(...oldest)) < TF_MS[tf]
+  /* sparkline buckets: the window split into SPARK_BUCKETS equal slices, net
+     per slice — same tape as the table, never a second source */
+  const sparkBuckets = useMemo(() => {
+    const out = new Array<number>(SPARK_BUCKETS).fill(0)
+    const span = WIN_MS[tf]
+    const cutoff = scanTs - span          // scanTs=0 pre-scan → tape empty anyway
+    for (const r of merged) {
+      const t = Date.parse(r.ts ?? '')
+      if (!Number.isFinite(t) || t < cutoff) continue
+      const i = Math.min(SPARK_BUCKETS - 1, Math.floor(((t - cutoff) / span) * SPARK_BUCKETS))
+      out[i] += r.kind === 'buy' ? r.usd : -r.usd
+    }
+    return out
+  }, [merged, tf, scanTs])
 
-  /* per-chain breakdown bars from the same tape */
-  const chainBars = useMemo(() => per.map((p) => {
+  const totalNet = livePer.reduce((a, p) => a + (p.res.windows?.[tf]?.net_usd ?? 0), 0)
+
+  /* per-chain bars from the SERVER's window math (parity: the bar shows what
+     the payload says, nothing re-derived client-side) */
+  const chainBars = per.map((p) => {
     const live = p.res.data_mode === 'live'
-    const net = filtered.filter((r) => r.chain === p.chain)
-      .reduce((a, r) => a + (r.direction === 'buy' ? r.usd : -r.usd), 0)
-    return { chain: p.chain, net, live, reason: live ? null : (p.res.data_sources[0] ?? 'declared null') }
-  }), [per, filtered])
+    const net = live ? (p.res.windows?.[tf]?.net_usd ?? 0) : 0
+    return { chain: p.chain, live, net, reason: live ? null : (p.res.data_sources[0] ?? 'declared null') }
+  })
   const maxAbs = Math.max(...chainBars.map((b) => Math.abs(b.net)), 1)
 
+  /* window aggregate (1h/6h/24h) across live chains */
+  const winAgg = WINDOWS.map((w) => {
+    let trades = 0; let whales = 0; let buy = 0; let sell = 0
+    for (const p of livePer) {
+      const s = p.res.windows?.[w]
+      if (!s) continue
+      trades += s.trades; whales += s.whale_trades; buy += s.buy_usd; sell += s.sell_usd
+    }
+    return { w, trades, whales, buy, sell, net: buy - sell }
+  })
+
   const csv = () => {
-    const head = 'chain,wallet,direction,usd,ts,tx'
-    const lines = filtered.map((r) => [r.chain, r.wallet, r.direction, r.usd, r.ts ?? '', r.tx ?? ''].join(','))
+    const poolOf: Record<string, string> = Object.fromEntries(livePer.map((p) => [p.chain, p.res.pool ?? '']))
+    const head = 'chain,pool,wallet,kind,usd,ts,tx'
+    const lines = merged.map((r) =>
+      [r.chain, poolOf[r.chain] ?? '', r.wallet, r.kind, r.usd, r.ts ?? '', r.tx ?? ''].join(','))
     const blob = new Blob([[head, ...lines].join('\n')], { type: 'text/csv' })
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = `vilmei-whales-${tf}.csv`
+    a.download = `vilmei-whale-tape-${tf}.csv`
     a.click()
     URL.revokeObjectURL(a.href)
   }
@@ -412,20 +464,24 @@ export function WhalePageMulti() {
   const verdict: RiskVerdict = {
     level: 'nodata',
     score: null,
-    label: `NET ${netflow >= 0 ? '+' : '−'}$${fmtC(Math.abs(netflow))} ${tf.toUpperCase()} (HEURISTIC TAPE)`,
-    rows: filtered.slice(0, 12).map((r) => ({
+    label: `NET ${totalNet >= 0 ? '+' : '−'}$${fmtC(Math.abs(totalNet))} ${tf.toUpperCase()} (HEURISTIC TAPE)`,
+    rows: merged.slice(0, 12).map((r) => ({
       name: `${shorten(r.wallet)} · ${r.chain.toUpperCase()}`,
-      level: r.direction === 'buy' ? 'buy' : 'sell',
+      level: r.kind === 'buy' ? 'buy' : 'sell',
       score: r.usd, description: null,
     })),
-    provenance: per[0] ? { chains: per.map((p) => p.chain), data_mode: per.map((p) => p.res.data_mode) } : undefined,
+    provenance: per.length ? { chains: per.map((p) => p.chain), data_mode: per.map((p) => p.res.data_mode) } : undefined,
   }
+
+  /* seeding = live chain(s) but zero whale rows in the walked tape — data,
+     not absence; a chip says so instead of fake zeros */
+  const quietChains = livePer.filter((p) => !(p.res.tape ?? []).length)
 
   return (
     <div className="ta-page">
-      <PageHead title="Whale Tracker — multi-chain" sub="AUTO scans all five chains at once; each chain carries its own labeled USD threshold. Live transfers merge into one list with a chain chip per row; chains without a $0 feed answer the probe reason verbatim." />
+      <PageHead title="Whale Tracker — multi-chain" sub="One CA across the five chains on the keyless GeckoTerminal trade tape. AUTO resolves the deepest pool per network and adds trending candidates. A quiet tape is data, never an error." />
       <div className="ta-searchrow">
-        <Chips value={chip} onPick={(c) => { setChip(c); setPer([]); setErr(null) }} />
+        <Chips value={chip} onPick={(c) => { setChip(c); setPer([]); setAuto(null); setErr(null) }} />
       </div>
       <div className="ta-searchrow">
         <div className="ta-search" style={{ height: 40 }}>
@@ -434,31 +490,53 @@ export function WhalePageMulti() {
             placeholder="token address (CA)" style={{ minWidth: 320 }}
             onKeyDown={(e) => e.key === 'Enter' && run()} />
         </div>
-        <span className="mono dim v2-threshold" title="HEURISTIC — formula: usd = transfer amount × live token price (dexscreener) at scan time; a whale is ONE transfer ≥ per-chain threshold (SOL $50K / EVM $30K). Thresholds are labeled heuristics, not provider constants.">
-          threshold ≥ $50K (SOL) / $30K (EVM) · heuristic
-        </span>
         <button className="btn-analyze" disabled={busy} onClick={run}>{busy ? 'SCANNING…' : 'SCAN WHALES'}</button>
       </div>
+      {/* mandatory honesty copy — the label is a heuristic, never an on-chain fact */}
+      <p className="dim" style={{ fontSize: 11, margin: '4px 0 0' }} data-testid="whale-mandate">
+        whale = heuristic on trade tape (≥$50K/$30K), not an on-chain label
+      </p>
 
       {err && <div className="v2-note err" role="alert">{err}</div>}
+      {auto?.data_sources.map((s) => <div key={s} className="v2-note" role="status">{s}</div>)}
 
       {per.length > 0 && (
         <>
+          {/* threshold provenance — the server's sentence per chain */}
+          <div className="v2-candrow" data-testid="whale-thresholds">
+            {livePer.map((p) => (
+              <span key={p.chain} className="v2-chip mono" title={p.res.threshold_note ?? ''} style={{ cursor: 'default' }}>
+                {p.chain.toUpperCase()} ≥ {p.res.threshold_usd != null ? `$${fmtC(p.res.threshold_usd)}` : '—'} · heuristic
+              </span>
+            ))}
+            {quietChains.map((p) => (
+              <span key={`${p.chain}-seed`} className="v2-chip mono cov-partial" title={p.res.data_sources.join(' · ')} style={{ cursor: 'default' }}>
+                {p.chain.toUpperCase()} · SEEDING — quiet tape, no whale trades in the walked window
+              </span>
+            ))}
+          </div>
+
+          {/* per-chain misses stay visible even when other chains have a live
+              tape — every miss is a sentence, never hidden behind the bars */}
+          {livePer.length > 0 && per.filter((p) => p.res.data_mode !== 'live').map((p) => (
+            <div key={p.chain} className="v2-note" role="status">
+              <span className="ta-chain-tag">{p.chain.toUpperCase()}</span> {p.res.data_sources[0] ?? 'declared null'}
+            </div>
+          ))}
+
           <div className="v2-card">
             <div className="v2-cardhead">
-              <b>NET WHALE FLOW — {chip === 'AUTO' ? 'ALL CHAINS' : chip} · {tf}</b>
-              <div className="v2-tfs" role="tablist" aria-label="timeframe">
-                {TIMEFRAMES.map((t) => (
-                  <button key={t} type="button" role="tab" aria-selected={tf === t}
-                    className={`v2-chip mono${tf === t ? ' on' : ''}`} onClick={() => setTf(t)}>{t}</button>
+              <b>NET-WHALE-FLOW — {chip === 'AUTO' ? 'ALL CHAINS' : chip} · {tf}</b>
+              <div className="v2-tfs" role="tablist" aria-label="window">
+                {WINDOWS.map((w) => (
+                  <button key={w} type="button" role="tab" aria-selected={tf === w}
+                    className={`v2-chip mono${tf === w ? ' on' : ''}`} onClick={() => setTf(w)}>{w}</button>
                 ))}
               </div>
-              <button type="button" className="v2-csv mono" onClick={csv}>CSV ⭳</button>
+              <button type="button" className="v2-csv mono" onClick={csv} data-testid="whale-csv">CSV ⭳</button>
             </div>
-            {seeding && (
-              <div className="v2-note" role="status">seeding — the tape is younger than the selected window; windows shorten as data accumulates (no fake history is backfilled)</div>
-            )}
-            {/* per-chain breakdown bars */}
+            <NetSpark buckets={sparkBuckets} />
+            {/* per-chain bars — payload window math, verbatim */}
             <div className="v2-flowbar" role="img" aria-label={`net whale flow per chain ${tf}`}>
               {chainBars.map((b) => (
                 <i key={b.chain} title={`${b.chain.toUpperCase()}: ${b.live ? `net ${b.net >= 0 ? '+' : '-'}$${fmtC(Math.abs(b.net))}` : b.reason}`}
@@ -472,30 +550,87 @@ export function WhalePageMulti() {
             <div className="v2-candrow">
               {chainBars.map((b) => (
                 <span key={b.chain} className="v2-chip mono" style={{ cursor: 'default' }}>
-                  {b.chain.toUpperCase()} {b.live ? `${b.net >= 0 ? '+' : '−'}$${fmtC(Math.abs(b.net))}` : '· no $0 feed (declared)'}
+                  {b.chain.toUpperCase()} {b.live ? `${b.net >= 0 ? '+' : '−'}$${fmtC(Math.abs(b.net))}` : '· no pool / no tape (declared)'}
                 </span>
               ))}
             </div>
-            <RiskDisplay verdict={verdict} seed={`whale:${per.map((p) => p.chain).join('+')}:${token}`} />
+            {/* windows aggregate across live chains */}
+            <div style={{ overflowX: 'auto', marginTop: 8 }} data-testid="whale-windows">
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                <thead><tr className="mono dim" style={{ textAlign: 'left' }}>
+                  <th style={{ padding: '4px 8px' }}>WINDOW</th><th style={{ padding: '4px 8px', textAlign: 'right' }}>TRADES</th>
+                  <th style={{ padding: '4px 8px', textAlign: 'right' }}>WHALES</th><th style={{ padding: '4px 8px', textAlign: 'right' }}>BUYS</th>
+                  <th style={{ padding: '4px 8px', textAlign: 'right' }}>SELLS</th><th style={{ padding: '4px 8px', textAlign: 'right' }}>NET</th></tr></thead>
+                <tbody>
+                  {winAgg.map((r) => (
+                    <tr key={r.w} style={{ borderTop: '1px solid var(--border-soft)' }}>
+                      <td style={{ padding: '5px 8px' }} className="mono">{r.w}</td>
+                      <td style={{ padding: '5px 8px', textAlign: 'right' }} className="mono">{r.trades}</td>
+                      <td style={{ padding: '5px 8px', textAlign: 'right' }} className="mono">{r.whales}</td>
+                      <td style={{ padding: '5px 8px', textAlign: 'right' }} className="mono">${fmtC(r.buy)}</td>
+                      <td style={{ padding: '5px 8px', textAlign: 'right' }} className="mono">${fmtC(r.sell)}</td>
+                      <td style={{ padding: '5px 8px', textAlign: 'right' }} className="mono">
+                        {r.net >= 0 ? '+' : '−'}${fmtC(Math.abs(r.net))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <RiskDisplay verdict={verdict} seed={`whale2:${per.map((p) => p.chain).join('+')}:${token.trim()}`} />
           </div>
 
-          {/* merged list — chain chip column */}
-          {filtered.length > 0 && (
+          {/* AUTO extras: where the CA was found + trending top-N candidates */}
+          {auto && (auto.candidates.length > 0 || auto.trending.length > 0) && (
+            <div className="v2-card" data-testid="whale-auto-cards">
+              {auto.candidates.length > 0 && (
+                <>
+                  <div className="v2-cardhead"><b>FOUND ON — DEEPEST POOL PER CHAIN</b><span className="mono dim">GT pool search</span></div>
+                  <div className="v2-candrow">
+                    {auto.candidates.map((c) => (
+                      <span key={`${c.chain}-${c.pool}`} className="v2-chip mono" style={{ cursor: 'default' }}
+                        title={`${c.network} pool ${c.pool}${c.volume_24h != null ? ` · vol24 $${fmtC(c.volume_24h)}` : ''}`}>
+                        {c.chain.toUpperCase()} · {c.name ?? shorten(c.pool)} {c.liquidity_usd != null ? `· liq $${fmtC(c.liquidity_usd)}` : ''}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              )}
+              {auto.trending.length > 0 && (
+                <>
+                  <div className="v2-cardhead" style={{ marginTop: 10 }}><b>TRENDING CANDIDATES — TOP-N</b><span className="mono dim">one per chain, cached</span></div>
+                  <div className="v2-candrow">
+                    {auto.trending.map((t) => (
+                      <span key={`${t.chain}-${t.pool}`} className="v2-chip mono" style={{ cursor: 'default' }}
+                        title={`${t.network} pool ${t.pool}`}>
+                        <span className="ta-chain-tag">{t.chain.toUpperCase()}</span> {t.name ?? shorten(t.pool)}
+                        {t.liquidity_usd != null ? ` · $${fmtC(t.liquidity_usd)}` : ''}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* merged whale tape — chain chip per row */}
+          {merged.length > 0 && (
             <div className="v2-card">
-              <div className="v2-cardhead"><b>MERGED TAPE — {filtered.length} TRANSFERS ≥ THRESHOLD</b></div>
+              <div className="v2-cardhead"><b>MERGED TAPE — {merged.length} WHALE TRADES ≥ THRESHOLD (24H WALK)</b></div>
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
                   <thead><tr className="mono dim" style={{ textAlign: 'left' }}>
                     <th style={{ padding: '4px 8px' }}>CHAIN</th><th style={{ padding: '4px 8px' }}>WALLET</th>
-                    <th style={{ padding: '4px 8px' }}>DIR</th><th style={{ padding: '4px 8px', textAlign: 'right' }}>USD</th>
-                    <th style={{ padding: '4px 8px' }}>TX</th></tr></thead>
+                    <th style={{ padding: '4px 8px' }}>SIDE</th><th style={{ padding: '4px 8px', textAlign: 'right' }}>USD</th>
+                    <th style={{ padding: '4px 8px' }}>AGE</th><th style={{ padding: '4px 8px' }}>TX</th></tr></thead>
                   <tbody>
-                    {filtered.slice(0, 30).map((r, i) => (
+                    {merged.slice(0, 30).map((r, i) => (
                       <tr key={`${r.chain}-${r.tx ?? i}`} style={{ borderTop: '1px solid var(--border-soft)' }}>
-                        <td style={{ padding: '5px 8px' }}><span className="ta-chain-tag">{r.chain === 'sol' ? 'SOL' : 'EVM'}</span> <span className="mono dim">{r.chain.toUpperCase()}</span></td>
+                        <td style={{ padding: '5px 8px' }}><span className="ta-chain-tag">{r.chain.toUpperCase()}</span></td>
                         <td style={{ padding: '5px 8px' }} className="mono">{shorten(r.wallet)}</td>
-                        <td style={{ padding: '5px 8px' }} className="mono">{r.direction.toUpperCase()}</td>
+                        <td style={{ padding: '5px 8px' }} className="mono">{r.kind.toUpperCase()}</td>
                         <td style={{ padding: '5px 8px', textAlign: 'right' }} className="mono">${fmtC(r.usd)}</td>
+                        <td style={{ padding: '5px 8px' }} className="mono dim">{r.ts ? ageOf(Date.parse(r.ts)) : '—'}</td>
                         <td style={{ padding: '5px 8px' }} className="mono dim">{r.tx ? shorten(r.tx) : '—'}</td>
                       </tr>
                     ))}
@@ -504,14 +639,21 @@ export function WhalePageMulti() {
               </div>
             </div>
           )}
-          {filtered.length === 0 && rows.length === 0 && per.every((p) => p.res.data_mode !== 'live') && (
+
+          {/* honest misses — no pool / no tape, reasons verbatim, never red */}
+          {livePer.length === 0 && (
             <div className="v2-card">
-              <div className="v2-cardhead"><b>NO $0 TRADE FEED ON THE SCANNED CHAINS</b><RiskBadge level="nodata" label="DECLARED NULL" /></div>
+              <div className="v2-cardhead"><b>NO LIVE WHALE TAPE FOR THIS CA</b><RiskBadge level="nodata" label="DECLARED NULL" /></div>
               {per.map((p) => (
                 <p key={p.chain} className="dim" style={{ fontSize: 11.5 }}>
-                  <span className="ta-chain-tag">{p.chain === 'sol' ? 'SOL' : 'EVM'}</span> <b className="mono">{p.chain.toUpperCase()}</b> — {p.res.data_sources[0] ?? 'declared null'}
+                  <span className="ta-chain-tag">{p.chain.toUpperCase()}</span> <b className="mono">{LABEL_OF[p.chain] ?? p.chain}</b> — {p.res.data_sources[0] ?? 'declared null'}
                 </p>
               ))}
+            </div>
+          )}
+          {livePer.length > 0 && merged.length === 0 && (
+            <div className="v2-note" role="status" data-testid="whale-quiet">
+              Live tape, zero trades ≥ threshold in the walked window — a quiet tape is data, not absence. Windows below widen as trades accumulate; nothing is backfilled.
             </div>
           )}
         </>
@@ -520,10 +662,10 @@ export function WhalePageMulti() {
       {per.length === 0 && !err && !busy && (
         <div className="v2-card">
           <p className="dim" style={{ fontSize: 12 }}>
-            AUTO scans the five chains in parallel for one CA. Sol returns Helius enhanced
-            transfers + netflow; EVM chains without a $0 feed carry the honest probe reason.
-            Thresholds, flow bars and the tape are labeled heuristics — the tooltip carries
-            the formula.
+            AUTO resolves one CA across all five chains via GT pool search (deepest pool per
+            chain) and adds trending top-N candidates; a chip narrows to one chain. Windows are
+            1h/6h/24h over the walked tape; net = Σ whale buys − Σ whale sells. Thresholds are
+            labelled heuristics — the chip tooltip carries the server's derivation sentence.
           </p>
         </div>
       )}

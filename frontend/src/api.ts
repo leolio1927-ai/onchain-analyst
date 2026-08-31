@@ -159,6 +159,75 @@ export interface WhalesResult {
   ts: string
 }
 
+/* PROMPT-V3 R2 — whale windows on the keyless GeckoTerminal trade tape.
+   A "whale" is a labelled heuristic (one tape trade ≥ chain threshold),
+   never an on-chain label; data_mode "unwired" carries the honest reason
+   (no pool for the contract, tape failed, …) in data_sources. */
+export interface WhaleWindowStat {
+  trades: number
+  whale_trades: number
+  buy_usd: number
+  sell_usd: number
+  net_usd: number
+}
+
+export interface WhaleTapeTrade {
+  wallet: string | null
+  kind: string | null
+  ts: string | null
+  usd: number | null
+  tx: string | null
+}
+
+export interface WhaleTopWallet {
+  wallet: string | null
+  net_usd: number | null
+  buys: number
+  sells: number
+  trades: number
+}
+
+export interface WhaleWindowsResult {
+  chain: string
+  network: string | null
+  token: string
+  pool: string | null
+  pool_name: string | null
+  threshold_usd: number | null
+  threshold_note: string | null
+  windows: Record<string, WhaleWindowStat>
+  tape: WhaleTapeTrade[]
+  top_wallets: WhaleTopWallet[]
+  tape_trades_seen: number | null
+  tape_pages: number | null
+  tape_oldest_ts: string | null
+  data_mode: string
+  data_sources: string[]
+  sources: string[]
+  ts: string
+}
+
+export interface WhaleCandidate {
+  chain: string
+  network: string
+  pool: string
+  name: string | null
+  liquidity_usd: number | null
+  volume_24h: number | null
+  price_usd: number | null
+}
+
+export interface WhaleAutoResult {
+  token: string
+  results: WhaleWindowsResult[]
+  candidates: WhaleCandidate[]
+  trending: WhaleCandidate[]
+  data_mode: string
+  data_sources: string[]
+  sources: string[]
+  ts: string
+}
+
 export interface ChainsCatalog {
   chains: ChainCatalogRow[]
   capabilities: Record<string, Record<string, ChainCapability>>
@@ -222,6 +291,10 @@ export const api = {
   whale: (address: string) => post<WhaleBalance>('/api/whale', { address }),
   whales: (chain: string, token: string, thresholdUsd = 1000, limit = 25) =>
     get<WhalesResult>(`/api/v1/whales/${encodeURIComponent(chain)}/${encodeURIComponent(token)}?threshold_usd=${thresholdUsd}&limit=${limit}`),
+  whaleWindows: (chain: string, ca: string) =>
+    get<WhaleWindowsResult>(`/api/v1/whale/windows?chain=${encodeURIComponent(chain)}&ca=${encodeURIComponent(ca)}`),
+  whaleAuto: (ca: string) =>
+    get<WhaleAutoResult>(`/api/v1/whale/auto?ca=${encodeURIComponent(ca)}`),
   health: () => fetch('/api/health').then((r) => r.json()),
   chains: () => fetch('/api/v1/chains').then((r) => r.json()) as Promise<ChainsCatalog>,
 }

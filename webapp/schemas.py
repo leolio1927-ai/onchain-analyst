@@ -477,8 +477,8 @@ class WalletLabelsResponse(Envelope):
 
 class ChainInfo(BaseModel):
     """One chain's verified provider support (webapp/chains.py CHAIN_CATALOG).
-    A False cell is a stated absence — e.g. hood clustering is impossible
-    today because GeckoTerminal has no robinhood network."""
+    A False cell is a stated absence — e.g. hype scan is unavailable today
+    because DexScreener has no verified hyperevm chainId."""
 
     chain: str | None = None
     name: str | None = None
@@ -713,3 +713,86 @@ class RugEvmResponse(Envelope):
     token_symbol: str | None = None
     rows: list[RugEvmRow] = Field(default_factory=list)
     provenance: Provenance = Field(default_factory=Provenance)
+
+
+# ── PROMPT-V3 R2: whale windows on the GeckoTerminal trade tape ─────────
+
+class WhaleWindowRow(BaseModel):
+    """One time window's whale stats. buy/sell/net are USD sums over the
+    whale trades in the window; a quiet window is honest zeros."""
+
+    trades: int = 0
+    whale_trades: int = 0
+    buy_usd: float = 0.0
+    sell_usd: float = 0.0
+    net_usd: float = 0.0
+
+
+class WhaleTapeRow(BaseModel):
+    """One whale tape trade, verbatim from GT (kind/ts/usd/wallet/tx)."""
+
+    wallet: str | None = None
+    kind: str | None = None
+    ts: str | None = None
+    usd: float | None = None
+    tx: str | None = None
+
+
+class WhaleTopWallet(BaseModel):
+    """Per-wallet net over the walked tape — buys/sells counted, never re-derived."""
+
+    wallet: str | None = None
+    net_usd: float | None = None
+    buys: int = 0
+    sells: int = 0
+    trades: int = 0
+
+
+class WhaleWindowsResponse(Envelope):
+    """One chain's whale windows for one contract. A whale is a LABELLED
+    HEURISTIC (one tape trade ≥ chain threshold), never an on-chain label.
+    data_mode='unwired' + the note in data_sources when GT has no pool for
+    the contract on that chain — a fact, not an error."""
+
+    data_mode: DataMode = "unwired"
+
+    chain: str | None = None
+    network: str | None = None
+    token: str | None = None
+    pool: str | None = None
+    pool_name: str | None = None
+    threshold_usd: float | None = None
+    threshold_note: str | None = None
+    windows: dict[str, WhaleWindowRow] = Field(default_factory=dict)
+    tape: list[WhaleTapeRow] = Field(default_factory=list)
+    top_wallets: list[WhaleTopWallet] = Field(default_factory=list)
+    tape_trades_seen: int = 0
+    tape_pages: int = 0
+    tape_oldest_ts: str | None = None
+    data_sources: list[str] = Field(default_factory=list)
+
+
+class WhaleCandidate(BaseModel):
+    """A pool the CA resolves to (AUTO candidates) or a trending pool."""
+
+    chain: str | None = None
+    network: str | None = None
+    pool: str | None = None
+    name: str | None = None
+    liquidity_usd: float | None = None
+    volume_24h: float | None = None
+    price_usd: float | None = None
+
+
+class WhaleAutoResponse(Envelope):
+    """AUTO mode: the CA resolved across networks, whale windows per chain
+    that lists it, plus a small trending top-N as candidates. Every failure
+    is a sentence in data_sources — never a red wall."""
+
+    data_mode: DataMode = "live"
+
+    token: str | None = None
+    results: list[WhaleWindowsResponse] = Field(default_factory=list)
+    candidates: list[WhaleCandidate] = Field(default_factory=list)
+    trending: list[WhaleCandidate] = Field(default_factory=list)
+    data_sources: list[str] = Field(default_factory=list)

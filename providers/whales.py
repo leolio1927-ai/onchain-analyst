@@ -1,9 +1,10 @@
 """Whale tracker (BE-ALL-LIVE F3) — large transfers + per-wallet netflow.
 
-$0 sources per the FASE-1/3 probes: sol = Helius enhanced transactions
-(signed per-wallet token deltas); bnb/base = NULL — Birdeye trade endpoints
-answer 404 on the free tier and no other keyless trade feed exists (the
-capability map carries that sentence). hood/hype: nothing to even compose.
+The HELIUS SIGNED-DELTA VIEW (solana only, keyed): per-wallet token deltas
+parsed from enhanced transactions. Since PROMPT-V3 R2 (probe 2026-08-31) a
+keyless $0 trade tape ALSO exists on all five chains — GeckoTerminal pool
+trades, served by providers/whale_windows.py at GET /api/v1/whale/windows.
+This module stays the solana signed-delta surface; other chains point there.
 
 USD sizing uses the DexScreener pair price (keyless, existing provider) —
 when no pair/price exists the transfers still ship with token-amount
@@ -24,9 +25,10 @@ def whales(chain: str, token: str, threshold_usd: float = 1000.0,
     | None with a machine-readable note (whales:chain_unsupported,
     whales:not_configured, whales:provider_error …)."""
     if chain != "sol":
-        return None, ("whales:null on this chain — birdeye trade endpoints "
-                      "answer 404 on the free tier (probe 2026-08-30); no $0 "
-                      "trade feed exists")
+        return None, ("whales:null on this chain — the signed-delta view is "
+                      "helius-only; the keyless whale tape for all five "
+                      "chains rides GT pool trades at /api/v1/whale/windows "
+                      "(PROMPT-V3 R2, probe 2026-08-31)")
     txs, note = helius.transfers(chain, token)
     if txs is None:
         return None, note

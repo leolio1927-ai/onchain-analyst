@@ -1,9 +1,10 @@
 """BE-F4 chain capability catalog tests — config ⇄ provider equivalence.
 
 The catalog is TODAY'S TRUTH about what each provider can serve per chain.
-The honesty-critical rows: hood clustering is impossible (GT has no
-robinhood network) and hype scan/socials/clustering are unavailable
-(unverified DS chainId, no GT network, DS does not list hyperevm). The
+The honesty-critical rows: hype scan/socials are unavailable (unverified DS
+chainId, DS does not list hyperevm). hood/hype clustering flipped True
+2026-08-31 — the PROMPT-V3 R2 probe verified GT serves the robinhood and
+hyperevm networks (trending_pools + trades answer 200 keyless on both). The
 equivalence guard fails the suite if a provider constant changes without a
 conscious catalog update — no silent drift.
 """
@@ -33,16 +34,14 @@ def test_known_false_cells_are_exactly_false():
     """Honesty-critical rows: today's impossibilities, stated as False."""
     hood = chains.CHAIN_CATALOG["hood"]
     hype = chains.CHAIN_CATALOG["hype"]
-    assert hood["clustering"] is False      # GT has no robinhood network
+    assert hood["clustering"] is True       # R2 2026-08-31: GT serves robinhood
     assert hype["scan"] is False            # DS chainId unverified
-    assert hype["clustering"] is False      # GT has no hyperevm in NETWORKS
+    assert hype["clustering"] is True       # R2 2026-08-31: GT serves hyperevm
     assert hype["socials"] is False         # DS does not list hyperevm
     # every other capability cell is True — and stays a real bool
     for cid, info in chains.CHAIN_CATALOG.items():
         for cell in ("scan", "clustering", "socials", "live_feed"):
-            expected = not ((cid == "hood" and cell == "clustering")
-                            or (cid == "hype" and cell in ("scan", "clustering",
-                                                           "socials")))
+            expected = not (cid == "hype" and cell in ("scan", "socials"))
             assert info[cell] is expected is not None and isinstance(info[cell], bool)
             assert info[cell] == expected
 
@@ -95,7 +94,7 @@ def test_chains_route_golden_wire(client):
 def test_hood_and_hype_rows_wire_truthfully(client):
     j = client.get("/api/v1/chains").json()
     rows = {c["chain"]: c for c in j["chains"]}
-    assert rows["hood"]["clustering"] is False and rows["hood"]["scan"] is True
+    assert rows["hood"]["clustering"] is True and rows["hood"]["scan"] is True
     assert rows["hype"]["scan"] is False and rows["hype"]["live_feed"] is True
 
 

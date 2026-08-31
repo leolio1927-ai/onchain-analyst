@@ -3,7 +3,7 @@
   "info": {
     "title": "VILMEI",
     "summary": "Evidence-first multichain memecoin risk terminal",
-    "description": "Read-only multichain memecoin research terminal — reduce noise, add context.\n\n- **POST /api/scan** — DexScreener pair + GeckoTerminal trade clustering → deterministic, weighted risk assessment\n- **GET /api/v1/discovery** — keyless trending/new pool radar (GeckoTerminal free tier)\n- **POST /api/explain** — evidence-first AI narrative; `provider: \"local\"` serves a deterministic heuristic narrative with zero API keys\n- **POST /api/whale** — Helius wallet balances (key required)\n- **WS /ws/snap** — full honest snapshot ticker · **WS /ws/tape** — live trade-tape deltas for the active pool\n\nEvery value is copied verbatim from the upstream APIs; absent fields stay absent —\nnothing is simulated, zero-filled or random-walked. Heuristic thresholds are public\nand auditable (heuristics/).",
+    "description": "Read-only multichain memecoin research terminal — reduce noise, add context.\n\n- **POST /api/scan** — DexScreener pair + GeckoTerminal trade clustering → deterministic, weighted risk assessment\n- **GET /api/v1/discovery** — keyless trending/new pool radar (GeckoTerminal free tier)\n- **POST /api/explain** — evidence-first AI narrative; `provider: \"local\"` serves a deterministic heuristic narrative with zero API keys\n- **POST /api/whale** — Helius wallet balances (key required)\n- **GET /api/v1/whale/windows** — whale windows (1h/6h/24h) on the keyless GeckoTerminal trade tape, all five chains; threshold is a labelled heuristic, never an on-chain label\n- **GET /api/v1/whale/auto** — AUTO: resolve a contract across networks + trending top-N candidates\n- **WS /ws/snap** — full honest snapshot ticker · **WS /ws/tape** — live trade-tape deltas for the active pool\n\nEvery value is copied verbatim from the upstream APIs; absent fields stay absent —\nnothing is simulated, zero-filled or random-walked. Heuristic thresholds are public\nand auditable (heuristics/).",
     "license": {
       "name": "MIT",
       "identifier": "MIT"
@@ -1068,7 +1068,7 @@
           "market"
         ],
         "summary": "Api Whales",
-        "description": "Large recent transfers + per-wallet netflow for one token. Solana =\nHelius enhanced transactions (keyed); bnb/base/hood/hype carry the probe\nreason — no $0 trade feed exists there. USD sizing uses the DexScreener\npair price; when absent, `usd` stays None and token amounts stand alone.",
+        "description": "Large recent transfers + per-wallet netflow for one token. Solana =\nHelius enhanced transactions (keyed); the other chains stay unwired HERE\n(this is the signed-delta view) — the GT trade tape at\n/api/v1/whale/windows covers all five chains keyless. USD sizing uses the\nDexScreener pair price; when absent, `usd` stays None and token amounts\nstand alone.",
         "operationId": "api_whales_api_v1_whales__chain___token__get",
         "parameters": [
           {
@@ -1117,6 +1117,111 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/WhalesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/whale/windows": {
+      "get": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Api Whale Windows",
+        "description": "Whale windows (1h/6h/24h) for one contract on one chain, from the\nGeckoTerminal trade tape. Threshold is a labelled heuristic per chain\n(sol $50K · bnb/base $30K · hype/hood = native qty × live native price,\n$30K fallback stated). No pool for the contract = an honest unwired\nenvelope with the reason, never a red wall.",
+        "operationId": "api_whale_windows_api_v1_whale_windows_get",
+        "parameters": [
+          {
+            "name": "chain",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chain"
+            }
+          },
+          {
+            "name": "ca",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ca"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhaleWindowsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/whale/auto": {
+      "get": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Api Whale Auto",
+        "description": "AUTO mode: resolve the contract across networks via GT search, run\nwhale windows on every chain that lists it, and add the trending top-N\n(small N, one call per chain, cached + backoff) as candidates. Every\nmiss or rate-limit is a sentence in data_sources.",
+        "operationId": "api_whale_auto_api_v1_whale_auto_get",
+        "parameters": [
+          {
+            "name": "ca",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ca"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 5,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WhaleAutoResponse"
                 }
               }
             }
@@ -1290,7 +1395,7 @@
         },
         "type": "object",
         "title": "ChainInfo",
-        "description": "One chain's verified provider support (webapp/chains.py CHAIN_CATALOG).\nA False cell is a stated absence — e.g. hood clustering is impossible\ntoday because GeckoTerminal has no robinhood network."
+        "description": "One chain's verified provider support (webapp/chains.py CHAIN_CATALOG).\nA False cell is a stated absence — e.g. hype scan is unavailable today\nbecause DexScreener has no verified hyperevm chainId."
       },
       "ChainsResponse": {
         "properties": {
@@ -4562,6 +4667,81 @@
         ],
         "title": "WebsiteLink"
       },
+      "WhaleAutoResponse": {
+        "properties": {
+          "data_mode": {
+            "type": "string",
+            "enum": [
+              "live",
+              "fixture",
+              "unwired",
+              "static",
+              "partial"
+            ],
+            "title": "Data Mode",
+            "default": "live"
+          },
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version",
+            "default": "1.0"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "ts": {
+            "type": "string",
+            "title": "Ts"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/WhaleWindowsResponse"
+            },
+            "type": "array",
+            "title": "Results"
+          },
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/WhaleCandidate"
+            },
+            "type": "array",
+            "title": "Candidates"
+          },
+          "trending": {
+            "items": {
+              "$ref": "#/components/schemas/WhaleCandidate"
+            },
+            "type": "array",
+            "title": "Trending"
+          },
+          "data_sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Data Sources"
+          }
+        },
+        "type": "object",
+        "title": "WhaleAutoResponse",
+        "description": "AUTO mode: the CA resolved across networks, whale windows per chain\nthat lists it, plus a small trending top-N as candidates. Every failure\nis a sentence in data_sources — never a red wall."
+      },
       "WhaleBody": {
         "properties": {
           "address": {
@@ -4574,6 +4754,90 @@
           "address"
         ],
         "title": "WhaleBody"
+      },
+      "WhaleCandidate": {
+        "properties": {
+          "chain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chain"
+          },
+          "network": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Network"
+          },
+          "pool": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pool"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "liquidity_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Liquidity Usd"
+          },
+          "volume_24h": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volume 24H"
+          },
+          "price_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Usd"
+          }
+        },
+        "type": "object",
+        "title": "WhaleCandidate",
+        "description": "A pool the CA resolves to (AUTO candidates) or a trending pool."
       },
       "WhaleEntry": {
         "properties": {
@@ -4726,6 +4990,68 @@
         "type": "object",
         "title": "WhaleResponse"
       },
+      "WhaleTapeRow": {
+        "properties": {
+          "wallet": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wallet"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "ts": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ts"
+          },
+          "usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usd"
+          },
+          "tx": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tx"
+          }
+        },
+        "type": "object",
+        "title": "WhaleTapeRow",
+        "description": "One whale tape trade, verbatim from GT (kind/ts/usd/wallet/tx)."
+      },
       "WhaleToken": {
         "properties": {
           "mint": {
@@ -4753,6 +5079,244 @@
         },
         "type": "object",
         "title": "WhaleToken"
+      },
+      "WhaleTopWallet": {
+        "properties": {
+          "wallet": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wallet"
+          },
+          "net_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Net Usd"
+          },
+          "buys": {
+            "type": "integer",
+            "title": "Buys",
+            "default": 0
+          },
+          "sells": {
+            "type": "integer",
+            "title": "Sells",
+            "default": 0
+          },
+          "trades": {
+            "type": "integer",
+            "title": "Trades",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "WhaleTopWallet",
+        "description": "Per-wallet net over the walked tape — buys/sells counted, never re-derived."
+      },
+      "WhaleWindowRow": {
+        "properties": {
+          "trades": {
+            "type": "integer",
+            "title": "Trades",
+            "default": 0
+          },
+          "whale_trades": {
+            "type": "integer",
+            "title": "Whale Trades",
+            "default": 0
+          },
+          "buy_usd": {
+            "type": "number",
+            "title": "Buy Usd",
+            "default": 0.0
+          },
+          "sell_usd": {
+            "type": "number",
+            "title": "Sell Usd",
+            "default": 0.0
+          },
+          "net_usd": {
+            "type": "number",
+            "title": "Net Usd",
+            "default": 0.0
+          }
+        },
+        "type": "object",
+        "title": "WhaleWindowRow",
+        "description": "One time window's whale stats. buy/sell/net are USD sums over the\nwhale trades in the window; a quiet window is honest zeros."
+      },
+      "WhaleWindowsResponse": {
+        "properties": {
+          "data_mode": {
+            "type": "string",
+            "enum": [
+              "live",
+              "fixture",
+              "unwired",
+              "static",
+              "partial"
+            ],
+            "title": "Data Mode",
+            "default": "unwired"
+          },
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version",
+            "default": "1.0"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "ts": {
+            "type": "string",
+            "title": "Ts"
+          },
+          "chain": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chain"
+          },
+          "network": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Network"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token"
+          },
+          "pool": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pool"
+          },
+          "pool_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pool Name"
+          },
+          "threshold_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threshold Usd"
+          },
+          "threshold_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threshold Note"
+          },
+          "windows": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/WhaleWindowRow"
+            },
+            "type": "object",
+            "title": "Windows"
+          },
+          "tape": {
+            "items": {
+              "$ref": "#/components/schemas/WhaleTapeRow"
+            },
+            "type": "array",
+            "title": "Tape"
+          },
+          "top_wallets": {
+            "items": {
+              "$ref": "#/components/schemas/WhaleTopWallet"
+            },
+            "type": "array",
+            "title": "Top Wallets"
+          },
+          "tape_trades_seen": {
+            "type": "integer",
+            "title": "Tape Trades Seen",
+            "default": 0
+          },
+          "tape_pages": {
+            "type": "integer",
+            "title": "Tape Pages",
+            "default": 0
+          },
+          "tape_oldest_ts": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tape Oldest Ts"
+          },
+          "data_sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Data Sources"
+          }
+        },
+        "type": "object",
+        "title": "WhaleWindowsResponse",
+        "description": "One chain's whale windows for one contract. A whale is a LABELLED\nHEURISTIC (one tape trade ≥ chain threshold), never an on-chain label.\ndata_mode='unwired' + the note in data_sources when GT has no pool for\nthe contract on that chain — a fact, not an error."
       },
       "WhalesResponse": {
         "properties": {

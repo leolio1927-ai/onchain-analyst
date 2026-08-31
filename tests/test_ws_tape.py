@@ -83,7 +83,7 @@ def test_tape_error_frame_on_upstream_fail(monkeypatch):
 
 def test_tape_pinned_params_need_both(monkeypatch):
     for bad in ("/ws/tape?chain=sol", "/ws/tape?pool=POOLX",
-                "/ws/tape?chain=hood&pool=POOLX"):  # hood: not on GT
+                "/ws/tape?chain=avax&pool=POOLX"):  # avax: parked, not on GT
         with (TestClient(server.app) as client,
               client.websocket_connect(bad) as ws,
               pytest.raises(WebSocketDisconnect) as ei):

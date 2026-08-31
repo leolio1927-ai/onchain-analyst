@@ -125,8 +125,20 @@ brackets) and was last re-verified 2026-08-29.
   source name or an explicit reason sentence) + the 5-chain catalog
   [webapp/chains.py, providers/chains_map.py].
 - GET /api/v1/whales/{chain}/{token} — large transfers + per-wallet netflow
-  (sol = Helius enhanced txs; other chains = probe reason; USD via DexScreener
-  price, null when absent) [providers/whales.py].
+  (sol = Helius signed-delta view; other chains ship the note pointing at the
+  GT tape; USD via DexScreener price, null when absent) [providers/whales.py].
+- GET /api/v1/whale/windows?chain=&ca= — PROMPT-V3 R2: whale windows
+  (1h/6h/24h) on the keyless GeckoTerminal trade tape, ALL FIVE chains (probe
+  2026-08-31: solana/bsc/base/hyperevm/robinhood 200). A whale = labelled
+  heuristic (one trade ≥ chain threshold: sol $50K · bnb/base $30K ·
+  hype/hood = native qty × live native price, $30K fallback stated), never an
+  on-chain label; net = Σ whale buys − Σ whale sells per window; no pool =
+  honest unwired note. Cached + provenance in data_sources
+  [providers/whale_windows.py, providers/geckoterminal.py].
+- GET /api/v1/whale/auto?ca=&limit= — AUTO: resolves the contract across
+  networks via GT pool search (deepest pool per chain) + trending top-N
+  candidates (small N, TTL caches, single Retry-After backoff on 429); every
+  miss is a sentence in data_sources [providers/whale_windows.py].
 - GET /api/v1/rug/sol/{mint} — Solana rug summary via RugCheck.xyz
   (score, score_normalised, lp_locked_pct, risks[] verbatim; TTL 300s,
   single-flight; a missing report ships empty risks + a degraded reason)

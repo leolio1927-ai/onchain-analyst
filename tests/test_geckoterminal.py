@@ -16,7 +16,7 @@ def test_normalisasi_trade(monkeypatch):
     trades = geckoterminal.fetch_trades("sol", "POOLX")
     assert len(trades) == 10  # 11 items, 1 without volume_in_usd → skipped
     first = trades[0]
-    assert set(first) == {"wallet", "kind", "ts", "usd", "base_token"}
+    assert set(first) == {"wallet", "kind", "ts", "usd", "tx", "base_token"}
     assert first["wallet"] == "WA1"
     assert first["kind"] == "buy"
     assert first["ts"].startswith("2026-08-27T06:00:05")

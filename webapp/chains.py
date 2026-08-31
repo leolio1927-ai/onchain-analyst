@@ -14,14 +14,15 @@ support. Honesty law for this file:
   the chain marks live in the frontend bundle, no backend asset path exists.
 
 Known-false cells (honesty-critical):
-- hood.clustering  = False — GeckoTerminal has no robinhood network
-  (providers/geckoterminal.py NETWORKS), so wallet clustering can never run;
-  hood scans honestly carry a 5-signal denominator instead of 6;
 - hype.scan        = False — no verified DexScreener chainId yet
   (providers/dexscreener.py holds it back);
-- hype.clustering  = False — GT has no hyperevm entry in NETWORKS either;
 - hype.socials     = False — DexScreener does not list hyperevm
   (providers/live.py _enrich_socials).
+
+Flipped True 2026-08-31 (PROMPT-V3 R2 probe — GT /api/v2/networks lists
+both slugs; trending_pools + pools/{addr}/trades answer 200 keyless):
+- hood.clustering — GeckoTerminal serves the `robinhood` network;
+- hype.clustering — GeckoTerminal serves the `hyperevm` network.
 """
 from __future__ import annotations
 
@@ -50,13 +51,13 @@ CHAIN_CATALOG: dict[ChainId, dict] = {
     },
     "hood": {
         "name": "Robinhood Chain", "symbol": None,
-        "scan": True, "clustering": False, "socials": True, "live_feed": True,
+        "scan": True, "clustering": True, "socials": True, "live_feed": True,
         "venues": ["uniswap"],
         "logo_ref": None,
     },
     "hype": {
         "name": "HyperEVM", "symbol": "HYPE",
-        "scan": False, "clustering": False, "socials": False, "live_feed": True,
+        "scan": False, "clustering": True, "socials": False, "live_feed": True,
         "venues": ["ring-exchange"],
         "logo_ref": None,
     },
