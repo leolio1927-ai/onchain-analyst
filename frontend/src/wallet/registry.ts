@@ -105,13 +105,18 @@ export interface WalletSession {
   chainFam: ChainFam
   address: string
   balances: Record<LiveChain, number>
+  /* M2: 'live' = a real extension returned this public address (EIP-6963 /
+     Wallet Standard, address-only); 'mock' = deterministic demo identity.
+     Pre-M2 persisted sessions carry no kind and read back as 'mock'. */
+  kind: 'mock' | 'live'
+  rdns?: string
 }
 
 export function connectMock(provider: WalletProvider): WalletSession {
   const address = mockAddress(provider.id, provider.chainFam)
   const balances = {} as Record<LiveChain, number>
   for (const c of LIVE_CHAINS) balances[c] = demoBalance(provider.id, c)
-  return { providerId: provider.id, label: provider.label, chainFam: provider.chainFam, address, balances }
+  return { providerId: provider.id, label: provider.label, chainFam: provider.chainFam, address, balances, kind: 'mock' }
 }
 
 export const MOCK_TOOLTIP = 'mock — preview only'

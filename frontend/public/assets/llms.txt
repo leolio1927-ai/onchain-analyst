@@ -178,8 +178,11 @@ brackets) and was last re-verified 2026-08-29.
   alpha ranks [src/pages/ChainLive.tsx].
 - /terminal — terminal shell (the product, ships in phases; the landing entry
   stays disabled until the Locked deploy). Its data surfaces render
-  deterministic simulated data sets; the swap desk has no session, no wallet, no
-  chain calls [src/pages/TokenPage.tsx].
+  deterministic simulated data sets; the swap desk executes nothing. A wallet
+  button offers ADDRESS-ONLY connection via the 2026 standards — EIP-6963
+  (EVM) + Solana Wallet Standard — hand-rolled, zero dependencies, no signing
+  and no execution ever requested; the session (public address + kind) persists
+  under vilmei.wallet-session [src/wallet/live.ts, src/wallet/WalletContext.tsx].
 - /roadmap — the weekly hub of proof: shipped ledger TA-001..TA-008 with stable
   anchor IDs (#ta-xxx), in-progress band, design queue TA-101..TA-105, published
   non-goals.
