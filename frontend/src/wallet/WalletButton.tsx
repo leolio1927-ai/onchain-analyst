@@ -2,10 +2,9 @@
    picker → 800ms pulse → connected chip (shortened address + per-chain demo
    balances + copy/disconnect). Mock-only: tooltip says so on the address. */
 import { useEffect, useRef, useState } from 'react'
+import { shorten } from '../lib/liveFormat'
 import { useWallet } from './WalletContext'
 import { MOCK_TOOLTIP, REGISTRY, WALLET_LABEL } from './registry'
-
-const short = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`
 
 export function WalletButton({ compact = false }: { compact?: boolean }) {
   const { session, connecting, connect, disconnect } = useWallet()
@@ -27,7 +26,7 @@ export function WalletButton({ compact = false }: { compact?: boolean }) {
         <button type="button" className="ta-wallet-chip" onClick={() => setOpen((o) => !o)}
           title={MOCK_TOOLTIP} aria-expanded={open} aria-label="wallet menu">
           <span className="dot" aria-hidden="true" />
-          <span className="mono">{short(session.address)}</span>
+          <span className="mono">{shorten(session.address)}</span>
           {!compact && <span className="ta-wallet-tag">{WALLET_LABEL}</span>}
         </button>
         {open && (

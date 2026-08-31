@@ -10,12 +10,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { LiveChain } from '../lib/liveApi'
 import { LIVE_CHAIN_LABEL } from '../lib/liveApi'
-import { truncAddr } from '../lib/liveFormat'
+import { shorten } from '../lib/liveFormat'
 import { accentStyle } from './liveParts'
 import { ChainLogo } from './chainLogos'
 import { fetchSwapQuote } from '../services/dexscreener'
 import type { SwapQuote } from '../services/dexscreener'
-import { useActivePair } from '../lib/tokenStore'
+import { getGeneration, useActivePair } from '../lib/tokenStore'
 import type { ActivePair } from '../lib/tokenStore'
 import { INDICATOR_LEGEND, ema, rsi, vwap } from '../lib/indicators'
 import type { Candle } from '../lib/indicators'
@@ -87,17 +87,22 @@ function fmtPrice(p: number | null | undefined): string {
 
 /* ── live data hooks ──────────────────────────────────────────────────── */
 
+/* P1 stale-response guard: every async loader snapshots the identity
+   generation at dispatch; a response arriving after ANY applySwapToken is
+   DROPPED — no partial meta from a previous token can ever interleave. */
 function useQuote(pair: ActivePair | null): { quote: SwapQuote | null; error: string | null } {
   const [quote, setQuote] = useState<SwapQuote | null>(null)
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
     let on = true
+    const gen = getGeneration()
+    const fresh = () => on && getGeneration() === gen
     setQuote(null)
     setError(null)
     if (!pair) { setError('no token selected — paste a CA in the search bar above'); return }
     fetchSwapQuote(pair.chain, pair.tokenAddress)
-      .then((q) => { if (on) { if (q) setQuote(q); else setError(`no live ${pair.chain.toUpperCase()} quote — dexscreener returned no finite rate for this token`) } })
-      .catch(() => { if (on) setError('dexscreener unreachable — rate unavailable') })
+      .then((q) => { if (fresh()) { if (q) setQuote(q); else setError(`no live ${pair.chain.toUpperCase()} quote — dexscreener returned no finite rate for this token`) } })
+      .catch(() => { if (fresh()) setError('dexscreener unreachable — rate unavailable') })
     return () => { on = false }
   }, [pair])
   return { quote, error }
@@ -109,6 +114,8 @@ function useOhlcv(pair: ActivePair | null, resolution: Resolution, pairAddress: 
   const [st, setSt] = useState<OhlcvState>({ candles: [], state: 'SEEDING', reason: null, lastTs: null })
   useEffect(() => {
     let on = true
+    const gen = getGeneration()
+    const fresh = () => on && getGeneration() === gen
     if (!pair || !pairAddress) {
       setSt({ candles: [], state: 'EMPTY', reason: 'no active pair address — open a token with a live pool', lastTs: null })
       return
@@ -117,7 +124,7 @@ function useOhlcv(pair: ActivePair | null, resolution: Resolution, pairAddress: 
     fetch(`/api/v1/market/ohlcv?chain=${pair.chain}&pair=${encodeURIComponent(pairAddress)}&resolution=${resolution}&limit=180`)
       .then(async (r) => {
         const j = await r.json().catch(() => null)
-        if (!on) return
+        if (!fresh()) return
         if (!r.ok || !j) {
           setSt((s) => ({ ...s, state: 'ERROR', reason: j?.detail ?? `HTTP ${r.status} — ohlcv unavailable` }))
           return
@@ -130,7 +137,7 @@ function useOhlcv(pair: ActivePair | null, resolution: Resolution, pairAddress: 
           lastTs: j.provenance?.freshness?.last_candle_ts ?? null,
         })
       })
-      .catch(() => { if (on) setSt((s) => ({ ...s, state: 'ERROR', reason: 'network error — is the API server running?' })) })
+      .catch(() => { if (fresh()) setSt((s) => ({ ...s, state: 'ERROR', reason: 'network error — is the API server running?' })) })
     return () => { on = false }
   }, [pair, pairAddress, resolution])
   return st
@@ -140,12 +147,14 @@ function useSocials(pair: ActivePair | null): SocialsState {
   const [st, setSt] = useState<SocialsState>({ links: [], websites: [], imageUrl: null, state: 'LOADING', reason: null })
   useEffect(() => {
     let on = true
+    const gen = getGeneration()
+    const fresh = () => on && getGeneration() === gen
     setSt({ links: [], websites: [], imageUrl: pair?.logo ?? null, state: 'LOADING', reason: null })
     if (!pair) return
     fetch(`/api/v1/socials?chain=${pair.chain}&token=${encodeURIComponent(pair.tokenAddress)}`)
       .then(async (r) => {
         const j = await r.json().catch(() => null)
-        if (!on) return
+        if (!fresh()) return
         if (!r.ok || !j) { setSt((s) => ({ ...s, state: 'ERROR', reason: j?.detail ?? `HTTP ${r.status}` })); return }
         const links = j.links ?? []
         const websites = j.websites ?? []
@@ -155,7 +164,7 @@ function useSocials(pair: ActivePair | null): SocialsState {
           reason: j.provenance?.degraded ?? null,
         })
       })
-      .catch(() => { if (on) setSt((s) => ({ ...s, state: 'ERROR', reason: 'network error' })) })
+      .catch(() => { if (fresh()) setSt((s) => ({ ...s, state: 'ERROR', reason: 'network error' })) })
     return () => { on = false }
   }, [pair])
   return st
@@ -441,11 +450,16 @@ export function TokenPage() {
               <TokenLogo src={quote?.logoUrl ?? pair?.logo ?? null} symbol={pair?.symbol ?? '?'} size={56} />
               <div className="tk-id">
                 <div className="tk-name">
+                  {/* P1 dual label: store meta vs live pair-base never overwrite
+                      each other — both shown, one element, no interleave */}
                   {pair?.symbol ?? 'NO TOKEN SELECTED'}
+                  {quote && pair && quote.token !== pair.symbol && (
+                    <span className="tk-alias" title={`store meta vs live pair-base differ — both shown, verbatim`}>({quote.token})</span>
+                  )}
                   <span className="tk-ticker">${pair?.symbol ?? '—'}</span>
-                  <span className="tk-pair">{pair ? `${pair.symbol} / ${NATIVE[chain]}` : '—'}</span>
+                  <span className="tk-pair">{pair ? `${quote?.token ?? pair.symbol} / ${quote?.quote ?? NATIVE[chain]}` : '—'}</span>
                   {pair && (
-                    <span className="tk-ca">CA: <abbr className="sw-abbr" title={pair.tokenAddress}>{truncAddr(pair.tokenAddress)}</abbr> <CopyBtn value={pair.tokenAddress} label="token address" /></span>
+                    <span className="tk-ca">CA: <abbr className="sw-abbr" title={pair.tokenAddress}>{shorten(pair.tokenAddress)}</abbr> <CopyBtn value={pair.tokenAddress} label="token address" /></span>
                   )}
                 </div>
                 <div className="tk-chips">
@@ -657,12 +671,14 @@ function useXchain(pair: ActivePair | null) {
   const [cands, setCands] = useState<{ chain: string; symbol: string | null; liquidity_usd: number | null }[]>([])
   useEffect(() => {
     let on = true
+    const gen = getGeneration()
+    const fresh = () => on && getGeneration() === gen
     setCands([])
     if (!pair) return
     fetch(`/api/v1/detect?address=${encodeURIComponent(pair.tokenAddress)}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => {
-        if (!on || !j) return
+        if (!fresh() || !j) return
         setCands(((j.candidates ?? []) as { chain: string; symbol: string | null; liquidity_usd: number | null }[])
           .filter((c) => c.chain !== pair.chain))
       })

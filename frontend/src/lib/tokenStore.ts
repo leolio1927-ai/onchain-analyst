@@ -59,10 +59,26 @@ function persistRecents(list: ActivePair[]): void {
 }
 
 let state: TokenState = { pair: defaultPair('sol'), recents: loadRecents() }
+let generation = 0
 const listeners = new Set<() => void>()
 
 function emit(): void {
   for (const l of listeners) l()
+}
+
+/* P1 (PROMPT-V2): THE atomic identity mutation — (id, chain, meta, logo)
+   commit together or not at all. No consumer may patch the active pair
+   field-by-field (the partial-application interleaving that showed one
+   token's logo beside another token's meta is structurally impossible
+   here). Every commit bumps the generation; async loaders capture it and
+   drop any response that lands after a newer commit. */
+export function applySwapToken(next: ActivePair): void {
+  generation += 1
+  setPair(next)
+}
+
+export function getGeneration(): number {
+  return generation
 }
 
 export function setPair(next: ActivePair): void {
@@ -90,6 +106,10 @@ export function useActivePair(): ActivePair | null {
 
 export function useRecents(): ActivePair[] {
   return useSyncExternalStore(subscribe, () => state.recents)
+}
+
+export function useTokenGeneration(): number {
+  return useSyncExternalStore(subscribe, getGeneration)
 }
 
 /* candidate → ActivePair for the search/detect flows */

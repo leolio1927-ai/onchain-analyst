@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { classifyQuery } from '../lib/detect'
 import type { DetectCandidate } from '../lib/detect'
 import { fetchDetect } from '../lib/detect'
-import { candidateToPair, setPair, useRecents } from '../lib/tokenStore'
+import { applySwapToken, candidateToPair, useRecents } from '../lib/tokenStore'
 
 type Phase =
   | { id: 'idle' }
@@ -36,7 +36,7 @@ export function AutodetectSearch() {
   const choose = (c: DetectCandidate) => {
     const pair = candidateToPair(c, 'detect')
     if (pair) {
-      setPair(pair)
+      applySwapToken(pair)   // atomic commit + generation bump (P1)
       window.location.hash = '#/swap'
       setPhase({ id: 'idle' })
       setQ('')
@@ -109,7 +109,7 @@ export function AutodetectSearch() {
               {recents.map((r) => (
                 <button type="button" key={`${r.chain}-${r.tokenAddress}`}
                   className="ta-search-cand" role="option" aria-selected={false}
-                  onClick={() => { setPair(r); window.location.hash = '#/swap'; setOpen(false) }}>
+                  onClick={() => { applySwapToken(r); window.location.hash = '#/swap'; setOpen(false) }}>
                   <b>{r.symbol}</b>
                   <span className="ell" title={r.name ?? r.symbol}>{r.chain.toUpperCase()}</span>
                   <span className="mono dim2">{r.source === 'detect' ? 'DETECTED' : 'PICKED'}</span>

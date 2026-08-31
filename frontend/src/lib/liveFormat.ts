@@ -68,6 +68,17 @@ export function truncAddr(a: string | null): string {
   return a.length <= 10 ? a : `${a.slice(0, 4)}…${a.slice(-4)}`
 }
 
+/* P1 (PROMPT-V2, 2026-08-31): THE one address shortener. The screenshot bug
+   class — "8KApump…PONS" (prefix of token A + suffix of token B) — came from
+   two hand-rolled shorteners with different masks. Every surface must call
+   this: prefix and suffix are cut from the SAME string with the SAME
+   separator, and there is exactly one test proving it. */
+export function shorten(a: string | null | undefined, head = 4, tail = 4): string {
+  if (!a) return DASH
+  if (a.length <= head + tail + 1) return a
+  return `${a.slice(0, head)}…${a.slice(-tail)}`
+}
+
 /* "12:03:44 UTC" from an ISO timestamp. */
 export function fmtUtcClock(iso: string | null): string {
   if (!iso) return DASH
