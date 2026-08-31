@@ -103,6 +103,16 @@ TOOLS: list[dict] = [
             "required": ["chain"],
         },
     },
+    {
+        "name": "fee_destinations",
+        "description": ("The claim-based vault map: per chain, the three fee "
+                        "slices (ops/buyback/rewards) with their PUBLIC vault "
+                        "address if founder-claimed in .env, else a "
+                        "declared-null awaiting-founder sentence. No key "
+                        "enters the repo; nothing is charged. Same as "
+                        "GET /api/v1/fees/destinations."),
+        "inputSchema": {"type": "object", "properties": {}},
+    },
 ]
 
 

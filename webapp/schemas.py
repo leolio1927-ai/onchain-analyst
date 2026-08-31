@@ -849,3 +849,37 @@ class FeeEstimateResponse(Envelope):
     buyback_blocker: str | None = None
     honest_note: str = "planned — nothing is charged; VILMEI is read-only"
     provenance: dict = Field(default_factory=dict)
+
+
+# ── PROMPT-V4 M3: vault destinations — claim-based, public addresses only ─
+
+class VaultDestination(BaseModel):
+    """One fee-slice vault: a founder-claimed PUBLIC address, or declared
+    null. No key ever enters this repo (docs/FEE-VAULTS.md)."""
+
+    address: str | None = None
+    status: str = "awaiting-founder"        # claimed | awaiting-founder
+    note: str = ""
+
+
+class VaultChainRow(BaseModel):
+    """One chain's vault row: its fee-path verdict plus the three slice
+    vaults (ops 0.30 · buyback 0.10 · rewards 0.10)."""
+
+    fee_path_verdict: str = ""
+    vaults: dict[str, VaultDestination] = Field(default_factory=dict)
+
+
+class FeeDestinationsResponse(Envelope):
+    """The 5-chain × 3-slice vault map as policy data (data_mode='static').
+    Published BEFORE a basis point could move; nothing is charged."""
+
+    data_mode: DataMode = "static"
+
+    slices_bps: dict[str, int] = Field(default_factory=dict)
+    chains: dict[str, VaultChainRow] = Field(default_factory=dict)
+    claimed: int = 0
+    total: int = 0
+    honest_note: str = ("vault map = policy data: public addresses only, "
+                        "founder-claimed in .env")
+    provenance: dict = Field(default_factory=dict)

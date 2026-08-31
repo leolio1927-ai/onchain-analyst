@@ -162,6 +162,16 @@ const QUEUE: { id: string; tag: string; title: string; kind: ChipKind; why: stri
     why: 'The planned fee (0.50% = ops 0.30 + buyback 0.10 + rewards 0.10, docs/FEE-MODELS-2026.md) is published as data, but its buyback slice is BLOCKED: VILMEI ships no execution surface and no custody, so nothing here could ever buy back anything until a founder decision changes that.',
     proof: 'PROOF · a founder decision unblocks VM-fee-01 · the slice flips from declared-but-unwired to a dated design in §1 · estimator + swap-rail strip updated in the same commit',
   },
+  {
+    id: 'ta-fee-02', tag: 'VM-fee-02', title: 'Vault claim gate — 15 public addresses', kind: 'design',
+    why: 'The vault map (GET /api/v1/fees/destinations, docs/FEE-VAULTS.md) ships claim-based: 5 chains × 3 slices render awaiting-founder until the founder sets VAULT_{CHAIN}_{SLICE}_ADDRESS in .env. PUBLIC addresses only — a key never enters this repo, and nothing is charged.',
+    proof: 'PROOF · the founder sets addresses in .env · claimed/total on /api/v1/fees/destinations moves off 0/15 · the swap-rail vault chips flip to shortened claimed addresses',
+  },
+  {
+    id: 'ta-fee-03', tag: 'VM-fee-03', title: 'Settlement ledger — off-chain accounting', kind: 'design',
+    why: 'If a fee path ever goes live (sol Jupiter platformFeeBps is the only $0 keyless one today), what was collected and how it splits across the three vaults stays an off-chain, claim-reconciled ledger — VILMEI custodies nothing.',
+    proof: 'PROOF · a fee path flips to wired in docs/FEE-MODELS-2026.md first · the ledger surface ships with its reconciliation sentences in the same commit',
+  },
 ]
 
 const NON_GOALS = [

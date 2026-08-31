@@ -49,6 +49,7 @@ from providers import (
     live,
     market,
     rugcheck,
+    vaults,
     whale_windows,
     whales,
 )
@@ -125,6 +126,7 @@ _DESCRIPTION = """Read-only multichain memecoin research terminal — reduce noi
 - **GET /api/v1/whale/windows** — whale windows (1h/6h/24h) on the keyless GeckoTerminal trade tape, all five chains; threshold is a labelled heuristic, never an on-chain label
 - **GET /api/v1/whale/auto** — AUTO: resolve a contract across networks + trending top-N candidates
 - **GET /api/v1/fees/estimate** — the PLANNED VILMEI fee (0.50% split 0.30/0.10/0.10) as inspectable data; nothing is charged, VILMEI is read-only
+- **GET /api/v1/fees/destinations** — the claim-based vault map: per chain, the three fee slices with their PUBLIC founder-claimed address (or a declared-null awaiting-founder sentence); no key enters the repo
 - **WS /ws/snap** — full honest snapshot ticker · **WS /ws/tape** — live trade-tape deltas for the active pool
 
 Every value is copied verbatim from the upstream APIs; absent fields stay absent —
@@ -897,6 +899,18 @@ async def api_fees_estimate(chain: str, amountUsd: float) -> dict:
     return fee_models.estimate(chain_key, amountUsd)
 
 
+@app.get("/api/v1/fees/destinations", response_model=schemas.FeeDestinationsResponse,
+         tags=["market"])
+async def api_fees_destinations() -> dict:
+    """The claim-based vault map: for each of the five chains, the three fee
+    slices (ops 0.30 · buyback 0.10 · rewards 0.10) each carry a PUBLIC
+    address founder-claimed in .env (VAULT_{CHAIN}_{SLICE}_ADDRESS) or a
+    declared-null 'awaiting-founder' sentence. No key enters this repo and
+    nothing is charged — policy data published before a basis point moves
+    (docs/FEE-VAULTS.md). data_mode='static'."""
+    return vaults.destinations()
+
+
 # ── PROMPT-V2B P6: machine surfaces (read-only) ─────────────────────────
 # MCP spec revision 2026-07-28 (modelcontextprotocol.io/specification/latest,
 # checked 2026-08-31); discovery via RFC 9727 api-catalog. The tools are thin
@@ -939,18 +953,25 @@ async def _mcp_fees(a: dict) -> dict:
                                    float(a.get("amountUsd", 1000)))
 
 
+async def _mcp_fee_destinations(_a: dict) -> dict:
+    # one truth, two doors: serialize through the SAME schema the REST door uses
+    return schemas.FeeDestinationsResponse.model_validate(
+        await api_fees_destinations()).model_dump()
+
+
 _MCP_IMPL: dict[str, mcp.ToolImpl] = {
     "trending": _mcp_trending, "scan": _mcp_scan,
     "rug": _mcp_rug, "whale_windows": _mcp_whales, "fee_view": _mcp_fees,
+    "fee_destinations": _mcp_fee_destinations,
 }
 
 
 @app.post("/mcp", tags=["system"])
 async def mcp_rpc(request: Request) -> Response:
     """Read-only Model Context Protocol endpoint — JSON-RPC 2.0 (spec rev
-    2026-07-28): initialize / ping / tools/list / tools/call over five
-    read-only tools (trending, scan, rug, whale_windows, fee_view). Nothing
-    here trades, custodies, or writes."""
+    2026-07-28): initialize / ping / tools/list / tools/call over six
+    read-only tools (trending, scan, rug, whale_windows, fee_view,
+    fee_destinations). Nothing here trades, custodies, or writes."""
     try:
         payload = await request.json()
     except Exception:  # noqa: BLE001 — a broken body is a JSON-RPC error, not a 500

@@ -385,6 +385,11 @@
   border-color: color-mix(in srgb, var(--sev-medium) 45%, transparent);
   background: color-mix(in srgb, var(--sev-medium) 8%, transparent); }
 .fee-chip.on { box-shadow: 0 0 0 1px color-mix(in srgb, var(--acc, var(--brand)) 40%, transparent); }
+/* PROMPT-V4 M3: vault slice chips — claimed = the sev-low language;
+   awaiting-founder keeps the muted sev-nodata default above */
+.fee-chip.vault[data-status='claimed'] { color: var(--sev-low);
+  border-color: color-mix(in srgb, var(--sev-low) 45%, transparent);
+  background: color-mix(in srgb, var(--sev-low) 8%, transparent); }
 .sw2-fees-note { margin: 0; font-family: var(--font-mono); font-size: 8.5px;
   line-height: 1.5; color: var(--muted-deep); }
 .sw2-fees-note abbr { text-decoration: underline dotted; text-underline-offset: 3px;

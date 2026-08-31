@@ -274,6 +274,29 @@ function useFeeEstimate(open: boolean, chain: string, notionalUsd: number): FeeE
   return fees
 }
 
+/* ── M3 vault map: where the planned slices would land (claim-based) ────────
+   GET /api/v1/fees/destinations is policy data (docs/FEE-VAULTS.md): public
+   founder-claimed addresses or 'awaiting-founder' sentences. Fetched once per
+   ADVANCED open, same quiet discipline as the fee strip. */
+interface VaultSlice { address: string | null; status: string; note: string }
+interface VaultChainRow { fee_path_verdict: string; vaults: Record<string, VaultSlice> }
+interface VaultMap { chains: Record<string, VaultChainRow>; honest_note: string }
+function useVaultMap(open: boolean): VaultMap | null {
+  const [map, setMap] = useState<VaultMap | null>(null)
+  useEffect(() => {
+    if (!open) return
+    let on = true
+    fetch('/api/v1/fees/destinations')
+      .then(async (r) => {
+        const j = await r.json().catch(() => null)
+        if (on && r.ok && j) setMap(j as VaultMap)
+      })
+      .catch(() => { /* policy fetch failed — the chips stay quiet, never red */ })
+    return () => { on = false }
+  }, [open])
+  return map
+}
+
 /* ── the swap rail (Fase 1) ───────────────────────────────────────────── */
 
 function SwapRail({ pair, quote, qErr }: { pair: ActivePair | null; quote: SwapQuote | null; qErr: string | null }) {
@@ -306,6 +329,7 @@ function SwapRail({ pair, quote, qErr }: { pair: ActivePair | null; quote: SwapQ
      opens; the live line below re-derives from the payload's rate bps */
   const notionalUsd = payingNative ? payAmt * nativeUsd : payAmt * (quote?.priceUsd ?? 0)
   const fees = useFeeEstimate(adv, chain, notionalUsd)
+  const vaultMap = useVaultMap(adv)
   const liveFeeUsd = fees ? (notionalUsd > 0 ? (notionalUsd * fees.planned_rate_bps) / 10000 : fees.estimate_usd) : null
 
   const setFromPay = (v: string) => {
@@ -453,6 +477,16 @@ function SwapRail({ pair, quote, qErr }: { pair: ActivePair | null; quote: SwapQ
                       </span>
                     ))}
                   </div>
+                  {vaultMap?.chains?.[chain] && (
+                    <div className="sw2-fees-chips" data-testid="vault-chips">
+                      {Object.entries(vaultMap.chains[chain].vaults).map(([slice, v]) => (
+                        <span key={slice} className="fee-chip vault" data-status={v.status}
+                          title={v.note}>
+                          {slice.toUpperCase()} · {v.address ? shorten(v.address) : 'AWAITING CLAIM'}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   <p className="sw2-fees-note">{fees.honest_note} — buyback slice blocked by <abbr title={fees.buyback_blocker}>VM-fee-01</abbr>.</p>
                 </>
               ) : (
