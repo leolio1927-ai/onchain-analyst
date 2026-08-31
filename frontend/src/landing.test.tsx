@@ -15,7 +15,7 @@ describe('<Landing /> render smoke', () => {
   it('renders the brand and the honest five-chain claim', () => {
     const { container } = render(<Landing />)
     const text = container.textContent ?? ''
-    expect(text).toContain('TERMINAL ALPHA')
+    expect(text).toContain('VILMEI')
     expect(text).toContain('all five live on the keyless feed today')
   })
 

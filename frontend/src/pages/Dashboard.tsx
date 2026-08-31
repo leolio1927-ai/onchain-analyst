@@ -132,7 +132,7 @@ export default function Dashboard() {
       <div className="ta-hero">
         <div className="hero-badge">BUILT FOR TRADERS.<br /><small>NOT FOR GAMBLERS.</small></div>
         <div className="hero-title">
-          <h1>TERMINAL <span className="p">ALPHA</span></h1>
+          <h1>VIL<span className="p">MEI</span></h1>
           <div className="sub">AI MEMECOIN SCANNER TERMINAL — SEE WHAT OTHERS MISS. UNDERSTAND WHAT MATTERS.</div>
         </div>
         <div className="hero-gold">
@@ -233,7 +233,7 @@ export default function Dashboard() {
                 )}
               </Card>
 
-              <Card title="TERMINAL ALPHA RISK VERDICT" glow="#fbbf24">
+              <Card title="VILMEI RISK VERDICT" glow="#fbbf24">
                 {loading ? <Skeleton h={190} /> : token ? (
                   <div className="risk-wrap">
                     <div className="num">
@@ -320,7 +320,7 @@ export default function Dashboard() {
           {/* right rail */}
           <div style={{ display: 'grid', gap: 16, position: 'sticky', top: 16 }}>
             <Card title="AI ANALYST" right={<Badge color="amber">SOON</Badge>} glow="#00ffa3">
-              <EmptyState title="Module not wired yet" hint="the /api/explain local tier ships today — the dashboard panel arrives with the AI module (stay tuned)" />
+              <EmptyState title="VILMEI AI — not yet live" hint="the /api/explain local tier ships today — the dashboard panel arrives with the AI module (stay tuned)" />
             </Card>
 
             <Card title={<span>TERMINAL STATUS <span style={{ color: 'var(--green)', fontWeight: 400, letterSpacing: 0, textTransform: 'none' }}>

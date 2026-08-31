@@ -11,8 +11,8 @@ const parts = window.location.pathname.split('/').filter(Boolean)
 const chain = parts[0] === 'live' && parts[1] ? decodeURIComponent(parts[1]) : null
 
 document.title = chain
-  ? `${chain.toUpperCase()} · Memecoin Live — Terminal Alpha`
-  : 'Memecoin Live — Terminal Alpha'
+  ? `${chain.toUpperCase()} · Memecoin Live — VILMEI`
+  : 'Memecoin Live — VILMEI'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

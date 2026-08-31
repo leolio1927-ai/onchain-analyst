@@ -107,7 +107,7 @@ export function Shell({ pages }: { pages: Record<string, ReactNode> }) {
       <aside className="ta-side">
         <div className="ta-side-logo">
           <span className="mark">◤</span>
-          <span className="name">TERMINAL<span>ALPHA</span></span>
+          <span className="name">VILMEI</span>
         </div>
         <nav className="ta-nav">
           {NAV.map((n) => (
@@ -126,7 +126,7 @@ export function Shell({ pages }: { pages: Record<string, ReactNode> }) {
           ))}
         </nav>
         <div className="ta-user">
-          <div className="who">Alpha User</div>
+          <div className="who">VILMEI User</div>
           <div className="plan">Premium Deep</div>
           <div className="valid">Valid until 2026-12-31</div>
           <div className="ta-meter"><span style={{ width: '89%' }} /></div>

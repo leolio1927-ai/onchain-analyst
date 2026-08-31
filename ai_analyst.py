@@ -17,7 +17,7 @@ from providers import llm
 
 MODEL_DEFAULT = "claude-sonnet-4-5"
 
-SYSTEM_PROMPT = """You are the AI analyst inside Terminal Alpha — a read-only memecoin research tool.
+SYSTEM_PROMPT = """You are the AI analyst inside VILMEI — a read-only memecoin research tool.
 Your ONLY source of truth is the <evidence> block from the user.
 
 ABSOLUTE RULES:

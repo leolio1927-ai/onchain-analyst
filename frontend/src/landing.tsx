@@ -143,7 +143,7 @@ function Spotlight() {
 
 /* boot sequence preloader — engineering truth only */
 const BOOT = [
-  'INITIALIZING TERMINAL ALPHA',
+  'INITIALIZING VILMEI',
   'DATA · GECKOTERMINAL + DEXSCREENER · KEYLESS',
   'HEURISTICS · PUBLIC AND AUDITABLE',
   'POSTURE · READ-ONLY · NO CUSTODY',
@@ -730,7 +730,7 @@ function Problem() {
     <section className="lv-sec" id="problem">
       <div className="lv-num">00</div>
       <div className="lv-problem rv">
-        <div className="lv-k2">WHY TERMINAL ALPHA EXISTS</div>
+        <div className="lv-k2">WHY VILMEI EXISTS</div>
         <h2 className="lv-h2">Most memecoins are built <span className="a">to hurt you.</span></h2>
         <p>
           Discovery is fragmented across chain ecosystems, volume displays lie, ratings are
@@ -844,7 +844,7 @@ const BP: { g: string; items: { t: string; d: string; chip: 'live' | 'sim' | 'bu
     g: 'IN BUILD — WIRED NEXT',
     items: [
       { t: 'Dashboard', chip: 'build', d: 'Mission control: market pulse, watchlist and risk at a glance.' },
-      { t: 'Swap Desk', chip: 'sim', d: 'The full trading surface on a labeled deterministic data set — session + quotes are next (TA-101).' },
+      { t: 'Swap Desk', chip: 'sim', d: 'The full trading surface on a labeled deterministic data set — session + quotes are next (VM-101).' },
       { t: 'Rug Check', chip: 'build', d: 'Heuristic checklist over liquidity, ownership and mint authority.' },
       { t: 'Wallet Clustering', chip: 'build', d: 'Coordinated-wallet detection over the real GeckoTerminal trade feed.' },
       { t: 'Whale Tracker', chip: 'build', d: 'Wallet balances and flows via Helius — framework in place.' },
@@ -853,8 +853,8 @@ const BP: { g: string; items: { t: string; d: string; chip: 'live' | 'sim' | 'bu
   {
     g: 'DESIGN — SCOPED, QUEUED',
     items: [
-      { t: 'AI Analyst', chip: 'design', d: 'Evidence-first narratives over live data — provider-agnostic, never trades (TA-104).' },
-      { t: 'Watchlist', chip: 'design', d: 'Track tokens across the five chains — account-less, local storage (TA-102).' },
+      { t: 'AI Analyst', chip: 'design', d: 'Evidence-first narratives over live data — provider-agnostic, never trades (VM-104).' },
+      { t: 'Watchlist', chip: 'design', d: 'Track tokens across the five chains — account-less, local storage (VM-102).' },
       { t: 'Portfolio Watch', chip: 'design', d: 'Read-only positions from public market data — no wallet connection.' },
       { t: 'Alerts', chip: 'design', d: 'Signal alerts when a tracked token\'s risk posture changes.' },
       { t: 'Holdings Check', chip: 'design', d: 'Wallet holdings without connecting anything — read-only by contract.' },
@@ -965,7 +965,7 @@ function AiSection() {
           <div className="lv-k2">AI ANALYST</div>
           <h2 className="lv-h2" style={{ marginBottom: 18 }}>Ask Why. <span className="a">Get Evidence.</span></h2>
           <div className="lv-chat">
-            <div className="hd"><span className="d" /><b>TERMINAL ALPHA AI — ILLUSTRATIVE TRACE</b>
+            <div className="hd"><span className="d" /><b>VILMEI AI — ILLUSTRATIVE TRACE</b>
               <span className="lv-status sim" style={{ marginLeft: 'auto' }}>simulated</span>
             </div>
             <div className="lv-msg user">
@@ -989,7 +989,7 @@ function AiSection() {
               <button className="lv-cta ghost off" style={{ height: 38, fontSize: 12 }} aria-disabled="true" tabIndex={-1}>Explain Score</button>
               <button className="lv-cta ghost off" style={{ height: 38, fontSize: 12 }} aria-disabled="true" tabIndex={-1}>Deeper Analysis</button>
             </div>
-            <div className="note">DETERMINISTIC ILLUSTRATIVE TRACE — THE PANEL ABOVE IS NOT WIRED YET. AI ANALYST — <a href="/roadmap#ta-104" style={{ color: 'var(--g)' }}>IN BUILD · ROADMAP TA-104 →</a></div>
+            <div className="note">DETERMINISTIC ILLUSTRATIVE TRACE — THE PANEL ABOVE IS NOT WIRED YET. AI ANALYST — <a href="/roadmap#ta-104" style={{ color: 'var(--g)' }}>IN BUILD · ROADMAP VM-104 →</a></div>
           </div>
         </div>
       </div>
@@ -1026,7 +1026,7 @@ function Security() {
         <div>
           <div className="tt">TRADES EXECUTED BY US — EVER.</div>
           <p>
-            Terminal Alpha is research infrastructure. It does not route orders, hold keys, sign
+            VILMEI is research infrastructure. It does not route orders, hold keys, sign
             messages, or take fees for placement. Ranks are computed by the published α formula —
             they cannot be bought. That zero is a product fact you can verify in the repo.
           </p>
@@ -1092,9 +1092,9 @@ function Audiences() {
 
 /* S11 — roadmap teaser: the ledger speaks */
 const TEASER = [
-  { id: 'TA-008', t: 'Roadmap weekly hub — this site’s proof layer', d: '2026-08-29', chip: 'live' as const },
-  { id: 'TA-007', t: 'Documentation flagship — /docs', d: '2026-08-29', chip: 'live' as const },
-  { id: 'TA-006', t: 'Swap desk — simulated surface', d: '2026-08-29', chip: 'sim' as const },
+  { id: 'VM-008', t: 'Roadmap weekly hub — this site’s proof layer', d: '2026-08-29', chip: 'live' as const },
+  { id: 'VM-007', t: 'Documentation flagship — /docs', d: '2026-08-29', chip: 'live' as const },
+  { id: 'VM-006', t: 'Swap desk — simulated surface', d: '2026-08-29', chip: 'sim' as const },
 ]
 
 function RoadmapTeaser() {
@@ -1125,7 +1125,7 @@ function RoadmapTeaser() {
 /* S12 — FAQ: the four questions every visitor and agent asks */
 const FAQ = [
   {
-    q: 'Is Terminal Alpha a trading bot?',
+    q: 'Is VILMEI a trading bot?',
     a: <>No. <b>Zero transaction paths exist in the product</b> — no orders, no signatures, no custody.
        It is read-only research infrastructure, and that is a property of the architecture, not a policy. <a href="/docs#security">Docs §10 →</a></>,
   },

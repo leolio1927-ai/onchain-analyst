@@ -422,7 +422,7 @@ export function TokenPage() {
   const tape = useTape(pair?.pairAddress)
   const { session } = useWallet()
   useEffect(() => {
-    document.title = `${pair?.symbol ?? 'Token'} · ${chain.toUpperCase()} — Terminal Alpha`
+    document.title = `${pair?.symbol ?? 'Token'} · ${chain.toUpperCase()} — VILMEI`
   }, [pair, chain])
 
   const closes = useMemo(() => ohlcv.candles.map((c) => c.c), [ohlcv.candles])

@@ -1,4 +1,4 @@
-"""Terminal Alpha — entry point. Jalankan: uv run python app.py [--ascii]"""
+"""VILMEI — entry point. Jalankan: uv run python app.py [--ascii]"""
 import argparse
 
 try:
@@ -15,7 +15,7 @@ from ui.theme import ALPHA_DARK
 
 
 class TerminalAlpha(App):
-    TITLE = "Terminal Alpha — AI Memecoin Scanner"
+    TITLE = "VILMEI — AI Memecoin Scanner"
     CSS_PATH = "ui/styles.tcss"
     BINDINGS = (("q", "quit", "Quit"), ("ctrl+q", "quit", "Quit"))
 

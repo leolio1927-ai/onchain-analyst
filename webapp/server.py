@@ -1,4 +1,4 @@
-"""Terminal Alpha web — FastAPI backend serving the React frontend + read-only JSON API.
+"""VILMEI web — FastAPI backend serving the React frontend + read-only JSON API.
 
 Boundary (work notes §4): this layer only orchestrates providers → heuristics →
 ai_analyst → access. It never touches ui/ (TUI) and never exposes raw provider
@@ -130,7 +130,7 @@ _TAGS = [
 ]
 
 app = FastAPI(
-    title="Terminal Alpha",
+    title="VILMEI",
     version=APP_VERSION,
     summary="Evidence-first multichain memecoin risk terminal",
     description=_DESCRIPTION,
@@ -321,7 +321,7 @@ async def version() -> dict:
     """Build identity — real toolchain versions, nothing invented. The db
     block reports measured persistence facts (path_kind, schema version,
     rows per table, last run, oldest row) — never the raw filesystem path."""
-    return {"name": "Terminal Alpha", "version": APP_VERSION,
+    return {"name": "VILMEI", "version": APP_VERSION,
             "python": sys.version.split()[0], "fastapi": fastapi.__version__,
             "uptime_s": int(time.monotonic() - _T0),
             "db": db.db_info(db.resolve_path())}
@@ -882,7 +882,7 @@ async def api_catalog(request: Request) -> Response:
 
 
 _NO_BUILD = """<!doctype html><html><head><meta charset="utf-8">
-<title>Terminal Alpha</title><style>body{background:#0a0e14;color:#8b98a9;
+<title>VILMEI</title><style>body{background:#0a0e14;color:#8b98a9;
 font-family:ui-monospace,monospace;display:grid;place-items:center;height:100vh;margin:0}
 code{color:#ffb000}</style></head><body><div><p>Frontend not built yet.</p>
 <p>Run: <code>cd frontend && npm install && npm run build</code></p></div></body></html>"""
@@ -1111,7 +1111,7 @@ async def ws_tape(ws: WebSocket, chain: str | None = None, pool: str | None = No
         _WS_CLIENTS.discard(ws)
 
 def main() -> None:
-    parser = argparse.ArgumentParser(prog="webapp", description="Terminal Alpha web server")
+    parser = argparse.ArgumentParser(prog="webapp", description="VILMEI web server")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
     args = parser.parse_args()

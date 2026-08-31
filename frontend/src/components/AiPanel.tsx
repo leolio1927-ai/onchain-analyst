@@ -127,7 +127,7 @@ export function AiPanel({ token, full }: { token: TokenData; full?: boolean }) {
       <div className="ai-head">
         <span className="ico">✦</span>
         <div>
-          <div style={{ fontFamily: 'var(--f-display)', fontWeight: 700, fontSize: 15 }}>TERMINAL ALPHA AI ANALYST</div>
+          <div style={{ fontFamily: 'var(--f-display)', fontWeight: 700, fontSize: 15 }}>VILMEI AI ANALYST</div>
           <div style={{ fontFamily: 'var(--f-mono)', fontSize: 10, color: 'var(--cyan)', letterSpacing: '0.14em' }}>
             {mode} MODE · EVIDENCE-FIRST
           </div>
@@ -142,7 +142,7 @@ export function AiPanel({ token, full }: { token: TokenData; full?: boolean }) {
         {msgs.map((m, i) => (
           <div className="ai-msg" key={i}>
             <div className="who" style={{ color: m.who === 'you' ? 'var(--green)' : 'var(--cyan)' }}>
-              {m.who === 'you' ? 'YOU' : 'TERMINAL ALPHA AI ANALYST'}
+              {m.who === 'you' ? 'YOU' : 'VILMEI AI ANALYST'}
             </div>
             {render(m.body, i)}
           </div>

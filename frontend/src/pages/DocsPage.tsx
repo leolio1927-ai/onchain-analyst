@@ -82,7 +82,7 @@ function Pipeline() {
   return (
     <div className="dd-pipe-wrap">
       <svg className="dd-pipe" viewBox="0 0 1120 380" role="img"
-        aria-label="Terminal Alpha live pipeline: GeckoTerminal, normalize, dedupe, cache, API route, board, with labeled pre-release branches">
+        aria-label="VILMEI live pipeline: GeckoTerminal, normalize, dedupe, cache, API route, board, with labeled pre-release branches">
         {MAIN_NODES.map((n) => (
           <g key={n.t}>
             <rect className="dd-nbox" x={n.x} y={52} width={150} height={58} rx="10" stroke="var(--brand)" />
@@ -143,7 +143,7 @@ function useScrollspy(ids: readonly string[]) {
 const BAR = (pct: number) => ({ width: `${pct}%` })
 
 export function DocsPage() {
-  document.title = 'Docs — Terminal Alpha'
+  document.title = 'Docs — VILMEI'
   const cur = useScrollspy(SECTIONS.map(([, id]) => id))
   return (
     <div className="dd-root">
@@ -171,10 +171,10 @@ export function DocsPage() {
 
           {/* ── HERO ─────────────────────────────────────────── */}
           <header className="dd-hero-noise">
-            <div className="dd-kicker">TERMINAL ALPHA · DOCUMENTATION · v1 BUILD 2026.08.29</div>
+            <div className="dd-kicker">VILMEI · DOCUMENTATION · v1 BUILD 2026.08.29</div>
             <h1 className="dd-h1">One terminal. <em>All chains.</em> Zero lies.</h1>
             <p className="dd-deck">
-              <b>Terminal Alpha</b> is a production read-only research terminal for memecoin markets
+              <b>VILMEI</b> is a production read-only research terminal for memecoin markets
               across five chains: a keyless live data pipeline with deterministic integrity guarantees,
               public risk heuristics, and an evidence-first analysis layer. No custody, no keys, no
               black boxes. Everything on this site renders exactly what an upstream API actually
@@ -195,7 +195,7 @@ export function DocsPage() {
             <p className="dd-p">
               Memecoin discovery is fragmented across five chain ecosystems, poisoned by fabricated
               volume displays, scored by opaque third-party ratings, and monetized through
-              interfaces that quietly hold user custody risk. Terminal Alpha answers with one
+              interfaces that quietly hold user custody risk. VILMEI answers with one
               surface: verified multichain data through an auditable pipeline, every decision rule
               published, every unfinished part labeled — so a researcher and their AI can verify
               everything without trusting anything.
@@ -659,6 +659,8 @@ export function DocsPage() {
           <Sec id="changelog" n="12" title="ENGINEERING CHANGELOG — SHIPPED"
             sub="Dates and hashes read from git log — never guessed. Every line is checkable with one command.">
             <ul className="dd-chg">
+              <li><span className="d">2026-08-30 · REBRAND</span> <span className="h">PROMPT-V2B</span>
+                <p><b>VILMEI:</b> renamed from Terminal Alpha 2026-08-30 — wordmark, meta/og/ld+json (VILMEI Labs), roadmap ledger display (TA-xx → VM-xx; the #ta-xx anchors stay resolvable as aliases) and the vilmei.* local-storage namespace.</p></li>
               <li><span className="d">2026-08-29 · LANDING</span> <span className="h">5f4cd95 · fddb122 · 7783d0a · 63d97e2 · d7dcd9e · 0f35759 · f91407f · 7070825</span>
                 <p><b>Landing flagship:</b> the honest showpiece — 3D hero + real REST tape, the full product blueprint with true status chips, the machine layer for AI agents, and the six-chain boxed nav DNA.</p></li>
               <li><span className="d">2026-08-29 · INTEGRITY</span> <span className="h">f44b162 · 3ffff05 · b094da2 · 319e36c · d2a3ec7</span>
@@ -748,7 +750,7 @@ export function DocsPage() {
           </Sec>
 
           <footer className="dd-foot">
-            TERMINAL ALPHA · READ-ONLY RESEARCH INFRASTRUCTURE · NO TRADING · NO CUSTODY · EVIDENCE FIRST
+            VILMEI · READ-ONLY RESEARCH INFRASTRUCTURE · NO TRADING · NO CUSTODY · EVIDENCE FIRST
             <br />MACHINE INDEX · <a className="dd-a" href="/assets/llms.txt">/assets/llms.txt</a> · API SURFACE · <a className="dd-a" href="/api/docs">/api/docs</a> · ROADMAP · <a className="dd-a" href="/roadmap">/roadmap</a>
           </footer>
         </main>

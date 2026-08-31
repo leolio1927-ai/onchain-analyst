@@ -1,4 +1,4 @@
-# onchain-analyst — Terminal Alpha
+# onchain-analyst — VILMEI
 
 A **read-only** memecoin research terminal (Python/Textual TUI) across five chains — sol/bnb/base/hood/hype (avax disabled 2026-08-30 by founder mandate): load tokens via
 DexScreener, deterministic heuristic risk scores, and evidence-first AI analysis

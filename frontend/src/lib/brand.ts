@@ -2,8 +2,8 @@
    Rename = edit this one file + re-probe; no scatter across pages or meta.
    (Adoption note: landing consumes it today; docs/roadmap/meta follow.) */
 
-export const BRAND_NAME = 'TERMINAL ALPHA'
-export const BRAND_SHORT = 'Terminal Alpha'
+export const BRAND_NAME = 'VILMEI'
+export const BRAND_SHORT = 'VILMEI'
 
 /* the posture line — one sentence, everywhere the same */
 export const BRAND_POSTURE =
@@ -11,7 +11,7 @@ export const BRAND_POSTURE =
 
 /* footer fine print — ONE sentence, posture said once (L2 FIX 1) */
 export const BRAND_LEGAL =
-  '© 2026 TERMINAL ALPHA — READ-ONLY RESEARCH INFRASTRUCTURE · NO TRADING · NO CUSTODY · EVIDENCE FIRST · DATA: GECKOTERMINAL + DEXSCREENER'
+  '© 2026 VILMEI — Built by VILMEI Labs — read-only · NO TRADING · NO CUSTODY · EVIDENCE FIRST · DATA: GECKOTERMINAL + DEXSCREENER'
 
 /* data attribution — the only two upstreams wired to the live plane */
 export const BRAND_DATA = 'DATA: GECKOTERMINAL + DEXSCREENER'

@@ -46,7 +46,20 @@ interface TokenState {
 const RECENTS_KEY = 'vilmei.recents'
 const RECENTS_MAX = 8
 
+/* P7 law: alpha.recents → vilmei.recents migration-once — recents survive
+   the rename; the legacy key is removed after the move. */
+function migrateRecentsOnce(): void {
+  try {
+    const legacy = localStorage.getItem('alpha.recents')
+    if (legacy !== null) {
+      if (localStorage.getItem(RECENTS_KEY) === null) localStorage.setItem(RECENTS_KEY, legacy)
+      localStorage.removeItem('alpha.recents')
+    }
+  } catch { /* storage blocked — recents are a nicety, never a crash */ }
+}
+
 function loadRecents(): ActivePair[] {
+  migrateRecentsOnce()
   try {
     const raw = localStorage.getItem(RECENTS_KEY)
     const arr = raw ? (JSON.parse(raw) as ActivePair[]) : []

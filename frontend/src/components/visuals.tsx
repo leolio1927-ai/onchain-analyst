@@ -350,7 +350,7 @@ export function RadarScanner() {
       ctx.font = '700 10.5px Space Grotesk, sans-serif'
       ctx.fillStyle = 'rgba(0,255,163,0.95)'
       ctx.textAlign = 'center'
-      ctx.fillText('TERMINAL ALPHA', cx, cy + RX * 0.15 + 8)
+      ctx.fillText('VILMEI', cx, cy + RX * 0.15 + 8)
 
       // verdict readout
       ctx.textAlign = 'right'

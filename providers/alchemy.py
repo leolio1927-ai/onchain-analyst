@@ -84,7 +84,7 @@ def _rpc(chain: str, method: str, params: list) -> dict:
     url = f"{_BASES[chain]}/{key}"
     body = {"jsonrpc": "2.0", "id": "ta", "method": method, "params": params}
     data = json.dumps(body).encode()
-    headers = {"User-Agent": "terminal-alpha/0.1", "Content-Type": "application/json"}
+    headers = {"User-Agent": "vilmei/2.0", "Content-Type": "application/json"}
     for attempt in (1, 2):
         req = urllib.request.Request(url, data=data, headers=headers)
         try:

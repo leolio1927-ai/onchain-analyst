@@ -58,7 +58,7 @@ def _net(chain_key: str) -> str:
 
 def _get(path: str) -> dict:
     req = urllib.request.Request(f"{BASE}{path}", headers={
-        "User-Agent": "terminal-alpha/0.1", "Accept": "application/json"})
+        "User-Agent": "vilmei/2.0", "Accept": "application/json"})
     with urllib.request.urlopen(req, timeout=10) as r:
         return json.load(r)
 

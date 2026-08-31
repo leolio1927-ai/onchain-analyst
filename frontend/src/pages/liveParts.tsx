@@ -135,7 +135,7 @@ export function TradeComingModal({ item, onClose }: { item: LiveItem | null; onC
         <div className="lx-modal-title">IN BUILD</div>
         <p className="lx-modal-sub">
           <b>{item.token_symbol ?? '–'}</b> · {item.pair ?? '–'}<br />
-          Terminal Alpha is read-only research — execution is not live yet.
+          VILMEI is read-only research — execution is not live yet.
           Nothing to sign, nothing to click. Watch this space.
         </p>
       </div>

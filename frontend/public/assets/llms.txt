@@ -1,4 +1,4 @@
-# Terminal Alpha
+# VILMEI
 
 > Read-only memecoin research terminal across five chains: Solana, BNB Chain, Base,
 > HyperEVM, Robinhood Chain (Avalanche disabled 2026-08-30 by founder mandate). A
@@ -11,7 +11,7 @@ This file is the machine-readable index of the project, written for AI agents an
 researchers. Every claim below is verified against the shipped code (file paths in
 brackets) and was last re-verified 2026-08-29.
 
-## What Terminal Alpha Is
+## What VILMEI Is
 
 - Production read-only research terminal for memecoin markets (web + TUI engine).
 - Five chains served by the live feed: solana, bsc, base, hyperevm, robinhood
@@ -181,27 +181,27 @@ brackets) and was last re-verified 2026-08-29.
 
 The roadmap page is the project's governance surface: a shipped ledger with
 git-verifiable dates, an honest in-progress band, a design queue, and published
-non-goals. Every entry has a stable anchor ID (e.g. /roadmap#ta-005) quotable by
+non-goals. Every entry has a stable anchor ID (e.g. /roadmap#ta-005; VM-xxx aliases resolve too) quotable by
 humans and AI agents; dates come from commit history and are re-verifiable with
 `git log` [src/pages/RoadmapPage.tsx].
 
 Shipped ledger (newest first, letters are the sprint taxonomy):
-- TA-009 · L — Landing flagship, the honest showpiece · 2026-08-29
-- TA-008 · R — Roadmap weekly hub (this page) · 2026-08-29
-- TA-007 · D — Documentation flagship /docs · 2026-08-29
-- TA-006 · S — Swap desk, SIMULATED surface (deterministic data, no wallet) · 2026-08-29
-- TA-005 · X — Data integrity: junk guard, per-token dedupe, social chips · 2026-08-29
-- TA-004 · W — Hand-crafted SVG chain marks + token cards · 2026-08-29
-- TA-003 · V — Bordir visual system: 2px borders, dashed hairlines, glow · 2026-08-28
-- TA-002 · M — Memecoin Live frontend: board + chain pages, honest errors · 2026-08-28
-- TA-001 · G — Live-feed backend: 6 chains × 4 modes, 180s TTL, alpha lens · 2026-08-28
+- VM-009 · L — Landing flagship, the honest showpiece · 2026-08-29
+- VM-008 · R — Roadmap weekly hub (this page) · 2026-08-29
+- VM-007 · D — Documentation flagship /docs · 2026-08-29
+- VM-006 · S — Swap desk, SIMULATED surface (deterministic data, no wallet) · 2026-08-29
+- VM-005 · X — Data integrity: junk guard, per-token dedupe, social chips · 2026-08-29
+- VM-004 · W — Hand-crafted SVG chain marks + token cards · 2026-08-29
+- VM-003 · V — Bordir visual system: 2px borders, dashed hairlines, glow · 2026-08-28
+- VM-002 · M — Memecoin Live frontend: board + chain pages, honest errors · 2026-08-28
+- VM-001 · G — Live-feed backend: 6 chains × 4 modes, 180s TTL, alpha lens · 2026-08-28
 
 Design queue (stable IDs, each with a WHY and the proof that marks it shipped):
-- TA-101 · Wallet session + quote engine [IN BUILD]
-- TA-102 · Watchlist [DESIGN]
-- TA-103 · Trade tape on the board (the /ws/tape route already ships) [IN BUILD]
-- TA-104 · AI analyst panel (the /api/explain local tier already ships) [DESIGN]
-- TA-105 · Backend foundations, one additive route at a time [IN BUILD]
+- VM-101 · Wallet session + quote engine [IN BUILD]
+- VM-102 · Watchlist [DESIGN]
+- VM-103 · Trade tape on the board (the /ws/tape route already ships) [IN BUILD]
+- VM-104 · AI analyst panel (the /api/explain local tier already ships) [DESIGN]
+- VM-105 · Backend foundations, one additive route at a time [IN BUILD]
 
 Confidence bands: Locked (the only band allowed a date) · In build · Design ·
 Simulated. Non-goals are published on the page (/roadmap#non-goals): no custody,

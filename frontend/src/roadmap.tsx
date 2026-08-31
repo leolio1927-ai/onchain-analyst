@@ -3,7 +3,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { RoadmapPage } from './pages/RoadmapPage'
 
-document.title = 'Roadmap — Terminal Alpha'
+document.title = 'Roadmap — VILMEI'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

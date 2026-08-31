@@ -1,4 +1,4 @@
-/* Typed client for the Terminal Alpha backend (webapp/server.py).
+/* Typed client for the VILMEI backend (webapp/server.py).
    The server re-fetches + re-assesses evidence itself — the client never sends data. */
 
 export const CHAINS = ['sol', 'bnb', 'base', 'hood'] as const  // avax parked 2026-08-30 (founder: 5-chain lineup)

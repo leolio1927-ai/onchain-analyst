@@ -3,7 +3,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { DocsPage } from './pages/DocsPage'
 
-document.title = 'Docs — Terminal Alpha'
+document.title = 'Docs — VILMEI'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
