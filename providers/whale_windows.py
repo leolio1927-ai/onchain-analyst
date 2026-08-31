@@ -29,6 +29,12 @@ WINDOW_MAX_S = 86400.0
 TAPE_MAX_ROWS = 200          # whale rows shipped to the surface (CSV source)
 TOP_WALLETS = 10
 
+# M1 (PROMPT-V4): the page never stares at an empty floor —
+TOP_BELOW_THRESHOLD = 5      # TOP TAPE: largest trades under the whale line
+HIST_BUCKETS = 24            # hourly volume histogram over the 24h walk
+# GT's free tier resets roughly per-minute; a paused retry is a labelled heuristic
+RETRY_AFTER_S = 60
+
 FIXED_THRESHOLD_USD = {"sol": 50_000.0, "bnb": 30_000.0, "base": 30_000.0}
 NATIVE_QTY = {"hype": 500.0, "hood": 12.0}     # labelled heuristic quantities
 FALLBACK_THRESHOLD_USD = 30_000.0
@@ -66,7 +72,8 @@ def whale_windows(chain: str, ca: str, pool: str | None = None,
                   pool_name: str | None = None) -> tuple[dict | None, str | None]:
     """One chain's whale windows for one contract. → (payload, None) on
     success | (None, machine-readable note): whale_windows:chain_unsupported,
-    whale_windows:no_pool, whale_windows:tape_failed (…)"""
+    whale_windows:no_pool, whale_windows:rate_limited, whale_windows:tape_failed (…);
+    rate_limited notes carry a genuine upstream 429 (M1 aggregate surface)."""
     if chain not in gt.NETWORKS:
         return None, (f"whale_windows:chain_unsupported — GT serves "
                       f"{', '.join(sorted(gt.NETWORKS))}")
@@ -74,6 +81,9 @@ def whale_windows(chain: str, ca: str, pool: str | None = None,
         try:
             pool_row = gt.best_pool(gt.fetch_pools(chain, ca))
         except Exception as e:  # noqa: BLE001 — pool resolution failure is a note
+            if gt.is_rate_limited(e):
+                return None, (f"whale_windows:rate_limited (pool lookup, "
+                              f"{str(e)[:30]})")
             return None, f"whale_windows:pool_lookup_failed ({str(e)[:40]})"
         if pool_row is None:
             return None, (f"whale_windows:no_pool — GT lists no pool for this "
@@ -83,6 +93,8 @@ def whale_windows(chain: str, ca: str, pool: str | None = None,
     try:
         tape, pages = gt.fetch_trades_window(chain, pool, within_s=WINDOW_MAX_S)
     except Exception as e:  # noqa: BLE001 — a tape failure is a note, not a 500
+        if gt.is_rate_limited(e):
+            return None, f"whale_windows:rate_limited (tape, {str(e)[:30]})"
         return None, f"whale_windows:tape_failed ({str(e)[:40]})"
 
     th, th_note = threshold_usd(chain)
@@ -111,6 +123,21 @@ def whale_windows(chain: str, ca: str, pool: str | None = None,
         row["buys" if t["kind"] == "buy" else "sells"] += 1
     top = sorted(agg.items(), key=lambda kv: -abs(kv[1]["net_usd"]))[:TOP_WALLETS]
 
+    # M1 surface fields — the page never renders an empty floor:
+    below = sorted((t for t, e in epochs
+                    if e is not None and e >= now - WINDOW_MAX_S and t["usd"] < th),
+                   key=lambda t: t["usd"], reverse=True)[:TOP_BELOW_THRESHOLD]
+    bucket_s = WINDOW_MAX_S / HIST_BUCKETS
+    buckets = [0.0] * HIST_BUCKETS
+    whale_buckets = [0.0] * HIST_BUCKETS
+    for t, e in epochs:
+        if e is None or e < now - WINDOW_MAX_S:
+            continue
+        idx = min(HIST_BUCKETS - 1, max(0, HIST_BUCKETS - 1 - int((now - e) // bucket_s)))
+        buckets[idx] += t["usd"]
+        if t["usd"] >= th:
+            whale_buckets[idx] += t["usd"]
+
     oldest = min((e for _, e in epochs if e is not None), default=None)
     return {"chain": chain, "network": gt.NETWORKS[chain], "token": ca,
             "pool": pool, "pool_name": pool_name,
@@ -120,6 +147,12 @@ def whale_windows(chain: str, ca: str, pool: str | None = None,
                       "usd": t["usd"], "tx": t.get("tx")}
                      for t in whale_rows[:TAPE_MAX_ROWS]],
             "top_wallets": [{"wallet": w, **v} for w, v in top],
+            "top_below_threshold": [{"wallet": t["wallet"], "kind": t["kind"],
+                                     "ts": t["ts"], "usd": t["usd"],
+                                     "tx": t.get("tx")} for t in below],
+            "volume_hist": {"bucket_s": bucket_s, "buckets": buckets,
+                            "whale_buckets": whale_buckets},
+            "pools_walked": 1,
             "tape_trades_seen": len(tape), "tape_pages": pages,
             "tape_oldest_ts": (datetime.fromtimestamp(oldest, UTC).isoformat()
                                if oldest is not None else None),
@@ -134,13 +167,23 @@ def whale_windows(chain: str, ca: str, pool: str | None = None,
 def whale_auto(ca: str, trending_limit: int = 5) -> dict:
     """AUTO mode: resolve the CA across networks via GT search, run windows
     on every chain that lists it, and add the trending top-N as candidates.
-    Every failure is a sentence in data_sources — never a red wall."""
+    Every failure is a sentence in data_sources — never a red wall. M1: the
+    chains whose whale data GT rate-limited (genuine 429s) ship as ONE
+    structured list so the surface renders a single aggregate banner."""
     srcs: list[str] = []
     results: list[dict] = []
+    rate_limited: list[str] = []
     try:
         hits = gt.search_pools(ca)
     except Exception as e:  # noqa: BLE001
-        hits, srcs = [], [f"whale_auto:search_failed ({str(e)[:40]})"]
+        hits = []
+        if gt.is_rate_limited(e):
+            rate_limited.append("search")
+            srcs.append("whale_auto:search rate-limited by GT (429) — the "
+                        "whole AUTO scan pauses, retry after the free-tier "
+                        f"window (~{RETRY_AFTER_S}s)")
+        else:
+            srcs.append(f"whale_auto:search_failed ({str(e)[:40]})")
     best: dict[str, dict] = {}
     for h in hits:                       # one pool per chain — the deepest
         cur = best.get(h["chain"])
@@ -153,6 +196,8 @@ def whale_auto(ca: str, trending_limit: int = 5) -> dict:
             results.append(payload)
         else:
             srcs.append(note or f"whale_auto:{chain} unanswered")
+            if note is not None and "rate_limited" in note:
+                rate_limited.append(chain)
     if not hits and not srcs:
         srcs.append("whale_auto:search found no pool for this contract on any "
                     "of the five chains — check the address (fact, not an error)")
@@ -186,4 +231,6 @@ def whale_auto(ca: str, trending_limit: int = 5) -> dict:
          "name": h.get("name"), "liquidity_usd": h.get("liquidity_usd"),
          "volume_24h": h.get("volume_24h"), "price_usd": h.get("price_usd")}
         for h in best.values()],
-        "trending": trending, "data_sources": srcs}
+        "trending": trending, "data_sources": srcs,
+        "pools_walked": len(best), "rate_limited": rate_limited,
+        "retry_after_s": RETRY_AFTER_S}

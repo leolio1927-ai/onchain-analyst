@@ -9,8 +9,16 @@
    (one trade ≥ per-chain threshold — sol $50K · bnb/base $30K · hype/hood
    native-anchored with a $30K fallback, the server ships the sentence),
    never an on-chain label. Windows 1h/6h/24h, filled net-flow sparkline,
-   per-chain bars, merged tape with chain chips, REAL CSV, seeded FIELD. */
-import { useMemo, useState } from 'react'
+   per-chain bars, merged tape with chain chips, REAL CSV, seeded FIELD.
+   PROMPT-V4 M1 (2026-08-31): the page never stares at an empty floor —
+   GT 429s aggregate into ONE dismissible banner with a retry countdown
+   (never stacked yellow rows); a quiet whale window renders the muted
+   all-trade histogram behind the whale line + TOP TAPE (largest trades
+   UNDER the threshold, ranked by size) + a deterministic AWAITING WHALES
+   seeding field; a "walked N trades · M pools" chip states the walk depth.
+   RUG nitkos: the verdict label is the source name only — the number lives
+   once, on the dial. */
+import { useEffect, useMemo, useState } from 'react'
 import { classifyQuery, fetchDetect } from '../lib/detect'
 import type { DetectCandidate } from '../lib/detect'
 import { fetchSwapQuote, ageOf } from '../services/dexscreener'
@@ -212,7 +220,7 @@ export function RugCheckPageMulti() {
     if (sol) {
       const n = sol.score_normalised
       const level = n == null ? 'nodata' : n <= 10 ? 'low' : n <= 40 ? 'medium' : 'high'
-      return rugVerdict(level, sol.score_normalised, `RUGCHECK ${sol.score_normalised != null ? `· risk ${sol.score_normalised}/100` : ''}`)
+      return rugVerdict(level, sol.score_normalised, 'RUGCHECK')
     }
     if (evm && evm.rows.length) {
       const f = Object.fromEntries(evm.rows.map((r) => [r.field, r.value]))
@@ -367,8 +375,11 @@ const SPARK_BUCKETS = 24
 interface MergedRow { chain: string; wallet: string; kind: string; ts: string | null; usd: number; tx: string | null }
 
 /* filled net-flow sparkline — buckets are computed from the SAME whale tape
-   shown in the table; positive area above the zero line, negative below. */
-function NetSpark({ buckets }: { buckets: number[] }) {
+   shown in the table; positive area above the zero line, negative below.
+   M1: `hist` (server volume_hist.buckets, hourly all-trade volume over 24h)
+   renders as muted bars BEHIND the whale line — a quiet whale window still
+   shows the living tape; bars scale to their own max, capped under the line. */
+function NetSpark({ buckets, hist }: { buckets: number[]; hist?: number[] | null }) {
   const width = 600
   const height = 96
   const max = Math.max(...buckets.map((b) => Math.abs(b)), 1)
@@ -380,14 +391,37 @@ function NetSpark({ buckets }: { buckets: number[] }) {
   const area = `${line} L${width},${mid} L0,${mid} Z`
   const net = buckets.reduce((a, b) => a + b, 0)
   const color = net >= 0 ? 'var(--sev-low)' : 'var(--sev-high)'
+  const hmax = hist && hist.length ? Math.max(...hist, 1) : 1
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="v2-spark" role="img"
       aria-label="net whale flow sparkline" preserveAspectRatio="none" data-testid="whale-spark">
+      {hist && hist.length > 0 && (
+        <g data-testid="whale-spark-hist">
+          {hist.map((v, i) => {
+            const bw = width / hist.length
+            const bh = (v / hmax) * (height - 18)
+            return <rect key={i} x={(i * bw + 1).toFixed(1)} y={(height - bh).toFixed(1)}
+              width={Math.max(bw - 2, 1).toFixed(1)} height={bh.toFixed(1)} className="whale-hist" />
+          })}
+        </g>
+      )}
       <line x1="0" y1={mid} x2={width} y2={mid} stroke="var(--border-soft)" strokeWidth="1" />
       <path d={area} fill={color} opacity="0.28" />
       <path d={line} fill="none" stroke={color} strokeWidth="1.6" />
     </svg>
   )
+}
+
+/* M1: deterministic seeding field — bars are seeded from the CA (never
+   Math.random, never fake trades), so the same CA renders the same field. */
+function seedRng(key: string): () => number {
+  let h = 2166136261
+  for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619) }
+  return () => {
+    h = Math.imul(h ^ (h >>> 15), h | 1)
+    h ^= h + Math.imul(h ^ (h >>> 7), h | 61)
+    return ((h ^ (h >>> 14)) >>> 0) / 4294967296
+  }
 }
 
 export function WhalePageMulti() {
@@ -399,6 +433,10 @@ export function WhalePageMulti() {
   const [per, setPer] = useState<{ chain: string; res: WhaleWindowsResult }[]>([])
   const [auto, setAuto] = useState<WhaleAutoResult | null>(null)
   const [scanTs, setScanTs] = useState(0)
+  /* M1: ONE aggregate 429 banner — dismissed/collapsed state + countdown */
+  const [rlDismissed, setRlDismissed] = useState(false)
+  const [rlOpen, setRlOpen] = useState(false)
+  const [rlLeft, setRlLeft] = useState(0)
 
   /* AUTO = server resolves the CA across networks (deepest pool per chain) +
      trending top-N; a chip narrows to one chain. Every miss is a sentence. */
@@ -406,11 +444,13 @@ export function WhalePageMulti() {
     const tok = token.trim()
     if (!tok) { setErr('paste a token address (CA) first'); return }
     setBusy(true); setErr(null); setPer([]); setAuto(null); setScanTs(Date.now())
+    setRlDismissed(false); setRlOpen(false)
     try {
       if (chip === 'AUTO') {
         const a = await api.whaleAuto(tok)
         setAuto(a)
         setPer(a.results.map((r) => ({ chain: r.chain, res: r })))
+        if ((a.rate_limited ?? []).length) setRlLeft(a.retry_after_s ?? 60)
       } else {
         const r = await api.whaleWindows(CHAIN_OF[chip], tok)
         setPer([{ chain: r.chain, res: r }])
@@ -421,6 +461,20 @@ export function WhalePageMulti() {
   }
 
   const livePer = per.filter((p) => p.res.data_mode === 'live')
+
+  /* M1: the genuine-429 aggregate — one banner, one countdown, dismissible.
+     rate_limited entries are chain keys or "search" (the AUTO pool search
+     itself); the related data_sources sentences live inside the collapse. */
+  const rl = auto?.rate_limited ?? []
+  const isRlNote = (s: string) => s.includes('rate_limited') || s.includes('rate-limited')
+  const otherNotes = (auto?.data_sources ?? []).filter((s) => !isRlNote(s))
+  const rlNotes = (auto?.data_sources ?? []).filter(isRlNote)
+  const rlActive = rl.length > 0 && rlLeft > 0
+  useEffect(() => {
+    if (!rlActive) return
+    const id = window.setInterval(() => setRlLeft((s) => Math.max(0, s - 1)), 1000)
+    return () => window.clearInterval(id)
+  }, [rlActive])
 
   /* the merged whale tape — verbatim rows from every live chain, ts desc */
   const merged: MergedRow[] = useMemo(() => per.filter((p) => p.res.data_mode === 'live')
@@ -443,6 +497,43 @@ export function WhalePageMulti() {
     }
     return out
   }, [merged, tf, scanTs])
+
+  /* M1: muted histogram behind the whale line — the SERVER's hourly all-trade
+     buckets summed across live chains. Only the 24h window is bucket-aligned
+     (24 hourly buckets ↔ 24 spark slices); shorter windows skip it honestly. */
+  const hist24 = useMemo(() => {
+    if (tf !== '24h') return null
+    const out = new Array<number>(SPARK_BUCKETS).fill(0)
+    let any = false
+    for (const p of per) {
+      if (p.res.data_mode !== 'live') continue
+      const b = p.res.volume_hist?.buckets
+      if (!b || b.length !== SPARK_BUCKETS) continue
+      any = true
+      for (let i = 0; i < SPARK_BUCKETS; i++) out[i] += b[i] ?? 0
+    }
+    return any ? out : null
+  }, [per, tf])
+
+  /* M1: "walked N trades · M pools" — the tape-walk depth, verbatim counters */
+  const tradesSeen = livePer.reduce((a, p) => a + (p.res.tape_trades_seen ?? 0), 0)
+  const poolsWalked = chip === 'AUTO'
+    ? (auto?.pools_walked ?? livePer.length)
+    : livePer.reduce((a, p) => a + (p.res.pools_walked ?? 0), 0)
+
+  /* M1: TOP TAPE — largest trades UNDER the whale line, ranked by size.
+     Verbatim server rows (top_below_threshold), merged across live chains. */
+  const belowRows: MergedRow[] = useMemo(() => per.filter((p) => p.res.data_mode === 'live')
+    .flatMap((p) => (p.res.top_below_threshold ?? []).map((t) => ({
+      chain: p.chain, wallet: t.wallet ?? '?', kind: t.kind ?? '?',
+      ts: t.ts, usd: t.usd ?? 0, tx: t.tx,
+    }))).sort((a, b) => b.usd - a.usd), [per])
+
+  /* M1: AWAITING WHALES seeding field — deterministic bars from the CA */
+  const fieldBars = useMemo(() => {
+    const rng = seedRng(`await:${token.trim()}`)
+    return Array.from({ length: SPARK_BUCKETS }, () => 12 + Math.round(rng() * 58))
+  }, [token])
 
   const totalNet = livePer.reduce((a, p) => a + (p.res.windows?.[tf]?.net_usd ?? 0), 0)
 
@@ -516,7 +607,35 @@ export function WhalePageMulti() {
       </p>
 
       {err && <div className="v2-note err" role="alert">{err}</div>}
-      {auto?.data_sources.map((s) => <div key={s} className="v2-note" role="status">{s}</div>)}
+      {/* M1: genuine GT 429s aggregate into ONE banner — count, countdown,
+          which-chains collapse, dismiss; never stacked yellow rows */}
+      {rl.length > 0 && !rlDismissed && (
+        <div className="v2-note rl" role="status" data-testid="whale-rl-banner">
+          <span>
+            ⏳ {rl.length === 1 ? '1 chain' : `${rl.length} chains`} skipped (rate-limited by GeckoTerminal) ·{' '}
+            <b className="mono">{rlLeft > 0 ? `retry in ${rlLeft}s` : 'ready to retry'}</b>
+          </span>
+          <span className="rl-btns">
+            <button type="button" className="v2-chip mono" onClick={() => setRlOpen((o) => !o)}
+              aria-expanded={rlOpen} data-testid="whale-rl-which">{rlOpen ? 'HIDE' : 'WHICH?'}</button>
+            <button type="button" className="v2-chip mono" onClick={() => setRlDismissed(true)}
+              aria-label="dismiss rate-limit banner" data-testid="whale-rl-dismiss">✕</button>
+          </span>
+          {rlOpen && (
+            <div className="rl-detail mono" data-testid="whale-rl-detail">
+              <span className="v2-candrow">
+                {rl.map((c) => (
+                  <span key={c} className="v2-chip mono cov-partial" style={{ cursor: 'default' }}>
+                    {c === 'search' ? 'AUTO SEARCH' : c.toUpperCase()}
+                  </span>
+                ))}
+              </span>
+              {rlNotes.map((s) => <div key={s} className="dim">{s}</div>)}
+            </div>
+          )}
+        </div>
+      )}
+      {otherNotes.map((s) => <div key={s} className="v2-note" role="status">{s}</div>)}
 
       {/* R3 PB-4 — skeleton shimmer while the tape walk is in flight */}
       {busy && per.length === 0 && (
@@ -557,6 +676,10 @@ export function WhalePageMulti() {
           <div className="v2-card pb-acc" style={per[0] ? accentStyle(per[0].chain as LiveChain) : undefined}>
             <div className="v2-cardhead">
               <b>NET-WHALE-FLOW — {chip === 'AUTO' ? 'ALL CHAINS' : chip} · {tf}</b>
+              <span className="v2-chip mono dim" style={{ cursor: 'default' }} data-testid="whale-walked"
+                title="depth of the GeckoTerminal tape walk (server counters, verbatim)">
+                walked {tradesSeen} trades · {poolsWalked} pool{poolsWalked === 1 ? '' : 's'}
+              </span>
               <div className="v2-tfs" role="tablist" aria-label="window">
                 {WINDOWS.map((w) => (
                   <button key={w} type="button" role="tab" aria-selected={tf === w}
@@ -565,7 +688,7 @@ export function WhalePageMulti() {
               </div>
               <button type="button" className="v2-csv mono" onClick={csv} data-testid="whale-csv">CSV ⭳</button>
             </div>
-            <NetSpark buckets={sparkBuckets} />
+            <NetSpark buckets={sparkBuckets} hist={hist24} />
             {/* per-chain bars — payload window math, verbatim */}
             <div className="v2-flowbar" role="img" aria-label={`net whale flow per chain ${tf}`}>
               {chainBars.map((b) => (
@@ -682,9 +805,58 @@ export function WhalePageMulti() {
             </div>
           )}
           {livePer.length > 0 && merged.length === 0 && (
-            <div className="v2-note" role="status" data-testid="whale-quiet">
-              Live tape, zero trades ≥ threshold in the walked window — a quiet tape is data, not absence. Windows below widen as trades accumulate; nothing is backfilled.
-            </div>
+            <>
+              {/* M1 seeding state — silence is a state, not a void. The bars are
+                  seeded from the CA (deterministic, never random-null, never
+                  fake trades); the watermark says what the tape says. */}
+              <div className="v2-card whale-field pb-acc" data-testid="whale-awaiting"
+                style={accentStyle(per[0].chain as LiveChain)}>
+                <div className="whale-field-stage">
+                  <div className="whale-field-bars" aria-hidden="true">
+                    {fieldBars.map((h, i) => <i key={i} style={{ height: `${h}%` }} />)}
+                  </div>
+                  <div className="whale-field-mark mono" data-testid="whale-awaiting-mark">AWAITING WHALES</div>
+                </div>
+                <p className="dim" style={{ fontSize: 11, margin: 0 }} data-testid="whale-quiet">
+                  Live tape, zero trades ≥ threshold in the walked window — a quiet tape is data,
+                  not absence. The field above is seeded from this CA (deterministic, not noise);
+                  windows fill as trades cross the line. Nothing is backfilled.
+                </p>
+              </div>
+
+              {/* M1 TOP TAPE — the page never stares at an empty floor: the
+                  largest trades UNDER the whale line, ranked by size */}
+              {belowRows.length > 0 && (
+                <div className="v2-card" data-testid="whale-top-tape">
+                  <div className="v2-cardhead">
+                    <b>TOP TAPE — UNDER THRESHOLD</b>
+                    <span className="v2-chip mono cov-partial" style={{ cursor: 'default' }}>
+                      below whale threshold — ranked by size
+                    </span>
+                  </div>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                      <thead><tr className="mono dim" style={{ textAlign: 'left' }}>
+                        <th style={{ padding: '4px 8px' }}>CHAIN</th><th style={{ padding: '4px 8px' }}>WALLET</th>
+                        <th style={{ padding: '4px 8px' }}>SIDE</th><th style={{ padding: '4px 8px', textAlign: 'right' }}>USD</th>
+                        <th style={{ padding: '4px 8px' }}>AGE</th><th style={{ padding: '4px 8px' }}>TX</th></tr></thead>
+                      <tbody>
+                        {belowRows.map((r, i) => (
+                          <tr key={`${r.chain}-${r.tx ?? i}`} style={{ borderTop: '1px solid var(--border-soft)' }}>
+                            <td style={{ padding: '5px 8px' }}><span className="ta-chain-tag">{r.chain.toUpperCase()}</span></td>
+                            <td style={{ padding: '5px 8px' }} className="mono">{shorten(r.wallet)}</td>
+                            <td style={{ padding: '5px 8px' }} className="mono">{r.kind.toUpperCase()}</td>
+                            <td style={{ padding: '5px 8px', textAlign: 'right' }} className="mono">${fmtC(r.usd)}</td>
+                            <td style={{ padding: '5px 8px' }} className="mono dim">{r.ts ? ageOf(Date.parse(r.ts)) : '—'}</td>
+                            <td style={{ padding: '5px 8px' }} className="mono dim">{r.tx ? shorten(r.tx) : '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </>
       )}

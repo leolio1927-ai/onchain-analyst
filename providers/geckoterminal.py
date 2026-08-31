@@ -15,12 +15,17 @@ PROMPT-V3 R2 probe 2026-08-31 (all keyless, all 200):
 - GET api.geckoterminal.com/api/v1/search/pools?query={CA} resolves a
   contract to its pools per network (AUTO mode), url carries
   /networks/{slug}/pools/{pool} so the pool address needs no second call.
-- Rate limit is undocumented ("Beta, subject to changes") → _get honors
-  Retry-After once on 429, and every list feed here carries a TTL cache.
+- Rate limit is undocumented ("Beta, subject to changes"). PROMPT-V4 M1
+  (2026-08-31) governance for the ~10 calls/min tier: every public fetch
+  is TTL-cached AND single-flight (one upstream call per key under
+  concurrency), 429s back off exponentially (Retry-After honored, capped
+  at 5s) up to twice, and is_rate_limited() lets callers aggregate
+  genuine 429s into ONE surface sentence instead of stacked banners.
 """
 from __future__ import annotations
 
 import json
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -40,9 +45,12 @@ _SLUG_TO_CHAIN = {v: k for k, v in NETWORKS.items()}
 # calls without serving meaninglessly stale per-wallet data.
 TRADE_CACHE_TTL_S = 90.0
 TRADE_CACHE_MAX = 64
-TREND_TTL_S = 300.0          # trending pools + native price drift slowly
+TREND_TTL_S = 60.0           # M1 mandate: trending cached 30–60s; single-flight
+                             # dedupes the concurrent calls this shorter TTL invites
 SEARCH_TTL_S = 120.0
 SEARCH_CACHE_MAX = 64
+POOLS_TTL_S = 90.0           # M1: token→pools was the one uncached GT path
+POOLS_CACHE_MAX = 64
 
 # (chain_key, pool_address) → (monotonic_ts, trades)
 _trade_cache: dict[tuple[str, str], tuple[float, list[dict]]] = {}
@@ -50,6 +58,43 @@ _trade_cache: dict[tuple[str, str], tuple[float, list[dict]]] = {}
 _trend_cache: dict[tuple[str, bool], tuple[float, dict]] = {}
 # query → (monotonic_ts, hits)
 _search_cache: dict[str, tuple[float, list[dict]]] = {}
+# (chain_key, token_address) → (monotonic_ts, raw pools list)
+_pools_cache: dict[tuple[str, str], tuple[float, list[dict]]] = {}
+
+# M1 single-flight: concurrent callers for the same key share ONE upstream
+# request (helius.py pattern) — the ~10 calls/min tier must never see a
+# burst of identical GETs from one page render.
+_locks: dict[tuple, threading.Lock] = {}
+_locks_guard = threading.Lock()
+
+
+def _single_flight(key: tuple, fn, getter, putter):
+    """Run fn() under the key's lock; concurrent waiters get the cached
+    result the leader stored — or re-raise the leader's REAL exception, so
+    is_rate_limited() still sees a genuine 429. No waiter re-hits upstream:
+    a silent retry would be exactly the burst the free tier cannot take."""
+    with _locks_guard:
+        entry = _locks.get(key)
+        if entry is None:
+            entry = {"lock": threading.Lock(), "error": None}
+            _locks[key] = entry
+    lock = entry["lock"]
+    if lock.acquire(blocking=False):
+        entry["error"] = None
+        try:
+            value = fn()
+        except Exception as e:  # shared with waiters, then re-raised
+            entry["error"] = e
+            lock.release()
+            raise
+        lock.release()
+        putter(key, value)
+        return value
+    with lock:
+        pass
+    if entry["error"] is not None:
+        raise entry["error"]
+    return getter(key)
 
 
 def _trade_cache_get(key: tuple[str, str]) -> list[dict] | None:
@@ -80,21 +125,34 @@ def _net(chain_key: str) -> str:
     return NETWORKS[chain_key]
 
 
+def _backoff_delay(headers, attempt: int) -> float:
+    """Retry-After when GT sends one (capped), else 1s→2s exponential —
+    never a retry burst on the ~10 calls/min tier (M1 mandate)."""
+    retry = headers.get("Retry-After") if headers is not None else None
+    if retry and retry.replace(".", "", 1).isdigit():
+        return min(float(retry), 5.0)
+    return float(2 ** (attempt - 1))
+
+
+def is_rate_limited(e: BaseException | None) -> bool:
+    """True when the failure is GT's 429 — callers aggregate these into ONE
+    surface sentence instead of stacking banners (M1 mandate)."""
+    return isinstance(e, urllib.error.HTTPError) and e.code == 429
+
+
 def _get_url(url: str) -> dict:
-    """One GET against GT with a single Retry-After-aware retry on 429 —
-    the free tier is ~10 calls/min and the docs state no hard number, so
-    backoff is the only honest response (R2 mandate guard)."""
-    for attempt in (1, 2):
+    """One GET against GT with up to two Retry-After-aware backoff retries
+    on 429 — the free tier is ~10 calls/min and the docs state no hard
+    number, so measured backoff is the only honest response (R2/M1 guard)."""
+    for attempt in (1, 2, 3):
         req = urllib.request.Request(url, headers={
             "User-Agent": "vilmei/2.0", "Accept": "application/json"})
         try:
             with urllib.request.urlopen(req, timeout=12) as r:
                 return json.load(r)
         except urllib.error.HTTPError as e:
-            if e.code == 429 and attempt == 1:
-                delay = e.headers.get("Retry-After")
-                time.sleep(min(float(delay), 5.0) if delay and delay.replace(
-                    ".", "", 1).isdigit() else 2.0)
+            if e.code == 429 and attempt < 3:
+                time.sleep(_backoff_delay(e.headers, attempt))
                 continue
             raise
 
@@ -105,9 +163,38 @@ def _get(path: str) -> dict:
     return _get_url(f"{BASE}{path}")
 
 
+def _pools_cache_get(key: tuple[str, str]) -> list[dict] | None:
+    hit = _pools_cache.get(key)
+    if hit and time.monotonic() - hit[0] < POOLS_TTL_S:
+        return hit[1]
+    return None
+
+
+def _pools_cache_put(key: tuple[str, str], pools: list[dict]) -> None:
+    now = time.monotonic()
+    for k in [k for k, (t, _) in _pools_cache.items() if now - t >= POOLS_TTL_S]:
+        del _pools_cache[k]
+    while len(_pools_cache) >= POOLS_CACHE_MAX:
+        del _pools_cache[min(_pools_cache, key=lambda k: _pools_cache[k][0])]
+    _pools_cache[key] = (now, pools)
+
+
 def fetch_pools(chain_key: str, token_address: str) -> list[dict]:
-    """Pools where the token trades (raw from GT)."""
-    return _get(f"/networks/{_net(chain_key)}/tokens/{token_address}/pools").get("data") or []
+    """Pools where the token trades (raw from GT) — TTL-cached + single-
+    flight since M1 (a rescan within the TTL is zero upstream calls)."""
+    key = ("pools", chain_key, token_address.lower())
+    cached = _pools_cache_get((chain_key, token_address.lower()))
+    if cached is not None:
+        return cached
+
+    def _do() -> list[dict]:
+        return _get(f"/networks/{_net(chain_key)}/tokens/{token_address}/pools").get("data") or []
+
+    out = _single_flight(key, _do, lambda k: _pools_cache_get((k[1], k[2])),
+                         lambda k, v: _pools_cache_put((k[1], k[2]), v))
+    # the leader stores before releasing; a None here means eviction between
+    # put and read — refetch honestly, never fabricate a 429
+    return out if out is not None else _do()
 
 
 def best_pool(pools: list[dict]) -> dict | None:
@@ -144,16 +231,22 @@ def fetch_trades(chain_key: str, pool_address: str) -> list[dict]:
     """Pool's latest trades → normalized for clustering:
     {"wallet", "kind", "ts" (ISO str), "usd" (float), "base_token"}.
     Trades missing a required field are skipped — never guessed.
-    Served from the TTL trade cache when warm (callers must not mutate)."""
+    Served from the TTL trade cache when warm (callers must not mutate);
+    concurrent cold reads share ONE upstream call (M1 single-flight)."""
     key = (chain_key, pool_address)
     cached = _trade_cache_get(key)
     if cached is not None:
         return cached
-    data = _get(f"/networks/{_net(chain_key)}/pools/{pool_address}/trades")
-    out = [t for item in data.get("data") or []
-           if (t := _normalize_trade(item)) is not None]
-    _trade_cache_put(key, out)
-    return out
+
+    def _do() -> list[dict]:
+        data = _get(f"/networks/{_net(chain_key)}/pools/{pool_address}/trades")
+        return [t for item in data.get("data") or []
+                if (t := _normalize_trade(item)) is not None]
+
+    out = _single_flight(("trades", *key), _do,
+                         lambda k: _trade_cache_get((k[1], k[2])),
+                         lambda k, v: _trade_cache_put((k[1], k[2]), v))
+    return out if out is not None else _do()
 
 
 def _ts_epoch(ts: str) -> float | None:
@@ -202,15 +295,24 @@ def fetch_trades_window(chain_key: str, pool_address: str,
     return out, pages
 
 
-def search_pools(query: str) -> list[dict]:
-    """GT v1 pool search — a CA or name → candidate pools across networks.
-    Each hit: {chain, network, pool, name, liquidity_usd, volume_24h,
-    price_usd}; hits GT cannot map to one of our chains are dropped."""
-    q = query.strip().lower()
+def _search_cache_get(q: str) -> list[dict] | None:
     hit = _search_cache.get(q)
     if hit and time.monotonic() - hit[0] < SEARCH_TTL_S:
         return hit[1]
-    data = _get_url(f"{SEARCH_BASE}/search/pools?query={urllib.parse.quote(q)}")
+    return None
+
+
+def _search_cache_put(q: str, hits: list[dict]) -> None:
+    now = time.monotonic()
+    for k in [k for k, (t, _) in _search_cache.items() if now - t >= SEARCH_TTL_S]:
+        del _search_cache[k]
+    while len(_search_cache) >= SEARCH_CACHE_MAX:
+        del _search_cache[min(_search_cache, key=lambda k: _search_cache[k][0])]
+    _search_cache[q] = (now, hits)
+
+
+def _parse_search(data: dict) -> list[dict]:
+    """Raw GT v1 search payload → normalized hits (pure, no I/O)."""
     out: list[dict] = []
     for h in data.get("data") or []:
         url = h.get("url") or ""
@@ -239,30 +341,60 @@ def search_pools(query: str) -> list[dict]:
         out.append({"chain": chain, "network": parts[i - 1], "pool": parts[i + 1],
                     "name": h.get("name"), "liquidity_usd": liq,
                     "volume_24h": vol, "price_usd": px})
-    now = time.monotonic()
-    for k in [k for k, (t, _) in _search_cache.items() if now - t >= SEARCH_TTL_S]:
-        del _search_cache[k]
-    while len(_search_cache) >= SEARCH_CACHE_MAX:
-        del _search_cache[min(_search_cache, key=lambda k: _search_cache[k][0])]
-    _search_cache[q] = (now, out)
     return out
 
 
-def fetch_trending(chain_key: str, include_tokens: bool = False) -> dict:
-    """The network's trending pools (raw payload, 300s cache). include_tokens
-    adds the base/quote token resources — the native-price path reads quote
-    symbols from it (WHYPE on hype, WETH on hood)."""
-    key = (chain_key, include_tokens)
+def search_pools(query: str) -> list[dict]:
+    """GT v1 pool search — a CA or name → candidate pools across networks.
+    Each hit: {chain, network, pool, name, liquidity_usd, volume_24h,
+    price_usd}; hits GT cannot map to one of our chains are dropped.
+    TTL-cached + single-flight since M1."""
+    q = query.strip().lower()
+    hit = _search_cache_get(q)
+    if hit is not None:
+        return hit
+
+    def _do() -> list[dict]:
+        return _parse_search(_get_url(
+            f"{SEARCH_BASE}/search/pools?query={urllib.parse.quote(q)}"))
+
+    out = _single_flight(("search", q), _do, lambda k: _search_cache_get(k[1]),
+                         lambda k, v: _search_cache_put(k[1], v))
+    return out if out is not None else _do()
+
+
+def _trend_cache_get(key: tuple[str, bool]) -> dict | None:
     hit = _trend_cache.get(key)
     if hit and time.monotonic() - hit[0] < TREND_TTL_S:
         return hit[1]
-    q = "?include=base_token,quote_token" if include_tokens else ""
-    data = _get(f"/networks/{_net(chain_key)}/trending_pools{q}")
+    return None
+
+
+def _trend_cache_put(key: tuple[str, bool], data: dict) -> None:
     now = time.monotonic()
     for k in [k for k, (t, _) in _trend_cache.items() if now - t >= TREND_TTL_S]:
         del _trend_cache[k]
     _trend_cache[key] = (now, data)
-    return data
+
+
+def fetch_trending(chain_key: str, include_tokens: bool = False) -> dict:
+    """The network's trending pools (raw payload, 60s TTL since M1).
+    include_tokens adds the base/quote token resources — the native-price
+    path reads quote symbols from it (WHYPE on hype, WETH on hood).
+    Concurrent cold reads share ONE upstream call (M1 single-flight)."""
+    key = (chain_key, include_tokens)
+    hit = _trend_cache_get(key)
+    if hit is not None:
+        return hit
+    q = "?include=base_token,quote_token" if include_tokens else ""
+
+    def _do() -> dict:
+        return _get(f"/networks/{_net(chain_key)}/trending_pools{q}")
+
+    out = _single_flight(("trend", *key), _do,
+                         lambda k: _trend_cache_get((k[1], k[2])),
+                         lambda k, v: _trend_cache_put((k[1], k[2]), v))
+    return out if out is not None else _do()
 
 
 # wrapped-native quote symbols per frontier chain (R2 probe 2026-08-31:

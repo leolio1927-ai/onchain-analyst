@@ -690,6 +690,26 @@ input, select { font-family: inherit; }
 .v2-shield { filter: drop-shadow(0 10px 22px rgb(0 0 0 / .5)); }
 .mono.dim { color: var(--muted-deep, #649580); }
 
+/* ═══ PROMPT-V4 M1 (2026-08-31): whale page alive + 429 governance ═══
+   ONE aggregate rate-limit banner (never stacked rows), the muted all-trade
+   histogram behind the whale line, and the deterministic AWAITING WHALES
+   seeding field — silence as a state, never an empty floor. Opacity-only
+   pulse (PB-7); reduced motion stops it and keeps every fact (PB-8). */
+.v2-note.rl { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.v2-note.rl .rl-btns { margin-left: auto; display: flex; gap: 6px; }
+.v2-note.rl .rl-detail { flex-basis: 100%; display: grid; gap: 6px; font-size: 10.5px; }
+.whale-hist { fill: var(--border-soft, #0f2419); opacity: .55; }
+.whale-field-stage { position: relative; }
+.whale-field-bars { display: flex; align-items: end; gap: 4px; height: 84px; opacity: .5; }
+.whale-field-bars i { flex: 1; min-height: 2px; border-radius: 3px 3px 0 0;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--sev-nodata) 60%, transparent), transparent); }
+.whale-field-mark { position: absolute; inset: 0; display: flex; align-items: center;
+  justify-content: center; font-size: 14px; letter-spacing: .42em; text-indent: .42em;
+  color: color-mix(in srgb, var(--sev-nodata) 80%, transparent); pointer-events: none;
+  animation: whale-await 3.2s ease-in-out infinite alternate; }
+@keyframes whale-await { from { opacity: .6; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .whale-field-mark { animation: none; } }
+
 /* ═══ PROMPT-V3 R3 (2026-08-31): PREMIUM-BAR — docs/PREMIUM-BAR.md ═══
    PB-5 hover: 200ms border into the chain accent + soft glow. The accent is
    set per card root as --chain-accent (accentStyle, founder hexes); cards

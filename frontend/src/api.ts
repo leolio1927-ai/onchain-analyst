@@ -187,6 +187,16 @@ export interface WhaleTopWallet {
   trades: number
 }
 
+/* PROMPT-V4 M1 — hourly volume histogram over the 24h walk: ALL trades
+   (buckets) with the whale share (whale_buckets), both USD. Rendered muted
+   behind the whale netflow line so a quiet whale window still shows the
+   living tape. */
+export interface WhaleVolumeHist {
+  bucket_s: number
+  buckets: number[]
+  whale_buckets: number[]
+}
+
 export interface WhaleWindowsResult {
   chain: string
   network: string | null
@@ -198,6 +208,9 @@ export interface WhaleWindowsResult {
   windows: Record<string, WhaleWindowStat>
   tape: WhaleTapeTrade[]
   top_wallets: WhaleTopWallet[]
+  top_below_threshold?: WhaleTapeTrade[]
+  volume_hist?: WhaleVolumeHist | null
+  pools_walked?: number
   tape_trades_seen: number | null
   tape_pages: number | null
   tape_oldest_ts: string | null
@@ -224,6 +237,12 @@ export interface WhaleAutoResult {
   trending: WhaleCandidate[]
   data_mode: string
   data_sources: string[]
+  /* M1: genuine GT 429s aggregated into ONE structured list — the surface
+     renders a single banner, never stacked yellow rows ("search" = the AUTO
+     pool search itself was rate-limited) */
+  rate_limited?: string[]
+  retry_after_s?: number
+  pools_walked?: number
   sources: string[]
   ts: string
 }

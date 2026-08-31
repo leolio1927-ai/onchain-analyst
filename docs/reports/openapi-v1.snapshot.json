@@ -3,7 +3,7 @@
   "info": {
     "title": "VILMEI",
     "summary": "Evidence-first multichain memecoin risk terminal",
-    "description": "Read-only multichain memecoin research terminal — reduce noise, add context.\n\n- **POST /api/scan** — DexScreener pair + GeckoTerminal trade clustering → deterministic, weighted risk assessment\n- **GET /api/v1/discovery** — keyless trending/new pool radar (GeckoTerminal free tier)\n- **POST /api/explain** — evidence-first AI narrative; `provider: \"local\"` serves a deterministic heuristic narrative with zero API keys\n- **POST /api/whale** — Helius wallet balances (key required)\n- **GET /api/v1/whale/windows** — whale windows (1h/6h/24h) on the keyless GeckoTerminal trade tape, all five chains; threshold is a labelled heuristic, never an on-chain label\n- **GET /api/v1/whale/auto** — AUTO: resolve a contract across networks + trending top-N candidates\n- **GET /api/v1/fees/estimate** — the PLANNED VILMEI fee (0.50% split 0.30/0.10/0.10) as inspectable data; nothing is charged, VILMEI is read-only\n- **WS /ws/snap** — full honest snapshot ticker · **WS /ws/tape** — live trade-tape deltas for the active pool\n\nEvery value is copied verbatim from the upstream APIs; absent fields stay absent —\nnothing is simulated, zero-filled or random-walked. Heuristic thresholds are public\nand auditable (heuristics/).",
+    "description": "Read-only multichain memecoin research terminal \u2014 reduce noise, add context.\n\n- **POST /api/scan** \u2014 DexScreener pair + GeckoTerminal trade clustering \u2192 deterministic, weighted risk assessment\n- **GET /api/v1/discovery** \u2014 keyless trending/new pool radar (GeckoTerminal free tier)\n- **POST /api/explain** \u2014 evidence-first AI narrative; `provider: \"local\"` serves a deterministic heuristic narrative with zero API keys\n- **POST /api/whale** \u2014 Helius wallet balances (key required)\n- **GET /api/v1/whale/windows** \u2014 whale windows (1h/6h/24h) on the keyless GeckoTerminal trade tape, all five chains; threshold is a labelled heuristic, never an on-chain label\n- **GET /api/v1/whale/auto** \u2014 AUTO: resolve a contract across networks + trending top-N candidates\n- **GET /api/v1/fees/estimate** \u2014 the PLANNED VILMEI fee (0.50% split 0.30/0.10/0.10) as inspectable data; nothing is charged, VILMEI is read-only\n- **WS /ws/snap** \u2014 full honest snapshot ticker \u00b7 **WS /ws/tape** \u2014 live trade-tape deltas for the active pool\n\nEvery value is copied verbatim from the upstream APIs; absent fields stay absent \u2014\nnothing is simulated, zero-filled or random-walked. Heuristic thresholds are public\nand auditable (heuristics/).",
     "license": {
       "name": "MIT",
       "identifier": "MIT"
@@ -41,7 +41,7 @@
           "system"
         ],
         "summary": "Version",
-        "description": "Build identity — real toolchain versions, nothing invented. The db\nblock reports measured persistence facts (path_kind, schema version,\nrows per table, last run, oldest row) — never the raw filesystem path.",
+        "description": "Build identity \u2014 real toolchain versions, nothing invented. The db\nblock reports measured persistence facts (path_kind, schema version,\nrows per table, last run, oldest row) \u2014 never the raw filesystem path.",
         "operationId": "version_api_version_get",
         "responses": {
           "200": {
@@ -63,7 +63,7 @@
           "system"
         ],
         "summary": "Metrics",
-        "description": "Live process counters — every number is measured, none estimated.\ntokens/labels are measured persistence row counts (0 when persistence\nis off — off is a fact, not an estimate).",
+        "description": "Live process counters \u2014 every number is measured, none estimated.\ntokens/labels are measured persistence row counts (0 when persistence\nis off \u2014 off is a fact, not an estimate).",
         "operationId": "metrics_api_metrics_get",
         "responses": {
           "200": {
@@ -87,7 +87,7 @@
           "market"
         ],
         "summary": "Api Scan",
-        "description": "Full evidence scan: pair view + weighted risk assessment + clustering,\nplus the best-effort trader-loop `context` block (BE-F5a-R — context\nrenders beside the verdict; the score formula never reads it).\n`refresh: true` bypasses the 30s TTL cache and forces a fresh fetch.",
+        "description": "Full evidence scan: pair view + weighted risk assessment + clustering,\nplus the best-effort trader-loop `context` block (BE-F5a-R \u2014 context\nrenders beside the verdict; the score formula never reads it).\n`refresh: true` bypasses the 30s TTL cache and forces a fresh fetch.",
         "operationId": "api_scan_api_scan_post",
         "requestBody": {
           "content": {
@@ -130,7 +130,7 @@
           "market"
         ],
         "summary": "Api Scan",
-        "description": "Full evidence scan: pair view + weighted risk assessment + clustering,\nplus the best-effort trader-loop `context` block (BE-F5a-R — context\nrenders beside the verdict; the score formula never reads it).\n`refresh: true` bypasses the 30s TTL cache and forces a fresh fetch.",
+        "description": "Full evidence scan: pair view + weighted risk assessment + clustering,\nplus the best-effort trader-loop `context` block (BE-F5a-R \u2014 context\nrenders beside the verdict; the score formula never reads it).\n`refresh: true` bypasses the 30s TTL cache and forces a fresh fetch.",
         "operationId": "api_scan_api_v1_scan_post",
         "requestBody": {
           "content": {
@@ -342,7 +342,7 @@
           "market"
         ],
         "summary": "Api Discovery",
-        "description": "Keyless radar feed (G.3): trending or new pools via GeckoTerminal free\ntier. Validation → 400; upstream failure → honest 502. Items carry only\nwhat the API returned — absent fields stay absent (None).",
+        "description": "Keyless radar feed (G.3): trending or new pools via GeckoTerminal free\ntier. Validation \u2192 400; upstream failure \u2192 honest 502. Items carry only\nwhat the API returned \u2014 absent fields stay absent (None).",
         "operationId": "api_discovery_api_v1_discovery_get",
         "parameters": [
           {
@@ -406,7 +406,7 @@
           "market"
         ],
         "summary": "Api Market Ohlcv",
-        "description": "GT candles for a pool (Fase 4 chart/volume/indicator source). Keyless,\nTTL-cached 60s, verbatim floats oldest→newest — no gap-filling, no\nrounding. An empty candle list ships with a degraded reason, never a\nsynthesized series. The browser never calls GT directly (zero\nthird-party-host claim); this route is the only door.",
+        "description": "GT candles for a pool (Fase 4 chart/volume/indicator source). Keyless,\nTTL-cached 60s, verbatim floats oldest\u2192newest \u2014 no gap-filling, no\nrounding. An empty candle list ships with a degraded reason, never a\nsynthesized series. The browser never calls GT directly (zero\nthird-party-host claim); this route is the only door.",
         "operationId": "api_market_ohlcv_api_v1_market_ohlcv_get",
         "parameters": [
           {
@@ -478,7 +478,7 @@
           "market"
         ],
         "summary": "Api Socials",
-        "description": "Official links for a token (Fase 4 SOCIALS tab) from DexScreener\ntoken-pairs info, TTL-cached 300s. Param is the TOKEN address (CA): DS\nanswers 0 pairs for a pair address (probed 2026-08-30) — the FE passes\nthe CA from the active-pair identity context. Empty lists = 'no official\nlinks in feed'; links are never invented.",
+        "description": "Official links for a token (Fase 4 SOCIALS tab) from DexScreener\ntoken-pairs info, TTL-cached 300s. Param is the TOKEN address (CA): DS\nanswers 0 pairs for a pair address (probed 2026-08-30) \u2014 the FE passes\nthe CA from the active-pair identity context. Empty lists = 'no official\nlinks in feed'; links are never invented.",
         "operationId": "api_socials_api_v1_socials_get",
         "parameters": [
           {
@@ -530,7 +530,7 @@
           "market"
         ],
         "summary": "Api Detect",
-        "description": "Auto-detect (Fase 3): pasted CA or $TICKER → one candidate pair per\nfounder chain where DS lists it (deepest pool), liquidity-ranked. The\nclient MUST present the candidate set on >1 — silently defaulting to one\nchain is the identity bug this surface exists to prevent. DS search only:\nGT /api/v2/search does not exist (probed 404, 2026-08-30).",
+        "description": "Auto-detect (Fase 3): pasted CA or $TICKER \u2192 one candidate pair per\nfounder chain where DS lists it (deepest pool), liquidity-ranked. The\nclient MUST present the candidate set on >1 \u2014 silently defaulting to one\nchain is the identity bug this surface exists to prevent. DS search only:\nGT /api/v2/search does not exist (probed 404, 2026-08-30).",
         "operationId": "api_detect_api_v1_detect_get",
         "parameters": [
           {
@@ -573,7 +573,7 @@
           "market"
         ],
         "summary": "Api Rug Sol",
-        "description": "Solana rug summary (RugCheck.xyz), TTL-cached 300s, provenance\nattached. A missing report ships empty risks + a degraded reason —\nan unindexed token is a fact, never an invented verdict.",
+        "description": "Solana rug summary (RugCheck.xyz), TTL-cached 300s, provenance\nattached. A missing report ships empty risks + a degraded reason \u2014\nan unindexed token is a fact, never an invented verdict.",
         "operationId": "api_rug_sol_api_v1_rug_sol__mint__get",
         "parameters": [
           {
@@ -616,7 +616,7 @@
           "market"
         ],
         "summary": "Api Rug Evm",
-        "description": "EVM rug rows (GoPlus) for bnb/base — verbatim values, provider chip\nper row, TTL-cached 300s (the provider module owns its cache).",
+        "description": "EVM rug rows (GoPlus) for bnb/base \u2014 verbatim values, provider chip\nper row, TTL-cached 300s (the provider module owns its cache).",
         "operationId": "api_rug_evm_api_v1_rug_evm__chain___token__get",
         "parameters": [
           {
@@ -668,7 +668,7 @@
           "live"
         ],
         "summary": "Api Live",
-        "description": "Live memecoin feed per chain (G.7) — modes: new | trending | volume | alpha.\n\nKeyless GeckoTerminal only, TTL-cached ≥120s per (chain, mode) — the free\ntier is ~10 calls/min and `alpha` re-ranks the volume feed with zero extra\ncalls. A chain without a GT network answers live:false with an empty item\nlist — never fabricated. Unknown chain → 404; bad mode/limit → 400;\nupstream failure without a cache fallback → 502 (a warm expired cache is\nserved with stale:true instead).",
+        "description": "Live memecoin feed per chain (G.7) \u2014 modes: new | trending | volume | alpha.\n\nKeyless GeckoTerminal only, TTL-cached \u2265120s per (chain, mode) \u2014 the free\ntier is ~10 calls/min and `alpha` re-ranks the volume feed with zero extra\ncalls. A chain without a GT network answers live:false with an empty item\nlist \u2014 never fabricated. Unknown chain \u2192 404; bad mode/limit \u2192 400;\nupstream failure without a cache fallback \u2192 502 (a warm expired cache is\nserved with stale:true instead).",
         "operationId": "api_live_api_v1_live__chain__get",
         "parameters": [
           {
@@ -731,7 +731,7 @@
           "market"
         ],
         "summary": "Api History Prices",
-        "description": "Point-in-time price history from the local persistence layer (BE-F2).\n\nlimit clamped to 1..500 · opaque cursor is None-terminated · window\nfilters since/until take timezone-aware ISO-8601. data_mode = the union\nof the page's rows (fixture|live), never hardcoded. Rows are point\nobservations: open/high/low stay None, close = the observed price —\ncandles are never synthesized.",
+        "description": "Point-in-time price history from the local persistence layer (BE-F2).\n\nlimit clamped to 1..500 \u00b7 opaque cursor is None-terminated \u00b7 window\nfilters since/until take timezone-aware ISO-8601. data_mode = the union\nof the page's rows (fixture|live), never hardcoded. Rows are point\nobservations: open/high/low stay None, close = the observed price \u2014\ncandles are never synthesized.",
         "operationId": "api_history_prices_api_v1_history_prices__chain___ident__get",
         "parameters": [
           {
@@ -841,7 +841,7 @@
           "market"
         ],
         "summary": "Api History Trades",
-        "description": "Trade history from the local persistence layer (BE-F2) — same cursor,\nwindow and data_mode contract as the prices page.",
+        "description": "Trade history from the local persistence layer (BE-F2) \u2014 same cursor,\nwindow and data_mode contract as the prices page.",
         "operationId": "api_history_trades_api_v1_history_trades__chain___ident__get",
         "parameters": [
           {
@@ -951,7 +951,7 @@
           "market"
         ],
         "summary": "Api Token Meta",
-        "description": "One registry token. 404 only when the registry never saw it — the\nregistry is silent on unknowns, never guesses. Registry-backed pages\ncarry data_mode='fixture' today; fields no upstream filled stay None.",
+        "description": "One registry token. 404 only when the registry never saw it \u2014 the\nregistry is silent on unknowns, never guesses. Registry-backed pages\ncarry data_mode='fixture' today; fields no upstream filled stay None.",
         "operationId": "api_token_meta_api_v1_tokens__chain___ident__get",
         "parameters": [
           {
@@ -1003,7 +1003,7 @@
           "market"
         ],
         "summary": "Api Wallet Labels",
-        "description": "Wallet label claims across chains. 200 + [] for a valid address with\nno labels (unlabeled = silence, never a guess); 404 only on a malformed\naddress shape. Labels are claims with provenance — verified=false unless\nan operator path (none exists yet) checked them.",
+        "description": "Wallet label claims across chains. 200 + [] for a valid address with\nno labels (unlabeled = silence, never a guess); 404 only on a malformed\naddress shape. Labels are claims with provenance \u2014 verified=false unless\nan operator path (none exists yet) checked them.",
         "operationId": "api_wallet_labels_api_v1_wallets__address__get",
         "parameters": [
           {
@@ -1046,7 +1046,7 @@
           "market"
         ],
         "summary": "Api Chains",
-        "description": "What each chain can honestly do today, per provider. This is the\naudit-§2 provider matrix as a structured, importable constant — the\nguard in webapp/chains.py keeps it equivalent to the provider modules,\nso a capability change fails the catalog test until updated.",
+        "description": "What each chain can honestly do today, per provider. This is the\naudit-\u00a72 provider matrix as a structured, importable constant \u2014 the\nguard in webapp/chains.py keeps it equivalent to the provider modules,\nso a capability change fails the catalog test until updated.",
         "operationId": "api_chains_api_v1_chains_get",
         "responses": {
           "200": {
@@ -1068,7 +1068,7 @@
           "market"
         ],
         "summary": "Api Whales",
-        "description": "Large recent transfers + per-wallet netflow for one token. Solana =\nHelius enhanced transactions (keyed); the other chains stay unwired HERE\n(this is the signed-delta view) — the GT trade tape at\n/api/v1/whale/windows covers all five chains keyless. USD sizing uses the\nDexScreener pair price; when absent, `usd` stays None and token amounts\nstand alone.",
+        "description": "Large recent transfers + per-wallet netflow for one token. Solana =\nHelius enhanced transactions (keyed); the other chains stay unwired HERE\n(this is the signed-delta view) \u2014 the GT trade tape at\n/api/v1/whale/windows covers all five chains keyless. USD sizing uses the\nDexScreener pair price; when absent, `usd` stays None and token amounts\nstand alone.",
         "operationId": "api_whales_api_v1_whales__chain___token__get",
         "parameters": [
           {
@@ -1140,7 +1140,7 @@
           "market"
         ],
         "summary": "Api Whale Windows",
-        "description": "Whale windows (1h/6h/24h) for one contract on one chain, from the\nGeckoTerminal trade tape. Threshold is a labelled heuristic per chain\n(sol $50K · bnb/base $30K · hype/hood = native qty × live native price,\n$30K fallback stated). No pool for the contract = an honest unwired\nenvelope with the reason, never a red wall.",
+        "description": "Whale windows (1h/6h/24h) for one contract on one chain, from the\nGeckoTerminal trade tape. Threshold is a labelled heuristic per chain\n(sol $50K \u00b7 bnb/base $30K \u00b7 hype/hood = native qty \u00d7 live native price,\n$30K fallback stated). No pool for the contract = an honest unwired\nenvelope with the reason, never a red wall.",
         "operationId": "api_whale_windows_api_v1_whale_windows_get",
         "parameters": [
           {
@@ -1245,7 +1245,7 @@
           "market"
         ],
         "summary": "Api Fees Estimate",
-        "description": "The PLANNED VILMEI fee (0.50% = ops 0.30 + buyback 0.10 + rewards\n0.10) for one notional on one chain, plus that chain's fee path verbatim\nfrom the docs/FEE-MODELS-2026.md matrix (verdict vocabulary: SIAP-$0 ·\nPERLU-AGREEMENT-BISNIS · TIDAK-ADA). A policy constant — nothing is\ncharged, and VILMEI stays read-only. Unknown chain → 404 with the allowed\nlist; non-finite or negative amount → 400.",
+        "description": "The PLANNED VILMEI fee (0.50% = ops 0.30 + buyback 0.10 + rewards\n0.10) for one notional on one chain, plus that chain's fee path verbatim\nfrom the docs/FEE-MODELS-2026.md matrix (verdict vocabulary: SIAP-$0 \u00b7\nPERLU-AGREEMENT-BISNIS \u00b7 TIDAK-ADA). A policy constant \u2014 nothing is\ncharged, and VILMEI stays read-only. Unknown chain \u2192 404 with the allowed\nlist; non-finite or negative amount \u2192 400.",
         "operationId": "api_fees_estimate_api_v1_fees_estimate_get",
         "parameters": [
           {
@@ -1297,7 +1297,7 @@
           "system"
         ],
         "summary": "Mcp Rpc",
-        "description": "Read-only Model Context Protocol endpoint — JSON-RPC 2.0 (spec rev\n2026-07-28): initialize / ping / tools/list / tools/call over five\nread-only tools (trending, scan, rug, whale_windows, fee_view). Nothing\nhere trades, custodies, or writes.",
+        "description": "Read-only Model Context Protocol endpoint \u2014 JSON-RPC 2.0 (spec rev\n2026-07-28): initialize / ping / tools/list / tools/call over five\nread-only tools (trending, scan, rug, whale_windows, fee_view). Nothing\nhere trades, custodies, or writes.",
         "operationId": "mcp_rpc_mcp_post",
         "responses": {
           "200": {
@@ -1369,7 +1369,7 @@
         },
         "type": "object",
         "title": "CapabilityRow",
-        "description": "One capability×chain wiring row: either a source (a fn is wired) or\nan explicit reason why nobody computes it at $0."
+        "description": "One capability\u00d7chain wiring row: either a source (a fn is wired) or\nan explicit reason why nobody computes it at $0."
       },
       "ChainInfo": {
         "properties": {
@@ -1447,7 +1447,7 @@
         },
         "type": "object",
         "title": "ChainInfo",
-        "description": "One chain's verified provider support (webapp/chains.py CHAIN_CATALOG).\nA False cell is a stated absence — e.g. hype scan is unavailable today\nbecause DexScreener has no verified hyperevm chainId."
+        "description": "One chain's verified provider support (webapp/chains.py CHAIN_CATALOG).\nA False cell is a stated absence \u2014 e.g. hype scan is unavailable today\nbecause DexScreener has no verified hyperevm chainId."
       },
       "ChainsResponse": {
         "properties": {
@@ -1511,7 +1511,7 @@
         },
         "type": "object",
         "title": "ChainsResponse",
-        "description": "The full catalog, config-not-observed: data_mode='static' marks that\nthese are maintained capability flags, not a response observed from an\nupstream at request time. The `note` travels with the payload.\n`capabilities` renders the wiring map (BE-F5a-R): who computes what per\nchain — a source name, or an explicit reason sentence."
+        "description": "The full catalog, config-not-observed: data_mode='static' marks that\nthese are maintained capability flags, not a response observed from an\nupstream at request time. The `note` travels with the payload.\n`capabilities` renders the wiring map (BE-F5a-R): who computes what per\nchain \u2014 a source name, or an explicit reason sentence."
       },
       "ClusteringBlock": {
         "properties": {
@@ -1567,7 +1567,7 @@
         },
         "type": "object",
         "title": "ClusteringBlock",
-        "description": "Wallet-coordination result. On upstream failure the counts are None\n(never 0 — a failed fetch observed no wallets); severity None with real\ncounts = sample too small, honestly not scored."
+        "description": "Wallet-coordination result. On upstream failure the counts are None\n(never 0 \u2014 a failed fetch observed no wallets); severity None with real\ncounts = sample too small, honestly not scored."
       },
       "DbInfo": {
         "properties": {
@@ -1625,7 +1625,7 @@
         },
         "type": "object",
         "title": "DbInfo",
-        "description": "/api/version db block — measured facts about the persistence layer."
+        "description": "/api/version db block \u2014 measured facts about the persistence layer."
       },
       "DeployerLineage": {
         "properties": {
@@ -1651,7 +1651,7 @@
         },
         "type": "object",
         "title": "DeployerLineage",
-        "description": "What THIS registry observed about a deployer — DB-local, zero\nprovider calls. launches=0 is DATA (watched, launched nothing so far);\nan absent deployer has no lineage block at all."
+        "description": "What THIS registry observed about a deployer \u2014 DB-local, zero\nprovider calls. launches=0 is DATA (watched, launched nothing so far);\nan absent deployer has no lineage block at all."
       },
       "DetectCandidate": {
         "properties": {
@@ -1774,7 +1774,7 @@
         },
         "type": "object",
         "title": "DetectCandidate",
-        "description": "One candidate pair on one founder chain — the deepest pool DS returned\nfor that chainId. `chain` is the founder key (sol|bnb|base|hype|hood)."
+        "description": "One candidate pair on one founder chain \u2014 the deepest pool DS returned\nfor that chainId. `chain` is the founder key (sol|bnb|base|hype|hood)."
       },
       "DetectResponse": {
         "properties": {
@@ -2144,7 +2144,7 @@
         },
         "type": "object",
         "title": "ExplainResponse",
-        "description": "Evidence-first narrative (LLM provider or the deterministic local tier).\n`limitations` keeps the wire's string type — typing it as a list would\n500 every explain call; widening it is a deliberate contract change."
+        "description": "Evidence-first narrative (LLM provider or the deterministic local tier).\n`limitations` keeps the wire's string type \u2014 typing it as a list would\n500 every explain call; widening it is a deliberate contract change."
       },
       "FeeEstimateResponse": {
         "properties": {
@@ -2248,7 +2248,7 @@
           "honest_note": {
             "type": "string",
             "title": "Honest Note",
-            "default": "planned — nothing is charged; VILMEI is read-only"
+            "default": "planned \u2014 nothing is charged; VILMEI is read-only"
           },
           "provenance": {
             "additionalProperties": true,
@@ -2258,7 +2258,7 @@
         },
         "type": "object",
         "title": "FeeEstimateResponse",
-        "description": "The PLANNED VILMEI fee (0.50% = ops 0.30 + buyback 0.10 + rewards\n0.10) for one notional on one chain. data_mode='static': a policy\nconstant, not a live feed — and nothing is charged, VILMEI is read-only."
+        "description": "The PLANNED VILMEI fee (0.50% = ops 0.30 + buyback 0.10 + rewards\n0.10) for one notional on one chain. data_mode='static': a policy\nconstant, not a live feed \u2014 and nothing is charged, VILMEI is read-only."
       },
       "FeeProviderStatus": {
         "properties": {
@@ -2287,7 +2287,7 @@
           "note"
         ],
         "title": "FeeProviderStatus",
-        "description": "One chain's fee path, verbatim from the docs/FEE-MODELS-2026.md\nmatrix row. Verdict vocabulary: SIAP-$0 · PERLU-AGREEMENT-BISNIS ·\nTIDAK-ADA."
+        "description": "One chain's fee path, verbatim from the docs/FEE-MODELS-2026.md\nmatrix row. Verdict vocabulary: SIAP-$0 \u00b7 PERLU-AGREEMENT-BISNIS \u00b7\nTIDAK-ADA."
       },
       "FeedItem": {
         "properties": {
@@ -2499,7 +2499,7 @@
         },
         "type": "object",
         "title": "FeedItem",
-        "description": "providers/live.py FIELDS key set, exact — absent stays None."
+        "description": "providers/live.py FIELDS key set, exact \u2014 absent stays None."
       },
       "HTTPValidationError": {
         "properties": {
@@ -3367,7 +3367,7 @@
         },
         "type": "object",
         "title": "Provenance",
-        "description": "The FAKTA envelope law (2026-08-30): every new route carries WHERE a\npayload came from and HOW fresh it is. `degraded` is None on a healthy\npayload and a reason sentence otherwise — a degraded payload still ships\nreal data (or honest empties), never fabricated values."
+        "description": "The FAKTA envelope law (2026-08-30): every new route carries WHERE a\npayload came from and HOW fresh it is. `degraded` is None on a healthy\npayload and a reason sentence otherwise \u2014 a degraded payload still ships\nreal data (or honest empties), never fabricated values."
       },
       "RugAssessment": {
         "properties": {
@@ -3552,7 +3552,7 @@
           "field"
         ],
         "title": "RugEvmRow",
-        "description": "One GoPlus field → one panel row, verbatim string value (GoPlus sends\n0/1 and '0.05' style strings — no coercion, the FE renders them as-is)."
+        "description": "One GoPlus field \u2192 one panel row, verbatim string value (GoPlus sends\n0/1 and '0.05' style strings \u2014 no coercion, the FE renders them as-is)."
       },
       "RugFlags": {
         "properties": {
@@ -3696,7 +3696,7 @@
         },
         "type": "object",
         "title": "RugFlags",
-        "description": "Rug-relevant flags, COPIED VERBATIM from the source (sol: helius DAS\nauthorities + mutable; EVM: GoPlus security fields as their own strings).\nField values the source did not send stay absent — no cross-filling."
+        "description": "Rug-relevant flags, COPIED VERBATIM from the source (sol: helius DAS\nauthorities + mutable; EVM: GoPlus security fields as their own strings).\nField values the source did not send stay absent \u2014 no cross-filling."
       },
       "RugRiskRow": {
         "properties": {
@@ -3861,7 +3861,7 @@
         },
         "type": "object",
         "title": "RugSolResponse",
-        "description": "Solana rug summary via RugCheck.xyz — proxied server-side so the\nbrowser never calls a third-party host (zero-third-party law)."
+        "description": "Solana rug summary via RugCheck.xyz \u2014 proxied server-side so the\nbrowser never calls a third-party host (zero-third-party law)."
       },
       "ScanBody": {
         "properties": {
@@ -3946,7 +3946,7 @@
         },
         "type": "object",
         "title": "ScanResponse",
-        "description": "scan contract v1.1 — everything v1.0 served, unchanged, plus the\nbest-effort `context` block (BE-F5a-R). The rug weights and score\nformula are NOT part of this bump: context renders beside the verdict,\nnever inside it. schema_version is bumped on THIS model only."
+        "description": "scan contract v1.1 \u2014 everything v1.0 served, unchanged, plus the\nbest-effort `context` block (BE-F5a-R). The rug weights and score\nformula are NOT part of this bump: context renders beside the verdict,\nnever inside it. schema_version is bumped on THIS model only."
       },
       "SellTest": {
         "properties": {
@@ -3986,7 +3986,7 @@
         },
         "type": "object",
         "title": "SellTest",
-        "description": "Sell-side simulation, tri-state: routable True / False / None.\nNone = \"sell simulation unavailable\" (timeout etc.) — NEVER implied safe;\nFalse = a recognized no-route answer, a loud honeypot signal."
+        "description": "Sell-side simulation, tri-state: routable True / False / None.\nNone = \"sell simulation unavailable\" (timeout etc.) \u2014 NEVER implied safe;\nFalse = a recognized no-route answer, a loud honeypot signal."
       },
       "SignalRow": {
         "properties": {
@@ -4064,7 +4064,7 @@
         },
         "type": "object",
         "title": "SignalRow",
-        "description": "One rug_check signal. `computed` (added by BE-F1) separates \"attempted\nbut not scored\" (severity None — honest) from scored; `detail` is the\nplanned richer explanation slot and stays None until that engine exists."
+        "description": "One rug_check signal. `computed` (added by BE-F1) separates \"attempted\nbut not scored\" (severity None \u2014 honest) from scored; `detail` is the\nplanned richer explanation slot and stays None until that engine exists."
       },
       "SocialLink": {
         "properties": {
@@ -4246,7 +4246,7 @@
         },
         "type": "object",
         "title": "SocialsResponse",
-        "description": "DS token-pairs info for a TOKEN address. Empty websites+links is the\nhonest 'no official links in feed' state — links are never invented."
+        "description": "DS token-pairs info for a TOKEN address. Empty websites+links is the\nhonest 'no official links in feed' state \u2014 links are never invented."
       },
       "TokenContext": {
         "properties": {
@@ -4370,7 +4370,7 @@
         },
         "type": "object",
         "title": "TokenContext",
-        "description": "Trader-loop context block (BE-F5a-R) — renders BESIDE the verdict.\nThe rug weights and score formula never read from here. Per-block\nprovenance: deployer_source names the provider that said it,\nsell_test.checked_via names the quote path, and notes carry the honest\nreason for every absent capability (\"<provider>:not_configured\",\n\"<provider>:timeout\", or a catalog reason sentence)."
+        "description": "Trader-loop context block (BE-F5a-R) \u2014 renders BESIDE the verdict.\nThe rug weights and score formula never read from here. Per-block\nprovenance: deployer_source names the provider that said it,\nsell_test.checked_via names the quote path, and notes carry the honest\nreason for every absent capability (\"<provider>:not_configured\",\n\"<provider>:timeout\", or a catalog reason sentence)."
       },
       "TokenMeta": {
         "properties": {
@@ -4544,7 +4544,7 @@
         },
         "type": "object",
         "title": "TokenMeta",
-        "description": "Token registry entry (BE-F3) + the planned live token-page fields.\nRegistry-backed responses carry data_mode='fixture' today; fields the\nregistry does not know (socials, launchpad, …) stay None — absent stays\nabsent until a real upstream fills them."
+        "description": "Token registry entry (BE-F3) + the planned live token-page fields.\nRegistry-backed responses carry data_mode='fixture' today; fields the\nregistry does not know (socials, launchpad, \u2026) stay None \u2014 absent stays\nabsent until a real upstream fills them."
       },
       "TradeRow": {
         "properties": {
@@ -4782,7 +4782,7 @@
         },
         "type": "object",
         "title": "WalletLabel",
-        "description": "One labeled-wallet claim. `label`+`kind`+`evidence` are the claim;\n`verified` means OPERATOR-checked and is distinct from data provenance —\nfixture-loaded rows are always verified=false. No row is the honest\n'unlabeled' state; there is no unlabeled kind."
+        "description": "One labeled-wallet claim. `label`+`kind`+`evidence` are the claim;\n`verified` means OPERATOR-checked and is distinct from data provenance \u2014\nfixture-loaded rows are always verified=false. No row is the honest\n'unlabeled' state; there is no unlabeled kind."
       },
       "WalletLabelsResponse": {
         "properties": {
@@ -4836,7 +4836,7 @@
         },
         "type": "object",
         "title": "WalletLabelsResponse",
-        "description": "All claims for one wallet across chains. An unlabeled wallet is an\nhonest empty list — never synthesized, never a guess, never an error."
+        "description": "All claims for one wallet across chains. An unlabeled wallet is an\nhonest empty list \u2014 never synthesized, never a guess, never an error."
       },
       "WebsiteLink": {
         "properties": {
@@ -4931,11 +4931,28 @@
             },
             "type": "array",
             "title": "Data Sources"
+          },
+          "pools_walked": {
+            "type": "integer",
+            "title": "Pools Walked",
+            "default": 0
+          },
+          "rate_limited": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Rate Limited"
+          },
+          "retry_after_s": {
+            "type": "integer",
+            "title": "Retry After S",
+            "default": 60
           }
         },
         "type": "object",
         "title": "WhaleAutoResponse",
-        "description": "AUTO mode: the CA resolved across networks, whale windows per chain\nthat lists it, plus a small trending top-N as candidates. Every failure\nis a sentence in data_sources — never a red wall."
+        "description": "AUTO mode: the CA resolved across networks, whale windows per chain\nthat lists it, plus a small trending top-N as candidates. Every failure\nis a sentence in data_sources \u2014 never a red wall. M1: chains GT truly\nrate-limited (genuine 429s) ship as ONE structured list \u2014 the surface\nrenders a single aggregate banner, never stacked yellow rows."
       },
       "WhaleBody": {
         "properties": {
@@ -5119,7 +5136,7 @@
         },
         "type": "object",
         "title": "WhaleEntry",
-        "description": "One large transfer: signed token delta (in/out) + USD at the window\nprice. usd stays None when no pair price exists — never fabricated."
+        "description": "One large transfer: signed token delta (in/out) + USD at the window\nprice. usd stays None when no pair price exists \u2014 never fabricated."
       },
       "WhaleResponse": {
         "properties": {
@@ -5317,7 +5334,33 @@
         },
         "type": "object",
         "title": "WhaleTopWallet",
-        "description": "Per-wallet net over the walked tape — buys/sells counted, never re-derived."
+        "description": "Per-wallet net over the walked tape \u2014 buys/sells counted, never re-derived."
+      },
+      "WhaleVolumeHist": {
+        "properties": {
+          "bucket_s": {
+            "type": "number",
+            "title": "Bucket S",
+            "default": 3600.0
+          },
+          "buckets": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Buckets"
+          },
+          "whale_buckets": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Whale Buckets"
+          }
+        },
+        "type": "object",
+        "title": "WhaleVolumeHist",
+        "description": "M1 (PROMPT-V4): hourly volume histogram over the 24h walk \u2014 ALL trades\n(buckets) with the whale share (whale_buckets), both in USD. Rendered\nmuted behind the whale netflow line so a quiet whale window still shows\nthe living tape."
       },
       "WhaleWindowRow": {
         "properties": {
@@ -5480,6 +5523,28 @@
             "type": "array",
             "title": "Top Wallets"
           },
+          "top_below_threshold": {
+            "items": {
+              "$ref": "#/components/schemas/WhaleTapeRow"
+            },
+            "type": "array",
+            "title": "Top Below Threshold"
+          },
+          "volume_hist": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WhaleVolumeHist"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "pools_walked": {
+            "type": "integer",
+            "title": "Pools Walked",
+            "default": 0
+          },
           "tape_trades_seen": {
             "type": "integer",
             "title": "Tape Trades Seen",
@@ -5511,7 +5576,7 @@
         },
         "type": "object",
         "title": "WhaleWindowsResponse",
-        "description": "One chain's whale windows for one contract. A whale is a LABELLED\nHEURISTIC (one tape trade ≥ chain threshold), never an on-chain label.\ndata_mode='unwired' + the note in data_sources when GT has no pool for\nthe contract on that chain — a fact, not an error."
+        "description": "One chain's whale windows for one contract. A whale is a LABELLED\nHEURISTIC (one tape trade \u2265 chain threshold), never an on-chain label.\ndata_mode='unwired' + the note in data_sources when GT has no pool for\nthe contract on that chain \u2014 a fact, not an error. M1: top_below_threshold\n+ volume_hist keep the page alive when no trade crosses the line."
       },
       "WhalesResponse": {
         "properties": {
@@ -5632,7 +5697,7 @@
     },
     {
       "name": "live",
-      "description": "Live per-chain memecoin feed — keyless GeckoTerminal, ≥120s TTL cache, honest live:false for networks GT does not serve."
+      "description": "Live per-chain memecoin feed \u2014 keyless GeckoTerminal, \u2265120s TTL cache, honest live:false for networks GT does not serve."
     },
     {
       "name": "ai",

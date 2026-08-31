@@ -127,17 +127,23 @@ brackets) and was last re-verified 2026-08-29.
 - GET /api/v1/whales/{chain}/{token} — large transfers + per-wallet netflow
   (sol = Helius signed-delta view; other chains ship the note pointing at the
   GT tape; USD via DexScreener price, null when absent) [providers/whales.py].
-- GET /api/v1/whale/windows?chain=&ca= — PROMPT-V3 R2: whale windows
+- GET /api/v1/whale/windows?chain=&ca= — PROMPT-V3 R2 (+V4 M1): whale windows
   (1h/6h/24h) on the keyless GeckoTerminal trade tape, ALL FIVE chains (probe
   2026-08-31: solana/bsc/base/hyperevm/robinhood 200). A whale = labelled
   heuristic (one trade ≥ chain threshold: sol $50K · bnb/base $30K ·
   hype/hood = native qty × live native price, $30K fallback stated), never an
   on-chain label; net = Σ whale buys − Σ whale sells per window; no pool =
-  honest unwired note. Cached + provenance in data_sources
-  [providers/whale_windows.py, providers/geckoterminal.py].
+  honest unwired note. M1: top_below_threshold (top-5 largest trades under the
+  whale line), volume_hist (24 hourly buckets, all trades + whale share) and
+  pools_walked keep the surface alive when nothing crosses the threshold; a
+  genuine upstream 429 ships as a whale_windows:rate_limited note. Cached +
+  provenance in data_sources [providers/whale_windows.py, providers/geckoterminal.py].
 - GET /api/v1/whale/auto?ca=&limit= — AUTO: resolves the contract across
   networks via GT pool search (deepest pool per chain) + trending top-N
-  candidates (small N, TTL caches, single Retry-After backoff on 429); every
+  candidates (small N, TTL caches + single-flight, capped exponential backoff
+  honoring Retry-After on 429). M1: chains whose whale data GT genuinely
+  rate-limited ship as ONE structured rate_limited list (+ retry_after_s +
+  pools_walked) so the surface renders a single aggregate banner; every other
   miss is a sentence in data_sources [providers/whale_windows.py].
 - GET /api/v1/fees/estimate?chain=&amountUsd= — PROMPT-V3 R4: the PLANNED
   VILMEI fee (0.50% = ops 0.30 + buyback 0.10 + rewards 0.10) for one

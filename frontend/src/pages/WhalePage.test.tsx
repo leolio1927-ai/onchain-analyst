@@ -8,7 +8,14 @@
    4. AUTO renders FOUND-ON candidates + trending top-N chips;
    5. the CSV export is REAL — the blob contains the merged whale rows;
    6. the mandatory copy rides the page: a whale is a heuristic on the trade
-      tape, never an on-chain label. */
+      tape, never an on-chain label.
+   PROMPT-V4 M1 laws:
+   7. genuine GT 429s aggregate into ONE banner (countdown + WHICH? collapse
+      + dismiss) — never stacked yellow rows;
+   8. a quiet whale window never leaves an empty floor: TOP TAPE under the
+      threshold (ranked by size), the muted all-trade histogram behind the
+      whale line, a "walked N trades · M pools" chip, and the deterministic
+      AWAITING WHALES seeding field. */
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { WhalePageMulti } from './RugWhaleMulti'
@@ -30,11 +37,16 @@ const SOL_LIVE = {
     { wallet: 'WhaleWallet2222222222222222222222222222', kind: 'sell', ts: iso(7200e3), usd: 80000, tx: 'SIGSELL1' },
   ],
   top_wallets: [{ wallet: 'WhaleWallet2222222222222222222222222222', net_usd: -80000, buys: 0, sells: 1, trades: 1 }],
+  top_below_threshold: [
+    { wallet: 'DustWallet3333333333333333333333333333', kind: 'buy', ts: iso(900e3), usd: 45000, tx: 'SIGDUST1' },
+  ],
+  volume_hist: { bucket_s: 3600, buckets: new Array(24).fill(12000), whale_buckets: new Array(24).fill(0) },
+  pools_walked: 1,
   tape_trades_seen: 500, tape_pages: 2, tape_oldest_ts: iso(80000e3),
   data_mode: 'live', sources: ['geckoterminal'], ts: iso(0),
   data_sources: ['whale tape: geckoterminal /networks/solana/pools/POOL1/trades (500 trades over 2 page(s), 24h max depth)', `threshold: ${SOL_NOTE}`],
 }
-const QUIET_SOL = { ...SOL_LIVE, tape: [], top_wallets: [], windows: { '1h': win(3, 0, 0, 0), '6h': win(9, 0, 0, 0), '24h': win(21, 0, 0, 0) } }
+const QUIET_SOL = { ...SOL_LIVE, tape: [], top_wallets: [], tape_trades_seen: 21, windows: { '1h': win(3, 0, 0, 0), '6h': win(9, 0, 0, 0), '24h': win(21, 0, 0, 0) } }
 const NO_POOL_BNB = {
   chain: 'bnb', token: BONK, data_mode: 'unwired', sources: [], ts: iso(0),
   data_sources: ['whale_windows:no_pool — GT lists no pool for this contract on bnb (fact, not an error)'],
@@ -46,7 +58,8 @@ const AUTO = {
     { chain: 'bnb', network: 'bsc', pool: 'PB1', name: 'BONK / BNB', liquidity_usd: 400, volume_24h: null, price_usd: null },
   ],
   trending: [{ chain: 'bnb', network: 'bsc', pool: 'TP1', name: 'HOT / BNB', liquidity_usd: 777, volume_24h: null, price_usd: null }],
-  data_mode: 'live', sources: ['geckoterminal'], ts: iso(0), data_sources: [],
+  data_mode: 'live', sources: ['geckoterminal'], ts: iso(0), data_sources: [] as string[],
+  rate_limited: [] as string[], retry_after_s: 60, pools_walked: 2,
 }
 
 const ok = (data: unknown) => ({ ok: true, status: 200, json: async () => data })
@@ -167,5 +180,82 @@ describe('R2 whale tracker on the GT tape', () => {
     expect(text).toContain('sol,POOL1,WhaleWallet1111111111111111111111111111,buy,60000,')
     expect(text).toContain('sell,80000,')
     expect(revokeObjectURL).toHaveBeenCalled()
+  })
+})
+
+describe('M1 — 429 governance + a page that never stares at an empty floor', () => {
+  it('genuine 429s aggregate into ONE banner — countdown, WHICH? collapse, dismiss', async () => {
+    autoPayload = {
+      ...AUTO,
+      results: [SOL_LIVE],
+      rate_limited: ['bnb', 'hype'],
+      retry_after_s: 60,
+      data_sources: [
+        'whale_windows:rate_limited (tape, HTTP Error 429: Too Many Requests)',
+        'whale_windows:rate_limited (pool lookup, HTTP Error 429: Too Many Requests)',
+      ],
+    }
+    const { container, getByTestId, queryByTestId } = await scan()
+    const banner = await waitFor(() => getByTestId('whale-rl-banner'))
+    expect(banner.textContent).toContain('2 chains skipped (rate-limited by GeckoTerminal)')
+    expect(banner.textContent).toContain('retry in 60s')
+    // ONE banner — the rate-limit sentences never stack as separate yellow rows
+    expect(container.querySelectorAll('.v2-note.rl').length).toBe(1)
+    expect(container.querySelectorAll('.v2-note').length).toBe(1)
+    // the collapse reveals the chains + the verbatim sentences
+    fireEvent.click(getByTestId('whale-rl-which'))
+    const detail = getByTestId('whale-rl-detail')
+    expect(detail.textContent).toContain('BNB')
+    expect(detail.textContent).toContain('HYPE')
+    expect(detail.textContent).toContain('rate_limited')
+    // dismiss clears the banner entirely
+    fireEvent.click(getByTestId('whale-rl-dismiss'))
+    expect(queryByTestId('whale-rl-banner')).toBeNull()
+  })
+
+  it('a search-level 429 reads as AUTO SEARCH in the collapse', async () => {
+    autoPayload = {
+      ...AUTO, results: [], candidates: [], trending: [], rate_limited: ['search'],
+      data_sources: ['whale_auto:search rate-limited by GT (429) — the whole AUTO scan pauses, retry after the free-tier window (~60s)'],
+    }
+    const { getByTestId } = await scan()
+    await waitFor(() => getByTestId('whale-rl-banner'))
+    fireEvent.click(getByTestId('whale-rl-which'))
+    expect(getByTestId('whale-rl-detail').textContent).toContain('AUTO SEARCH')
+  })
+
+  it('quiet whale window — AWAITING WHALES field + TOP TAPE + histogram + walked chip', async () => {
+    windowsByChain = { sol: QUIET_SOL }
+    const { container, getByTestId } = await scan('SOL')
+    await waitFor(() => expect(getByTestId('whale-awaiting')).toBeTruthy())
+    expect(getByTestId('whale-awaiting-mark').textContent).toBe('AWAITING WHALES')
+    // deterministic seeding field — 24 bars, seeded from the CA (not random)
+    expect(container.querySelectorAll('.whale-field-bars i').length).toBe(24)
+    // TOP TAPE under threshold — ranked by size, labelled heuristic chip
+    const top = getByTestId('whale-top-tape')
+    expect(top.textContent).toContain('TOP TAPE — UNDER THRESHOLD')
+    expect(top.textContent).toContain('below whale threshold — ranked by size')
+    expect(top.textContent).toContain('$45K')
+    // the muted all-trade histogram rides behind the whale line (24h default)
+    expect(getByTestId('whale-spark-hist').querySelectorAll('rect').length).toBe(24)
+    // the walked chip states the walk depth verbatim
+    expect(getByTestId('whale-walked').textContent).toContain('walked 21 trades · 1 pool')
+    // nothing about the state is red
+    expect(container.querySelectorAll('.v2-note.err').length).toBe(0)
+  })
+
+  it('determinism law — same CA renders the same seeding field twice', async () => {
+    windowsByChain = { sol: QUIET_SOL }
+    const first = await scan('SOL')
+    await waitFor(() => expect(first.getByTestId('whale-awaiting')).toBeTruthy())
+    const heightsA = Array.from(first.container.querySelectorAll('.whale-field-bars i'))
+      .map((el) => el.getAttribute('style'))
+    cleanup()
+    windowsByChain = { sol: QUIET_SOL }
+    const second = await scan('SOL')
+    await waitFor(() => expect(second.getByTestId('whale-awaiting')).toBeTruthy())
+    const heightsB = Array.from(second.container.querySelectorAll('.whale-field-bars i'))
+      .map((el) => el.getAttribute('style'))
+    expect(heightsB).toEqual(heightsA)
   })
 })

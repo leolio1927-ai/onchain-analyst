@@ -748,11 +748,23 @@ class WhaleTopWallet(BaseModel):
     trades: int = 0
 
 
+class WhaleVolumeHist(BaseModel):
+    """M1 (PROMPT-V4): hourly volume histogram over the 24h walk — ALL trades
+    (buckets) with the whale share (whale_buckets), both in USD. Rendered
+    muted behind the whale netflow line so a quiet whale window still shows
+    the living tape."""
+
+    bucket_s: float = 3600.0
+    buckets: list[float] = Field(default_factory=list)
+    whale_buckets: list[float] = Field(default_factory=list)
+
+
 class WhaleWindowsResponse(Envelope):
     """One chain's whale windows for one contract. A whale is a LABELLED
     HEURISTIC (one tape trade ≥ chain threshold), never an on-chain label.
     data_mode='unwired' + the note in data_sources when GT has no pool for
-    the contract on that chain — a fact, not an error."""
+    the contract on that chain — a fact, not an error. M1: top_below_threshold
+    + volume_hist keep the page alive when no trade crosses the line."""
 
     data_mode: DataMode = "unwired"
 
@@ -766,6 +778,9 @@ class WhaleWindowsResponse(Envelope):
     windows: dict[str, WhaleWindowRow] = Field(default_factory=dict)
     tape: list[WhaleTapeRow] = Field(default_factory=list)
     top_wallets: list[WhaleTopWallet] = Field(default_factory=list)
+    top_below_threshold: list[WhaleTapeRow] = Field(default_factory=list)
+    volume_hist: WhaleVolumeHist | None = None
+    pools_walked: int = 0
     tape_trades_seen: int = 0
     tape_pages: int = 0
     tape_oldest_ts: str | None = None
@@ -787,7 +802,9 @@ class WhaleCandidate(BaseModel):
 class WhaleAutoResponse(Envelope):
     """AUTO mode: the CA resolved across networks, whale windows per chain
     that lists it, plus a small trending top-N as candidates. Every failure
-    is a sentence in data_sources — never a red wall."""
+    is a sentence in data_sources — never a red wall. M1: chains GT truly
+    rate-limited (genuine 429s) ship as ONE structured list — the surface
+    renders a single aggregate banner, never stacked yellow rows."""
 
     data_mode: DataMode = "live"
 
@@ -796,6 +813,9 @@ class WhaleAutoResponse(Envelope):
     candidates: list[WhaleCandidate] = Field(default_factory=list)
     trending: list[WhaleCandidate] = Field(default_factory=list)
     data_sources: list[str] = Field(default_factory=list)
+    pools_walked: int = 0
+    rate_limited: list[str] = Field(default_factory=list)
+    retry_after_s: int = 60
 
 
 # ── PROMPT-V3 R4: fee frontier — the planned fee as inspectable data ────
