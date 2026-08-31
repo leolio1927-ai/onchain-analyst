@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CHAINS, MEMEATCHI, buildClusters } from '../mock/data'
-import { ClusterGraph, Spark } from '../components/charts'
+import { ClusterGraph } from '../components/charts'
 import { RugCheckPageMulti, WhalePageMulti } from './RugWhaleMulti'
 import { dataService } from '../services/dataService'
-import { Badge, Card, EmptyState, Tabs } from '../components/ui'
+import { Badge, Card, EmptyState, Skeleton, Tabs } from '../components/ui'
+import { MiniBadge, SevSpark } from '../components/RiskDisplay'
 import { ApiError, api, CHAINS as API_CHAINS, CHAIN_LABEL } from '../api'
 import type { Chain, ScanResult } from '../api'
 
@@ -15,7 +16,9 @@ function fmtU(n: number): string {
   return `$${n.toFixed(2)}`
 }
 
-/* one scanned row = real engine verdict from POST /api/scan (B2) */
+/* one scanned row = real engine verdict from POST /api/scan (B2). R3: the
+   row also carries the engine's signal severities — the 8-bin sev sparkline
+   renders THIS profile, never a synthesized one. */
 function scannedRow(res: ScanResult, chain: string): any {
   const p = res.pair
   const short = (a: string | null) => (a && a.length > 12 ? a.slice(0, 5) + '…' + a.slice(-4) : a) || '?'
@@ -26,9 +29,17 @@ function scannedRow(res: ScanResult, chain: string): any {
     price: Number(p.priceUsd ?? 0), chg: p.priceChange?.h24 ?? 0,
     liq: p.liquidity?.usd ?? 0, vol: p.volume?.h24 ?? 0,
     risk: res.assessment.score, spark: null, scanned: true,
+    sevs: (res.assessment.signals ?? [])
+      .map((s) => s.severity).filter((s): s is number => s != null),
   }
 }
-const chainColor = (id: string) => CHAINS.find((c) => c.id === id)?.color ?? '#8a91b4'
+/* R3 (PB-2): the scanner's empty state is styled content — three REAL
+   contracts (probed live 2026-08-31) a founder can click to load the input */
+const SC_EXAMPLES = [
+  { label: 'Greyson · pump (SOL)', ca: 'AfGdjAp9djSaqJxzYo3t6jy8tJA3o2aDPHoZ57Egpump', chain: 'sol' },
+  { label: 'CAKE · PancakeSwap (BNB)', ca: '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82', chain: 'bnb' },
+  { label: 'AERO · Aerodrome (BASE)', ca: '0x940181a94A35A4569E4529A3CDfB74e38FD98631', chain: 'base' },
+]
 
 /* shared page header */
 function Head({ title, sub, right }: { title: string; sub: string; right?: React.ReactNode }) {
@@ -46,6 +57,7 @@ export function ScannerPage() {
   const [chain, setChain] = useState('all')
   const [risk, setRisk] = useState('all')
   const [live, setLive] = useState<any[]>([])
+  const [liveState, setLiveState] = useState<'loading' | 'live' | 'empty'>('loading')
   const [scanned, setScanned] = useState<any[]>([])
   const [scanChain, setScanChain] = useState<Chain>('sol')
   const [scanAddr, setScanAddr] = useState('')
@@ -68,7 +80,11 @@ export function ScannerPage() {
   }
   useEffect(() => {
     let on = true
-    const pull = () => dataService.getScannerRows().then((r) => { if (on) setLive(r as any[]) })
+    const pull = () => dataService.getScannerRows().then((r) => {
+      if (!on) return
+      setLive(r as any[])
+      setLiveState(r.length ? 'live' : 'empty')
+    })
     pull()
     const t = setInterval(pull, 60_000) // provider caches 60s too
     return () => { on = false; clearInterval(t) }
@@ -134,26 +150,58 @@ export function ScannerPage() {
         <span className="chain-chip soon">HYPE (SOON)</span>
         <Tabs active={risk} onPick={setRisk} tabs={[{ id: 'all', label: 'All risk' }, { id: 'safe', label: '≤ 49' }, { id: 'risky', label: '≥ 50' }]} />
       </div>
-      <Card>
-        {rows.length === 0 ? <EmptyState title="Nothing matches those filters" hint="Loosen the chain or risk filter" /> : (
+      <Card className="pb-acc">
+        {rows.length === 0 && liveState === 'loading' ? (
+          /* PB-4 — table-shaped skeleton shimmer while the feed is in flight */
+          <div data-testid="sc-loading" style={{ display: 'grid', gap: 10 }}>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <Skeleton h={30} w={110} /><Skeleton h={30} w={80} /><Skeleton h={30} w={80} />
+            </div>
+            {[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} h={40} />)}
+          </div>
+        ) : rows.length === 0 ? (
+          /* PB-2 — empty state = styled content, never a gaping blank */
+          <div data-testid="sc-empty" style={{ display: 'grid', gap: 10 }}>
+            <EmptyState
+              title={liveState === 'empty' ? 'The live trending feed has no rows right now' : 'Nothing matches those filters'}
+              hint={liveState === 'empty' ? 'Scan any contract directly — the engine runs for real' : 'Loosen the chain or risk filter'} />
+            <b className="mono" style={{ fontSize: 10, letterSpacing: '.1em' }}>TRY A REAL ONE</b>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 8 }}>
+              {SC_EXAMPLES.map((ex) => (
+                <button key={ex.ca} type="button" className="v2-cand"
+                  onClick={() => { setScanAddr(ex.ca); setScanChain(ex.chain as Chain) }}>
+                  <b>{ex.label}</b>
+                  <span className="mono dim">{ex.ca.slice(0, 6)}…{ex.ca.slice(-4)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
           <div className="ta-table-wrap">
             <table className="ta-table">
               <thead><tr>
                 <th>Token</th><th>Chain</th><th>Pair</th><th className="r">Price</th><th className="r">24h</th>
-                <th className="r">Liquidity</th><th className="r">Vol 24h</th><th>Trend</th><th className="r">Risk</th>
+                <th className="r">Liquidity</th><th className="r">Vol 24h</th><th title="8-bin severity profile from the engine's signals (RiskDisplay ramp)">SEV</th><th className="r">Risk</th>
               </tr></thead>
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.id ?? r.chain+":"+r.symbol+":"+r.pair}>
                     <td><b>{r.symbol}</b>{r.scanned ? <span title="verified by /api/scan engine" style={{ color: '#34d399', marginLeft: 6, fontSize: 10 }}>⛨</span> : null}{r.mock ? <span title="placeholder data — not a live scan" style={{ color: '#fbbf24', marginLeft: 6, fontSize: 10, border: '1px dashed #fbbf24', borderRadius: 4, padding: '0 4px' }}>MOCK</span> : null}</td>
-                    <td><span className="ta-tip"><span className="dot-inline" style={{ background: chainColor(r.chain), width: 8, height: 8, borderRadius: 99, display: 'inline-block' }} /> {CHAIN_LABEL[r.chain as keyof typeof CHAIN_LABEL] ?? r.chain}<span className="ta-tip-pop">{CHAIN_LABEL[r.chain as keyof typeof CHAIN_LABEL] ?? r.chain}</span></span></td>
+                    <td><span className="sc-chain" data-chain={r.chain}
+                      title={CHAIN_LABEL[r.chain as keyof typeof CHAIN_LABEL] ?? r.chain}>
+                      {(CHAIN_LABEL[r.chain as keyof typeof CHAIN_LABEL] ?? r.chain).toUpperCase()}</span></td>
                     <td className="mono dim">{r.pair}</td>
                     <td className="r mono">{r.price < 1e-8 ? '<1e-8' : '$' + r.price.toFixed(8)}</td>
                     <td className={`r mono ${r.chg >= 0 ? 'up' : 'down'}`}>{r.chg >= 0 ? '+' : ''}{r.chg.toFixed(2)}%</td>
                     <td className="r mono">{fmtU(r.liq)}</td>
                     <td className="r mono">{fmtU(r.vol)}</td>
-                    <td>{r.spark == null ? <span className="dim mono">n/a</span> : <Spark seed={r.spark} up={r.chg >= 0} />}</td>
-                    <td className="r">{r.risk == null ? <span className="dim mono">n/a</span> : <span className={`ta-badge ${r.risk >= 75 ? 'b-red' : r.risk >= 50 ? 'b-amber' : 'b-green'}`}>{r.risk}</span>}</td>
+                    <td><SevSpark sevs={r.sevs ?? null} /></td>
+                    <td className="r">{r.risk == null ? <span className="dim mono">n/a</span> : (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                        <MiniBadge level={r.risk >= 75 ? 'high' : r.risk >= 50 ? 'medium' : 'low'} />
+                        <span className={`ta-badge ${r.risk >= 75 ? 'b-red' : r.risk >= 50 ? 'b-amber' : 'b-green'}`}>{r.risk}</span>
+                      </span>
+                    )}</td>
                   </tr>
                 ))}
               </tbody>

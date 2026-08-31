@@ -17,6 +17,9 @@ import { fetchSwapQuote, ageOf } from '../services/dexscreener'
 import type { SwapQuote } from '../services/dexscreener'
 import { RiskBadge, RiskDisplay } from '../components/RiskDisplay'
 import type { RiskVerdict } from '../components/RiskDisplay'
+import { Skeleton } from '../components/ui'
+import { accentStyle } from './liveParts'
+import type { LiveChain } from '../lib/liveApi'
 import { api } from '../api'
 import type { WhaleAutoResult, WhaleWindowsResult } from '../api'
 import { shorten } from '../lib/liveFormat'
@@ -265,11 +268,26 @@ export function RugCheckPageMulti() {
         </div>
       )}
 
+      {/* R3 PB-4 — skeleton shimmer per block while the provider fetch runs
+         (resolved lands synchronously for direct chains, so the shimmer keys
+         on the payload; hype has no provider call and is excluded) */}
+      {busy && !sol && !evm && resolved?.chain !== 'hype' && (
+        <div className="v2-card" data-testid="rug-loading" style={{ display: 'grid', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <Skeleton h={26} w={140} /><Skeleton h={26} w={120} /><Skeleton h={26} w={120} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 8 }}>
+            {[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} h={54} />)}
+          </div>
+          <Skeleton h={180} />
+        </div>
+      )}
+
       {/* R1 three-layer result — NEVER red. Layer 1 chain · Layer 2 provider
           chips (OK/PARTIAL/NO COVERAGE) · Layer 3 universal market signals
           (always shown). Empty ≠ red: a provider with no row is PARTIAL. */}
       {resolved && (
-        <div className="v2-card" data-testid="rug-result">
+        <div className="v2-card pb-acc" data-testid="rug-result" style={accentStyle(resolved.chain as LiveChain)}>
           <div className="v2-cardhead">
             <b>CHAIN · {LABEL_OF[resolved.chain].toUpperCase()}</b>
             <span className="v2-candrow" data-testid="rug-provider-chips">
@@ -500,6 +518,18 @@ export function WhalePageMulti() {
       {err && <div className="v2-note err" role="alert">{err}</div>}
       {auto?.data_sources.map((s) => <div key={s} className="v2-note" role="status">{s}</div>)}
 
+      {/* R3 PB-4 — skeleton shimmer while the tape walk is in flight */}
+      {busy && per.length === 0 && (
+        <div className="v2-card" data-testid="whale-loading" style={{ display: 'grid', gap: 10 }}>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <Skeleton h={26} w={160} /><Skeleton h={26} w={64} /><Skeleton h={26} w={64} /><Skeleton h={26} w={64} />
+          </div>
+          <Skeleton h={96} />
+          <Skeleton h={74} />
+          <Skeleton h={140} />
+        </div>
+      )}
+
       {per.length > 0 && (
         <>
           {/* threshold provenance — the server's sentence per chain */}
@@ -524,7 +554,7 @@ export function WhalePageMulti() {
             </div>
           ))}
 
-          <div className="v2-card">
+          <div className="v2-card pb-acc" style={per[0] ? accentStyle(per[0].chain as LiveChain) : undefined}>
             <div className="v2-cardhead">
               <b>NET-WHALE-FLOW — {chip === 'AUTO' ? 'ALL CHAINS' : chip} · {tf}</b>
               <div className="v2-tfs" role="tablist" aria-label="window">

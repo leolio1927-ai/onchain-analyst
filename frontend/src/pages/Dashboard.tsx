@@ -347,7 +347,26 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {!token && !loading && !err && <EmptyState title="No token loaded" hint="Paste an address above and hit ANALYZE" />}
+        {/* R3 PB-2: empty state = styled content — real CAs a founder can click */}
+        {!token && !loading && !err && (
+          <div className="ta-card" data-testid="dash-empty" style={{ display: 'grid', gap: 10 }}>
+            <EmptyState title="No token loaded" hint="Paste an address above and hit ANALYZE — or start from a real one" />
+            <b className="mono" style={{ fontSize: 10, letterSpacing: '.1em' }}>TRY A REAL ONE</b>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 8 }}>
+              {[
+                { label: 'Greyson · pump (SOL)', ca: 'AfGdjAp9djSaqJxzYo3t6jy8tJA3o2aDPHoZ57Egpump', chainSel: 'ALL CHAINS' },
+                { label: 'CAKE · PancakeSwap (BNB)', ca: '0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82', chainSel: 'BNB' },
+                { label: 'AERO · Aerodrome (BASE)', ca: '0x940181a94A35A4569E4529A3CDfB74e38FD98631', chainSel: 'BASE' },
+              ].map((ex) => (
+                <button key={ex.ca} type="button" className="v2-cand"
+                  onClick={() => { setQuery(ex.ca); setChainSel(ex.chainSel) }}>
+                  <b>{ex.label}</b>
+                  <span className="mono dim">{ex.ca.slice(0, 6)}…{ex.ca.slice(-4)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -220,3 +220,34 @@ export function RiskDisplay({ verdict, seed = 'vilmei' }: { verdict: RiskVerdict
 export function RiskBadge({ level, label }: { level: SevLevel; label: string }) {
   return <span className="rd-badge" data-level={level}>{label}</span>
 }
+
+/* R3 (PREMIUM-BAR PB-9): scanner-row sev profile. Bars ARE .rd-bin elements,
+   so the 8-bin ramp colors come from the SAME data-bin selectors as the tape
+   (one source, parity by construction). Rows the engine never ran render
+   dashed outline bins — never a fabricated profile. */
+export function SevSpark({ sevs }: { sevs: number[] | null }) {
+  const counts = new Array<number>(8).fill(0)
+  for (const s of sevs ?? []) counts[sevBin(Math.min(1, Math.max(0, s)))] += 1
+  const max = Math.max(...counts, 1)
+  const empty = !sevs || sevs.length === 0
+  return (
+    <span className={`rd-spark${empty ? ' none' : ''}`} role="img"
+      aria-label={empty ? 'no engine run yet' : `severity profile — ${sevs.length} signals`}
+      title={empty ? 'no engine run yet — scan this token to fill the profile'
+        : `${sevs.length} engine signals across the 8-bin ramp`}>
+      {counts.map((c, bin) => (
+        <i key={bin} className={c > 0 ? 'rd-bin' : 'rd-bin gap'} data-bin={bin}
+          style={c > 0 ? { height: `${30 + (c / max) * 70}%` } : undefined} />
+      ))}
+    </span>
+  )
+}
+
+/* R3 (PREMIUM-BAR PB-3/PB-9): 3D mini-badge — a CSS coin (perspective +
+   rotateX, static transform; one WebGL context per table row would blow the
+   budget, the medallion keeps three for the result hero). Same --sev tokens,
+   one selector per level (parity-tested). */
+export function MiniBadge({ level }: { level: SevLevel }) {
+  const GLYPH: Record<SevLevel, string> = { low: 'L', medium: 'M', high: 'H', nodata: '·' }
+  return <span className="rd-coin" data-level={level} title={`risk level: ${level}`}>{GLYPH[level]}</span>
+}
