@@ -32,7 +32,7 @@ const NAV: { id: string; icon: string; label: string; pill?: 'NEW' | 'LIVE' | nu
   { id: 'ai', icon: '✦', label: 'AI Analyst', soon: true },
   { id: 'portfolio', icon: '▤', label: 'Portfolio Watch', pill: 'LIVE' },
   { id: 'alerts', icon: '◆', label: 'Alerts', soon: true },
-  { id: 'holdings', icon: '▣', label: 'Holdings Check', soon: true },
+  { id: 'holdings', icon: '▣', label: 'Holdings Check', pill: 'LIVE' },
   { id: 'gate', icon: '⚿', label: 'Token Gate', soon: true },
   { id: 'settings', icon: '⚙', label: 'Settings', soon: true },
   { id: 'docs', icon: '❐', label: 'Documentation', soon: true },

@@ -22,7 +22,9 @@ import urllib.request
 _BASES = {"base": "https://base.blockscout.com/api/v2"}
 # bnb: no public blockscout instance known (probe 2026-08-30) — bnb deploys
 # come from GoPlus (see providers/goplus.py).
-_TIMEOUT_S = 15.0
+# probe 2026-08-31: hot spells are real — four 500s, then a 200 after 30.5s;
+# a shorter timeout would kill slow-but-successful calls.
+_TIMEOUT_S = 30.0
 
 _CACHE_TTL_S = 120.0
 _CACHE_MAX = 64
@@ -107,6 +109,58 @@ def get_creation(chain: str, token: str) -> tuple[dict | None, str | None]:
         if not creator or not tx:
             raise _BlockscoutError("no_creation_row")
         return {"deployer": creator, "tx": tx}
+
+    try:
+        return _single_flight(key, fetch), None
+    except _BlockscoutError as e:
+        return None, f"blockscout:{e}"
+
+
+def get_balances(chain: str, address: str) -> tuple[dict | None, str | None]:
+    """PROMPT-V4 M5 — keyless holdings for an address on base: native coin
+    balance (wei decimal string → float) + ≤20 ERC-20 holdings with symbol
+    and decimal-adjusted amount, all verbatim (probed 2026-08-31, raw in
+    logs/m5-probe-blockscout.txt — transient 500s are real, one retry lives
+    in _get). Token enumeration is BEST-EFFORT: if the tokens page 500s or
+    times out, the native balance still ships with a tokens_note sentence —
+    never the native fact punished for the tokens page's flakiness."""
+    key = ("get_balances", chain, address)
+    if chain not in _BASES:
+        return None, "blockscout:chain_unsupported"
+    cached = _cache_get(key)
+    if cached is not None:
+        return cached, None
+
+    def fetch():
+        info = _get(f"/addresses/{address}")
+        native = None
+        raw = info.get("coin_balance")
+        if raw is not None:
+            try:
+                native = int(raw) / 1e18
+            except (TypeError, ValueError):
+                native = None
+        tokens: list[dict] = []
+        tokens_note = None
+        try:
+            page = _get(f"/addresses/{address}/tokens?type=ERC-20")
+        except _BlockscoutError as e:
+            page, tokens_note = None, (
+                f"blockscout:tokens_unavailable — the ERC-20 page failed "
+                f"({e}); native balance ships alone, nothing is guessed")
+        if page is not None:
+            for item in (page.get("items") or [])[:20]:
+                tok = item.get("token") or {}
+                tok_addr, value = tok.get("address_hash"), item.get("value")
+                if not tok_addr or value is None:
+                    continue
+                try:
+                    amount = int(value) / (10 ** int(tok.get("decimals") or 18))
+                except (TypeError, ValueError):
+                    continue                      # unparseable amount: skip, never guess
+                tokens.append({"token": tok_addr, "symbol": tok.get("symbol"),
+                               "amount": amount})
+        return {"native": native, "tokens": tokens, "tokens_note": tokens_note}
 
     try:
         return _single_flight(key, fetch), None

@@ -143,3 +143,53 @@ def get_creation(chain: str, token: str) -> tuple[dict | None, str | None]:
         return _single_flight(key, fetch), None
     except _AlchemyError as e:
         return None, f"alchemy:{e}"
+
+
+def get_balances(chain: str, address: str) -> tuple[dict | None, str | None]:
+    """PROMPT-V4 M5 — holdings for an EVM address: native balance
+    (eth_getBalance) + top-10 ERC-20 balances (alchemy_getTokenBalances
+    "erc20", free-tier coverage probed on base+bnb 2026-08-31). Decimals are
+    resolved per token with one eth_call(decimals()); a token whose decimals
+    cannot be read keeps its row with amount None — never guessed, never
+    dropped silently. Symbols are not fetched: this tier answers balances,
+    and each extra call spends the founder's free CU."""
+    key = ("get_balances", chain, address)
+    if chain not in _BASES:
+        return None, "alchemy:chain_unsupported"
+    if not _key():
+        return None, "alchemy:not_configured"
+    cached = _cache_get(key)
+    if cached is not None:
+        return cached, None
+
+    def fetch():
+        hexwei = _rpc(chain, "eth_getBalance", [address, "latest"])
+        try:
+            native = int(hexwei, 16) / 1e18
+        except (TypeError, ValueError):
+            raise _AlchemyError("unparsed_response") from None
+        tb = _rpc(chain, "alchemy_getTokenBalances", [address, "erc20"])
+        tokens: list[dict] = []
+        for t in (tb.get("tokenBalances") or [])[:10]:
+            contract, bal = t.get("contractAddress"), t.get("tokenBalance")
+            if not contract or bal in (None, "0x"):
+                continue
+            try:
+                raw = int(bal, 16)
+            except (TypeError, ValueError):
+                continue
+            decimals = None
+            try:
+                out = _rpc(chain, "eth_call", [{
+                    "to": contract, "data": "0x313ce567"}, "latest"])
+                decimals = int(out, 16)
+            except (_AlchemyError, TypeError, ValueError):
+                decimals = None                 # exotic token — amount stays absent
+            amount = raw / (10 ** decimals) if isinstance(decimals, int) and decimals >= 0 else None
+            tokens.append({"token": contract, "symbol": None, "amount": amount})
+        return {"native": native, "tokens": tokens}
+
+    try:
+        return _single_flight(key, fetch), None
+    except _AlchemyError as e:
+        return None, f"alchemy:{e}"

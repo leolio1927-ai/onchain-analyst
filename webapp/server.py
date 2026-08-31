@@ -46,6 +46,7 @@ from providers import (
     geckoterminal,
     goplus,
     helius,
+    holdings,
     live,
     market,
     portfolio,
@@ -64,6 +65,8 @@ _ADDRESS_RES = {
     "sol": re.compile(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$"),
     "bnb": re.compile(r"^0x[a-fA-F0-9]{40}$"),
     "base": re.compile(r"^0x[a-fA-F0-9]{40}$"),
+    "hype": re.compile(r"^0x[a-fA-F0-9]{40}$"),
+    "hood": re.compile(r"^0x[a-fA-F0-9]{40}$"),
     # "avax" parked 2026-08-30 (founder: 5-chain lineup)
 }
 
@@ -129,6 +132,7 @@ _DESCRIPTION = """Read-only multichain memecoin research terminal — reduce noi
 - **GET /api/v1/fees/estimate** — the PLANNED VILMEI fee (0.50% split 0.30/0.10/0.10) as inspectable data; nothing is charged, VILMEI is read-only
 - **GET /api/v1/fees/destinations** — the claim-based vault map: per chain, the three fee slices with their PUBLIC founder-claimed address (or a declared-null awaiting-founder sentence); no key enters the repo
 - **GET /api/v1/portfolio/snapshot** — market facts for up to 15 watchlist tokens (deepest GT pool per token, verbatim; positions stay client-side)
+- **GET /api/v1/holdings/{chain}/{address}** — read-only balances for a PUBLIC address (sol Helius · bnb Alchemy · base Alchemy-or-keyless-Blockscout · hype/hood honest PARTIAL); no keys asked, no custody, ever
 - **WS /ws/snap** — full honest snapshot ticker · **WS /ws/tape** — live trade-tape deltas for the active pool
 
 Every value is copied verbatim from the upstream APIs; absent fields stay absent —
@@ -941,6 +945,29 @@ async def api_portfolio_snapshot(items: str = "") -> dict:
         raise HTTPException(400, f"watchlist cap is {portfolio.MAX_ITEMS} items — "
                                  f"got {len(pairs)}")
     return portfolio.snapshot(pairs)
+
+
+# ── PROMPT-V4 M5: holdings check — read-only balances for public addresses ──
+# Public address in, balances out. No signing path exists (v1 law); hype/hood
+# answer with an honest PARTIAL sentence until a free source is verified.
+
+@app.get("/api/v1/holdings/{chain}/{address}",
+         response_model=schemas.HoldingsResponse, tags=["market"])
+async def api_holdings(chain: str, address: str) -> dict:
+    """Read-only balances for a PUBLIC wallet address. sol rides Helius
+    (HELIUS_API_KEY), bnb rides Alchemy (ALCHEMY_API_KEY), base rides Alchemy
+    when keyed else the keyless Blockscout fallback; hype/hood ship an honest
+    PARTIAL sentence (no verified free-tier source). A missing key is a
+    no_key sentence — the address is never sent anywhere in that case."""
+    chain = chain.strip().lower()
+    if chain not in fee_models.CHAINS:
+        raise HTTPException(404, f"unknown chain '{chain}' — "
+                                 f"pick {'|'.join(fee_models.CHAINS)}")
+    addr = address.strip()
+    if not _ADDRESS_RES[chain].fullmatch(addr):
+        raise HTTPException(400, f"not a valid {chain} address — "
+                                 f"check the format and retry")
+    return holdings.check(chain, addr)
 
 
 # ── PROMPT-V2B P6: machine surfaces (read-only) ─────────────────────────

@@ -1,5 +1,7 @@
-"""Helius adapter: key required, key travels in a header (never the URL),
-defensive parse skips malformed token rows."""
+"""Helius adapter: key required; balances ride standard RPC (getBalance +
+getTokenAccountsByOwner jsonParsed — probe 2026-08-31, the old REST
+/v0/addresses/{a}/balances endpoint 404s now). Defensive parse: a token row
+whose uiAmount cannot be read is skipped — never zeroed, never guessed."""
 import io
 import json
 import urllib.request
@@ -17,11 +19,11 @@ class _StubResp(io.BytesIO):
         return False
 
 
-def _urlopen_stub(payload: dict, capture: dict):
+def _urlopen_stub(payloads: list[dict], capture: dict):
     def _fake(req, timeout=10):
-        capture["url"] = req.full_url
-        capture["headers"] = {k.lower(): v for k, v in req.header_items()}
-        return _StubResp(json.dumps(payload).encode())
+        capture.setdefault("bodies", []).append(json.loads(req.data.decode()))
+        capture.setdefault("urls", []).append(req.full_url)
+        return _StubResp(json.dumps(payloads[len(capture["bodies"]) - 1]).encode())
     return _fake
 
 
@@ -31,22 +33,25 @@ def test_no_key_raises_nokeyerror(monkeypatch):
         helius.fetch_balances("WALLET")
 
 
-def test_parse_and_key_placement(monkeypatch):
+def test_rpc_parse_skips_unreadable_rows(monkeypatch):
     capture: dict = {}
-    payload = {
-        "native_balance": {"lamports": 2_000_000_000},
-        "tokens": [
-            {"mint": "M1", "amount": "150", "decimals": 2},   # 1.5
-            {"mint": "BAD", "amount": "x", "decimals": 0},    # malformed → skip
-            {"mint": "ZERO", "amount": None, "decimals": None},  # missing → kept as 0 ("show as-is" contract)
-        ],
-    }
+    native = {"jsonrpc": "2.0", "id": "ta",
+              "result": {"context": {}, "value": 2_000_000_000}}
+    accounts = {"jsonrpc": "2.0", "id": "ta", "result": {"context": {}, "value": [
+        {"pubkey": "P1", "account": {"data": {"program": "spl-token", "parsed": {
+            "info": {"mint": "M1", "owner": "WALLET",
+                     "tokenAmount": {"amount": "150", "decimals": 2,
+                                     "uiAmount": 1.5}}}}}},
+        {"pubkey": "P2", "account": {"data": {"program": "spl-token", "parsed": {
+            "info": {"mint": "BAD", "tokenAmount": {"uiAmount": None}}}}}},
+    ]}}
     monkeypatch.setenv("HELIUS_API_KEY", "sk-test-123")
-    monkeypatch.setattr(urllib.request, "urlopen", _urlopen_stub(payload, capture))
+    monkeypatch.setattr(urllib.request, "urlopen",
+                        _urlopen_stub([native, accounts], capture))
     out = helius.fetch_balances("WALLET")
 
     assert out["sol"] == 2.0
-    assert out["tokens"] == [{"mint": "M1", "amount": 1.5}, {"mint": "ZERO", "amount": 0.0}]
-    # the key must never leak through the URL (urllib errors embed the URL)
-    assert "sk-test-123" not in capture["url"]
-    assert capture["headers"]["x-api-key"] == "sk-test-123"
+    assert out["tokens"] == [{"mint": "M1", "amount": 1.5}]   # BAD row skipped
+    methods = [b["method"] for b in capture["bodies"]]
+    assert methods == ["getBalance", "getTokenAccountsByOwner"]
+    assert all(u.startswith(helius.BASE) for u in capture["urls"])

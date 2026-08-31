@@ -345,43 +345,177 @@ export function AlertsPage() {
   )
 }
 
-/* ─────────────── HOLDINGS CHECK ─────────────── */
+/* ─────────────── HOLDINGS CHECK (PROMPT-V4 M5 — live, read-only) ───────────────
+   Paste a PUBLIC wallet address; the server reads balances from free-tier
+   sources (sol Helius · bnb Alchemy · base Alchemy-or-keyless-Blockscout ·
+   hype/hood honest PARTIAL). Coverage states are chips, never red-solo:
+   a missing key or missing coverage is a sentence, not an error. */
+
+interface HoldingsResult {
+  chain: string
+  address: string
+  coverage: 'ok' | 'no_key' | 'partial' | 'upstream_error'
+  native_symbol: string | null
+  native_amount: number | null
+  tokens: { token: string | null; symbol: string | null; amount: number | null }[]
+  sources: string[]
+  reasons: string[]
+  data_mode: string
+}
+
+const COVERAGE_LABEL: Record<HoldingsResult['coverage'], string> = {
+  ok: 'LIVE', no_key: 'NO KEY', partial: 'PARTIAL', upstream_error: 'UPSTREAM',
+}
+const COVERAGE_COLOR: Record<HoldingsResult['coverage'], 'green' | 'amber' | 'cyan' | 'muted'> = {
+  ok: 'green', no_key: 'amber', partial: 'muted', upstream_error: 'amber',
+}
+
+function fmtAmt(n: number | null): string {
+  if (n === null) return '–'
+  const a = Math.abs(n)
+  if (a >= 1e9) return `${(n / 1e9).toPrecision(4)}B`
+  if (a >= 1e6) return `${(n / 1e6).toPrecision(4)}M`
+  if (a >= 1e3) return n.toLocaleString('en-US', { maximumFractionDigits: 2 })
+  if (n === 0) return '0'
+  return n.toLocaleString('en-US', { maximumFractionDigits: 6 })
+}
+
 export function HoldingsPage() {
+  const [chain, setChain] = useState<LiveChain>('sol')
   const [addr, setAddr] = useState('')
-  const [checked, setChecked] = useState(false)
+  const [checked, setChecked] = useState<{ chain: LiveChain; addr: string } | null>(null)
+  const [res, setRes] = useState<HoldingsResult | null>(null)
+  const [errMsg, setErrMsg] = useState<string | null>(null)
+  const [doneKey, setDoneKey] = useState<string | null>(null)
+  const reqKey = checked ? `${checked.chain}:${checked.addr}` : null
+  /* derived loading (M4 pattern): doneKey is written only in fetch callbacks */
+  const loading = reqKey !== null && doneKey !== reqKey
+
+  useEffect(() => {
+    if (!checked) return
+    const ctrl = new AbortController()
+    let stale = false
+    const key = `${checked.chain}:${checked.addr}`
+    fetch(`/api/v1/holdings/${checked.chain}/${encodeURIComponent(checked.addr)}`, { signal: ctrl.signal })
+      .then(async (r) => {
+        if (!r.ok) {
+          let detail = `HTTP ${r.status}`
+          try {
+            const j = (await r.json()) as { detail?: unknown }
+            if (typeof j.detail === 'string') detail = j.detail
+          } catch { /* non-JSON error body — keep the HTTP code line */ }
+          throw new Error(detail)
+        }
+        return (await r.json()) as HoldingsResult
+      })
+      .then((d) => { if (!stale) { setRes(d); setErrMsg(null); setDoneKey(key) } })
+      .catch((e: unknown) => {
+        if (e instanceof DOMException && e.name === 'AbortError') return
+        if (!stale) { setRes(null); setErrMsg(e instanceof Error ? e.message : String(e)); setDoneKey(key) }
+      })
+    return () => { stale = true; ctrl.abort() }
+  }, [checked])
+
+  const run = () => {
+    const a = addr.trim()
+    if (!a) return
+    setChecked({ chain, addr: a })
+  }
+
   return (
     <div className="ta-page">
-      <Head title="Holdings Check" sub="Paste a PUBLIC wallet address — we read balances, we never ask for keys. No custody, ever." right={<Badge color="green">NO CUSTODY</Badge>} />
-      <div className="ta-searchrow">
-        <div className="ta-search">
-          <span style={{ color: 'var(--dim)' }}>▣</span>
-          <input placeholder="Public wallet address (read-only)…" value={addr} onChange={(e) => setAddr(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && setChecked(true)} spellCheck={false} />
+      <Head
+        title="Holdings Check"
+        sub="Paste a PUBLIC wallet address — read-only balances from free-tier sources. We never ask for keys; no custody, ever."
+        right={<Badge color="green">NO CUSTODY</Badge>}
+      />
+      <Card title="CHECK A PUBLIC ADDRESS">
+        <div className="ai-mode" style={{ marginBottom: 10 }}>
+          {LIVE_CHAINS.map((c) => (
+            <button key={c} className={chain === c ? 'on' : ''} data-testid={`hc-chain-${c}`} onClick={() => setChain(c)}>
+              {LIVE_CHAIN_LABEL[c].toUpperCase()}
+            </button>
+          ))}
         </div>
-        <button className="btn-analyze" onClick={() => setChecked(true)}>CHECK</button>
-      </div>
-      {!checked ? (
-        <Card><EmptyState icon="▣" title="No wallet checked yet" hint="Paste a public address — we never connect wallets or ask for private keys" /></Card>
-      ) : (
+        <div className="ta-searchrow">
+          <div className="ta-search">
+            <span style={{ color: 'var(--dim)' }}>▣</span>
+            <input
+              data-testid="hc-addr"
+              placeholder={`Public wallet address on ${LIVE_CHAIN_LABEL[chain]} (read-only)…`}
+              value={addr}
+              onChange={(e) => setAddr(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && run()}
+              spellCheck={false}
+            />
+          </div>
+          <button className="btn-analyze" data-testid="hc-check" onClick={run}>{loading ? '…' : 'CHECK'}</button>
+        </div>
+        <div className="mono" style={{ fontSize: 11.5, marginTop: 8, color: 'var(--dim)' }}>
+          sol → Helius · bnb → Alchemy · base → Alchemy or keyless Blockscout · hype/hood → honest PARTIAL
+        </div>
+      </Card>
+
+      {!checked && !errMsg && (
+        <Card>
+          <EmptyState icon="▣" title="No wallet checked yet"
+            hint="Paste a public address — we never connect wallets or ask for private keys. Balances are read from public chain data only." />
+        </Card>
+      )}
+      {errMsg && (
+        <Card>
+          <EmptyState icon="⚠" title="Check could not run" hint={`${errMsg} — fix the address or chain and retry; nothing was stored.`} />
+        </Card>
+      )}
+      {res && (
         <div className="grid-2">
-          <Card title={`WALLET ${addr.slice(0, 8) || '7xKX…pump'}…`}>
-            <div className="rug-list">
-              <div className="rug-row"><span className="k">SOL balance</span><span className="v">142.06</span></div>
-              <div className="rug-row"><span className="k">Tokens held</span><span className="v">6</span></div>
-              <div className="rug-row"><span className="k">Estimated value</span><span className="v">$24,318</span></div>
-              <div className="rug-row"><span className="k">Top position</span><span className="v">{MEMEATCHI.symbol} (34%)</span></div>
+          <Card title={`WALLET ${shorten(res.address)}`}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+              <Badge color={COVERAGE_COLOR[res.coverage]}>{COVERAGE_LABEL[res.coverage]}</Badge>
+              <span className="mono dim" style={{ fontSize: 11 }}>{res.sources.length ? `sources: ${res.sources.join(', ')}` : 'no source queried'}</span>
             </div>
-          </Card>
-          <Card title="EXPOSURE BY RISK">
-            {[['Low risk', 38, '#34d399'], ['Medium risk', 44, '#fbbf24'], ['High risk', 18, '#fb7185']].map(([k, v, c]) => (
-              <div key={k as string} style={{ margin: '10px 0' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: 'var(--muted)', marginBottom: 4 }}>
-                  <span>{k as string}</span><span className="mono">{v as number}%</span>
-                </div>
-                <Meter value={v as number} color={c as string} />
+            <div className="rug-list">
+              <div className="rug-row">
+                <span className="k">{res.native_symbol ?? 'Native'} balance</span>
+                <span className="v mono" data-testid="hc-native">{fmtAmt(res.native_amount)}{res.native_amount !== null && res.native_symbol ? ` ${res.native_symbol}` : ''}</span>
               </div>
-            ))}
-            <p style={{ color: 'var(--dim)', fontSize: 11, marginTop: 12 }}>Read-only view from public chain data. This product cannot move funds — by design.</p>
+              <div className="rug-row"><span className="k">Tokens listed</span><span className="v">{res.tokens.length}</span></div>
+              <div className="rug-row"><span className="k">Custody</span><span className="v ok-yes">none — read-only, by design</span></div>
+            </div>
+            {res.tokens.length > 0 && (
+              <div className="ta-table-wrap" style={{ marginTop: 12 }}>
+                <table className="ta-table">
+                  <thead><tr><th>Token</th><th>Symbol</th><th className="r">Amount</th></tr></thead>
+                  <tbody>
+                    {res.tokens.map((t, i) => (
+                      <tr key={`${t.token}-${i}`}>
+                        <td className="mono">{shorten(t.token)}</td>
+                        <td>{t.symbol ?? <span className="dim mono">–</span>}</td>
+                        <td className="r mono" data-testid="hc-token-amount">{fmtAmt(t.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+          <Card title="COVERAGE — WHAT THE TERMINAL CAN SEE">
+            {res.reasons.length === 0 ? (
+              <p style={{ color: 'var(--muted)', fontSize: 12.5 }}>
+                Full coverage on this chain: every number above is copied verbatim
+                from {res.sources.join(' + ') || 'the wired source'}. Absent values
+                stay absent — nothing here is estimated.
+              </p>
+            ) : (
+              <div style={{ display: 'grid', gap: 8 }}>
+                {res.reasons.map((s) => (
+                  <p key={s.slice(0, 40)} className="mono" style={{ color: 'var(--muted)', fontSize: 11.5, lineHeight: 1.6 }} data-testid="hc-reason">{s}</p>
+                ))}
+              </div>
+            )}
+            <p style={{ color: 'var(--dim)', fontSize: 11, marginTop: 14 }}>
+              Read-only view from public chain data. This product cannot move funds — by design.
+            </p>
           </Card>
         </div>
       )}

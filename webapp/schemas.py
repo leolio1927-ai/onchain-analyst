@@ -914,3 +914,31 @@ class PortfolioSnapshotResponse(Envelope):
     rate_limited: list[str] = Field(default_factory=list)
     pools_walked: int = 0
     data_sources: list[str] = Field(default_factory=list)
+
+
+# ── PROMPT-V4 M5: holdings check — read-only balances for public addresses ──
+
+class HoldingToken(BaseModel):
+    """One held token, verbatim: address + amount when the source can read
+    them. symbol only where the source provides it for free (Blockscout);
+    amount None when decimals are unreadable — never guessed."""
+
+    token: str | None = None
+    symbol: str | None = None
+    amount: float | None = None
+
+
+class HoldingsResponse(Envelope):
+    """Read-only balances for a PUBLIC address (v1 law: no signing path).
+    coverage says what the terminal could honestly see: ok (facts), no_key
+    (founder's call pending), partial (no free source for the chain),
+    upstream_error (tried, failed — the reasons say how). Absent stays
+    absent — never zero-filled, never fabricated."""
+
+    chain: str
+    address: str
+    coverage: str                                   # ok | no_key | partial | upstream_error
+    native_symbol: str | None = None
+    native_amount: float | None = None
+    tokens: list[HoldingToken] = Field(default_factory=list)
+    reasons: list[str] = Field(default_factory=list)

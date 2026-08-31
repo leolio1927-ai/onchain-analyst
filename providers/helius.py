@@ -98,28 +98,42 @@ def _call(url: str, *, body: dict | None = None) -> dict | list:
     raise _HeliusError("http_429")
 
 
-def fetch_balances(address: str) -> dict:
-    key = _key()
-    if not key:
-        raise NoKeyError("HELIUS_API_KEY not set — founder's call (see .env.example)")
-    # Key travels in a header, never the URL: urllib HTTPError messages embed
-    # the request URL, so a query-string key would leak into error logs.
-    url = f"{BASE}/v0/addresses/{address}/balances"
-    req = urllib.request.Request(url, headers={"User-Agent": "vilmei/2.0",
-                                               "X-API-Key": key})
-    with urllib.request.urlopen(req, timeout=10) as r:
-        data = json.load(r)
+TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
 
-    native = data.get("native_balance") or {}
+
+def fetch_balances(address: str) -> dict:
+    """SOL + SPL balances via standard RPC. Probe 2026-08-31: the old REST
+    /v0/addresses/{a}/balances endpoint is GONE (404 'Method not found' —
+    mainnet.helius-rpc.com is RPC-only now); getBalance +
+    getTokenAccountsByOwner both answered live. uiAmount is copied verbatim;
+    first 20 token accounts only; classic SPL program only (Token-2022
+    holdings are not enumerated — that absence is stated here, never faked)."""
+    if not _key():
+        raise NoKeyError("HELIUS_API_KEY not set — founder's call (see .env.example)")
+    url = f"{BASE}/?api-key={_key()}"
+    native = _call(url, body={"jsonrpc": "2.0", "id": "ta",
+                              "method": "getBalance", "params": [address]})
+    lamports = (native.get("result") or {}).get("value")
+    if lamports is None:
+        raise _HeliusError("unparsed_response")
+    accts = _call(url, body={"jsonrpc": "2.0", "id": "ta",
+                             "method": "getTokenAccountsByOwner",
+                             "params": [address, {"programId": TOKEN_PROGRAM},
+                                        {"encoding": "jsonParsed"}]})
+    rows = (accts.get("result") or {}).get("value")
+    if rows is None:
+        raise _HeliusError("unparsed_response")
     tokens = []
-    for t in (data.get("tokens") or [])[:10]:
+    for row in rows[:20]:
+        info = (((row.get("account") or {}).get("data") or {})
+                .get("parsed") or {}).get("info") or {}
         try:
-            amount = float(t.get("amount") or 0) / (10 ** int(t.get("decimals") or 0))
-        except (TypeError, ValueError, ZeroDivisionError):
-            continue
-        tokens.append({"mint": t.get("mint"), "amount": amount})
+            amount = float((info.get("tokenAmount") or {}).get("uiAmount"))
+        except (TypeError, ValueError):
+            continue                      # unparseable row: skip, never guess
+        tokens.append({"mint": info.get("mint"), "amount": amount})
     return {"address": address,
-            "sol": (native.get("lamports") or 0) / LAMPORTS_PER_SOL,
+            "sol": float(lamports) / LAMPORTS_PER_SOL,
             "tokens": tokens}
 
 
