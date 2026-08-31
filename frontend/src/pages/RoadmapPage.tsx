@@ -138,9 +138,9 @@ const QUEUE: { id: string; tag: string; title: string; kind: ChipKind; why: stri
     proof: 'PROOF · real quote from an onchain router · the SIMULATED chip is replaced by a LIVE chip · Documentation §5 updated',
   },
   {
-    id: 'ta-102', tag: 'VM-102', title: 'Watchlist', kind: 'design',
+    id: 'ta-102', tag: 'VM-102', title: 'Watchlist', kind: 'build',
     why: 'Track tokens across the five chains; account-less first (local storage) — no accounts until there is a reason for keys.',
-    proof: 'PROOF · watchlist state survives reload with zero server session · surfaces index updated',
+    proof: 'PROOF · PARTIAL — M4 ships the account-less watchlist (vilmei.watchlist, cap 15) + /api/v1/portfolio/snapshot market facts; the page is LIVE in the nav · survives reload with zero server session · cross-device sync and alerts remain design',
   },
   {
     id: 'ta-103', tag: 'VM-103', title: 'Trade tape on the board', kind: 'build',

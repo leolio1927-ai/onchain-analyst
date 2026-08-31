@@ -883,3 +883,34 @@ class FeeDestinationsResponse(Envelope):
     honest_note: str = ("vault map = policy data: public addresses only, "
                         "founder-claimed in .env")
     provenance: dict = Field(default_factory=dict)
+
+
+# ── PROMPT-V4 M4: portfolio snapshot — market facts for a watchlist ──────
+
+class PortfolioRow(BaseModel):
+    """One watchlist token: verbatim market facts from the deepest GT pool,
+    or an honest state sentence (no_pool / rate_limited / upstream_error).
+    Absent stays absent — never imputed, never zero-filled."""
+
+    chain: str
+    token: str
+    status: str                                     # ok | no_pool | rate_limited | upstream_error
+    pool: str | None = None
+    pool_name: str | None = None
+    price_usd: float | None = None
+    liquidity_usd: float | None = None
+    volume_24h: float | None = None
+    change_24h: float | None = None
+    note: str | None = None
+
+
+class PortfolioSnapshotResponse(Envelope):
+    """Market facts for up to 15 watchlist tokens (positions/amounts stay
+    client-side; the server answers only public prices). data_mode='live'."""
+
+    data_mode: DataMode = "live"
+
+    rows: list[PortfolioRow] = Field(default_factory=list)
+    rate_limited: list[str] = Field(default_factory=list)
+    pools_walked: int = 0
+    data_sources: list[str] = Field(default_factory=list)

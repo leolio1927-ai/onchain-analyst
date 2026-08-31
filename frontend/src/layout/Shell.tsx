@@ -30,7 +30,7 @@ const NAV: { id: string; icon: string; label: string; pill?: 'NEW' | 'LIVE' | nu
   { id: 'whale', icon: '◍', label: 'Whale Tracker', pill: 'LIVE' },
   { id: 'cluster', icon: '❋', label: 'Cluster Analysis', soon: true },
   { id: 'ai', icon: '✦', label: 'AI Analyst', soon: true },
-  { id: 'portfolio', icon: '▤', label: 'Portfolio Watch', soon: true },
+  { id: 'portfolio', icon: '▤', label: 'Portfolio Watch', pill: 'LIVE' },
   { id: 'alerts', icon: '◆', label: 'Alerts', soon: true },
   { id: 'holdings', icon: '▣', label: 'Holdings Check', soon: true },
   { id: 'gate', icon: '⚿', label: 'Token Gate', soon: true },

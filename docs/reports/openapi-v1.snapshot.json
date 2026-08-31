@@ -3,7 +3,7 @@
   "info": {
     "title": "VILMEI",
     "summary": "Evidence-first multichain memecoin risk terminal",
-    "description": "Read-only multichain memecoin research terminal \u2014 reduce noise, add context.\n\n- **POST /api/scan** \u2014 DexScreener pair + GeckoTerminal trade clustering \u2192 deterministic, weighted risk assessment\n- **GET /api/v1/discovery** \u2014 keyless trending/new pool radar (GeckoTerminal free tier)\n- **POST /api/explain** \u2014 evidence-first AI narrative; `provider: \"local\"` serves a deterministic heuristic narrative with zero API keys\n- **POST /api/whale** \u2014 Helius wallet balances (key required)\n- **GET /api/v1/whale/windows** \u2014 whale windows (1h/6h/24h) on the keyless GeckoTerminal trade tape, all five chains; threshold is a labelled heuristic, never an on-chain label\n- **GET /api/v1/whale/auto** \u2014 AUTO: resolve a contract across networks + trending top-N candidates\n- **GET /api/v1/fees/estimate** \u2014 the PLANNED VILMEI fee (0.50% split 0.30/0.10/0.10) as inspectable data; nothing is charged, VILMEI is read-only\n- **GET /api/v1/fees/destinations** \u2014 the claim-based vault map: per chain, the three fee slices with their PUBLIC founder-claimed address (or a declared-null awaiting-founder sentence); no key enters the repo\n- **WS /ws/snap** \u2014 full honest snapshot ticker \u00b7 **WS /ws/tape** \u2014 live trade-tape deltas for the active pool\n\nEvery value is copied verbatim from the upstream APIs; absent fields stay absent \u2014\nnothing is simulated, zero-filled or random-walked. Heuristic thresholds are public\nand auditable (heuristics/).",
+    "description": "Read-only multichain memecoin research terminal \u2014 reduce noise, add context.\n\n- **POST /api/scan** \u2014 DexScreener pair + GeckoTerminal trade clustering \u2192 deterministic, weighted risk assessment\n- **GET /api/v1/discovery** \u2014 keyless trending/new pool radar (GeckoTerminal free tier)\n- **POST /api/explain** \u2014 evidence-first AI narrative; `provider: \"local\"` serves a deterministic heuristic narrative with zero API keys\n- **POST /api/whale** \u2014 Helius wallet balances (key required)\n- **GET /api/v1/whale/windows** \u2014 whale windows (1h/6h/24h) on the keyless GeckoTerminal trade tape, all five chains; threshold is a labelled heuristic, never an on-chain label\n- **GET /api/v1/whale/auto** \u2014 AUTO: resolve a contract across networks + trending top-N candidates\n- **GET /api/v1/fees/estimate** \u2014 the PLANNED VILMEI fee (0.50% split 0.30/0.10/0.10) as inspectable data; nothing is charged, VILMEI is read-only\n- **GET /api/v1/fees/destinations** \u2014 the claim-based vault map: per chain, the three fee slices with their PUBLIC founder-claimed address (or a declared-null awaiting-founder sentence); no key enters the repo\n- **GET /api/v1/portfolio/snapshot** \u2014 market facts for up to 15 watchlist tokens (deepest GT pool per token, verbatim; positions stay client-side)\n- **WS /ws/snap** \u2014 full honest snapshot ticker \u00b7 **WS /ws/tape** \u2014 live trade-tape deltas for the active pool\n\nEvery value is copied verbatim from the upstream APIs; absent fields stay absent \u2014\nnothing is simulated, zero-filled or random-walked. Heuristic thresholds are public\nand auditable (heuristics/).",
     "license": {
       "name": "MIT",
       "identifier": "MIT"
@@ -1306,6 +1306,50 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FeeDestinationsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/portfolio/snapshot": {
+      "get": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Api Portfolio Snapshot",
+        "description": "Market facts for up to 15 watchlist tokens. items = comma list of\nchain:token pairs (e.g. sol:CA,bnb:CA); order is preserved. An empty\nwatchlist is a fact (empty rows). Over the 15 cap \u2192 400; an unknown\nchain \u2192 404 with the allowed list; a malformed pair \u2192 400.",
+        "operationId": "api_portfolio_snapshot_api_v1_portfolio_snapshot_get",
+        "parameters": [
+          {
+            "name": "items",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Items"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioSnapshotResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -3412,6 +3456,169 @@
         "type": "object",
         "title": "Pair",
         "description": "DexScreener pair projection (webapp.server._pair_view key set, exact)."
+      },
+      "PortfolioRow": {
+        "properties": {
+          "chain": {
+            "type": "string",
+            "title": "Chain"
+          },
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "pool": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pool"
+          },
+          "pool_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pool Name"
+          },
+          "price_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Usd"
+          },
+          "liquidity_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Liquidity Usd"
+          },
+          "volume_24h": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volume 24H"
+          },
+          "change_24h": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change 24H"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "chain",
+          "token",
+          "status"
+        ],
+        "title": "PortfolioRow",
+        "description": "One watchlist token: verbatim market facts from the deepest GT pool,\nor an honest state sentence (no_pool / rate_limited / upstream_error).\nAbsent stays absent \u2014 never imputed, never zero-filled."
+      },
+      "PortfolioSnapshotResponse": {
+        "properties": {
+          "data_mode": {
+            "type": "string",
+            "enum": [
+              "live",
+              "fixture",
+              "unwired",
+              "static",
+              "partial"
+            ],
+            "title": "Data Mode",
+            "default": "live"
+          },
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version",
+            "default": "1.0"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "ts": {
+            "type": "string",
+            "title": "Ts"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/PortfolioRow"
+            },
+            "type": "array",
+            "title": "Rows"
+          },
+          "rate_limited": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Rate Limited"
+          },
+          "pools_walked": {
+            "type": "integer",
+            "title": "Pools Walked",
+            "default": 0
+          },
+          "data_sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Data Sources"
+          }
+        },
+        "type": "object",
+        "title": "PortfolioSnapshotResponse",
+        "description": "Market facts for up to 15 watchlist tokens (positions/amounts stay\nclient-side; the server answers only public prices). data_mode='live'."
       },
       "Provenance": {
         "properties": {

@@ -1,8 +1,11 @@
-import { useMemo, useState } from 'react'
-import { ALERTS, MEMEATCHI, PORTFOLIO, SYSTEM_STATUS } from '../mock/data'
+import { useEffect, useMemo, useState } from 'react'
+import { ALERTS, MEMEATCHI, SYSTEM_STATUS } from '../mock/data'
 import { AiPanel } from '../components/AiPanel'
-import { Spark } from '../components/charts'
-import { Badge, Card, EmptyState, Meter, Tabs, Toggle } from '../components/ui'
+import type { LiveChain } from '../lib/liveApi'
+import { LIVE_CHAINS, LIVE_CHAIN_LABEL } from '../lib/liveApi'
+import { fmtPct, fmtPrice, fmtUsdCompact, fmtUtcClock, shorten } from '../lib/liveFormat'
+import { WATCH_CAP, addWatchItem, removeWatchItem, setWatchAmount, useWatchlist } from '../lib/watchlist'
+import { Badge, Card, EmptyState, Meter, Skeleton, Tabs, Toggle } from '../components/ui'
 
 function Head({ title, sub, right }: { title: string; sub: string; right?: React.ReactNode }) {
   return (
@@ -48,40 +51,266 @@ export function AiPage() {
   )
 }
 
-/* ─────────────── PORTFOLIO WATCH ─────────────── */
+/* ─────────────── PORTFOLIO WATCH (PROMPT-V4 M4 — live, $0) ───────────────
+   Account-less by architecture: the watchlist (≤15 tokens) persists in this
+   browser under vilmei.watchlist; the server answers only market facts from
+   the deepest GeckoTerminal pool, verbatim. Positions (amounts) are typed by
+   the user and never leave the machine — value = amount × price is computed
+   HERE, client-side. No account, no keys, no custody. */
+
+interface SnapshotRow {
+  chain: string
+  token: string
+  status: 'ok' | 'no_pool' | 'rate_limited' | 'upstream_error'
+  pool?: string | null
+  pool_name?: string | null
+  price_usd?: number | null
+  liquidity_usd?: number | null
+  volume_24h?: number | null
+  change_24h?: number | null
+  note?: string | null
+}
+
+interface Snapshot {
+  data_mode: string
+  sources: string[]
+  rows: SnapshotRow[]
+  rate_limited: string[]
+  pools_walked: number
+  data_sources: string[]
+  ts?: string | null
+}
+
+const ADD_FAIL: Record<'invalid-chain' | 'empty-token' | 'duplicate' | 'cap', string> = {
+  'invalid-chain': 'Pick one of the five live chains first.',
+  'empty-token': 'Paste a contract address — an empty entry is not a token.',
+  'duplicate': 'Already watching this exact contract on this chain.',
+  'cap': `Watchlist cap is ${WATCH_CAP} items — remove one to add another.`,
+}
+
+function useSnapshot(itemsKey: string): { snap: Snapshot | null; loading: boolean; err: string | null; refresh: () => void } {
+  const [snap, setSnap] = useState<Snapshot | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  const [tick, setTick] = useState(0)
+  const [doneKey, setDoneKey] = useState<string | null>(null)
+  /* loading is DERIVED (requested vs resolved key) — no synchronous setState
+     inside the effect; doneKey is written only from the fetch callbacks. */
+  const reqKey = `${itemsKey}#${tick}`
+  useEffect(() => {
+    if (!itemsKey) return
+    const ctrl = new AbortController()
+    let stale = false
+    fetch(`/api/v1/portfolio/snapshot?items=${encodeURIComponent(itemsKey)}`, { signal: ctrl.signal })
+      .then(async (res) => {
+        if (!res.ok) {
+          let detail = `HTTP ${res.status}`
+          try {
+            const j = (await res.json()) as { detail?: unknown }
+            if (typeof j.detail === 'string') detail = j.detail
+          } catch { /* non-JSON error body — keep the HTTP code line */ }
+          throw new Error(detail)
+        }
+        return (await res.json()) as Snapshot
+      })
+      .then((data) => { if (!stale) { setSnap(data); setErr(null); setDoneKey(reqKey) } })
+      .catch((e: unknown) => {
+        if (e instanceof DOMException && e.name === 'AbortError') return
+        if (!stale) { setErr(e instanceof Error ? e.message : String(e)); setDoneKey(reqKey) }
+      })
+    return () => { stale = true; ctrl.abort() }
+  }, [itemsKey, tick, reqKey])
+  return {
+    snap: itemsKey ? snap : null,
+    err: itemsKey ? err : null,
+    loading: itemsKey !== '' && doneKey !== reqKey,
+    refresh: () => setTick((t) => t + 1),
+  }
+}
+
+function AmountInput({ chain, token, amount }: { chain: LiveChain; token: string; amount?: number }) {
+  const [text, setText] = useState(amount === undefined ? '' : String(amount))
+  return (
+    <input
+      className="mono"
+      data-testid={`pf-amount-${chain}-${token}`}
+      value={text}
+      placeholder="amount"
+      inputMode="decimal"
+      spellCheck={false}
+      style={{ width: 96, textAlign: 'right', background: 'rgba(5,6,15,0.5)', border: '1px solid var(--line-soft, var(--line))', borderRadius: 7, padding: '5px 8px', color: 'var(--text)', fontSize: 12, outline: 'none' }}
+      onChange={(e) => {
+        const raw = e.target.value.trim()
+        setText(raw)
+        if (raw === '') return setWatchAmount(chain, token, undefined)
+        const n = Number(raw)
+        if (Number.isFinite(n) && n > 0) setWatchAmount(chain, token, n)
+      }}
+    />
+  )
+}
+
 export function PortfolioPage() {
-  const total = useMemo(() => PORTFOLIO.reduce((s, p) => s + p.value, 0), [])
+  const items = useWatchlist()
+  const itemsKey = useMemo(() => items.map((w) => `${w.chain}:${w.token}`).join(','), [items])
+  const { snap, loading, err, refresh } = useSnapshot(itemsKey)
+  const [chain, setChain] = useState<LiveChain>('sol')
+  const [ca, setCa] = useState('')
+  const [addMsg, setAddMsg] = useState<string | null>(null)
+
+  const rowFor = (c: string, t: string) => snap?.rows.find((r) => r.chain === c && r.token === t)
+  const valued = items.map((w) => {
+    const r = rowFor(w.chain, w.token)
+    const price = r?.status === 'ok' && r.price_usd !== null && r.price_usd !== undefined ? r.price_usd : null
+    return { w, r, value: w.amount !== undefined && price !== null ? w.amount * price : null }
+  })
+  const total = valued.reduce((s, v) => s + (v.value ?? 0), 0)
+  const valuedCount = valued.filter((v) => v.value !== null).length
+  let topMover: { sym: string; chg: number } | null = null
+  for (const { w, r } of valued) {
+    if (r?.status === 'ok' && r.change_24h !== null && r.change_24h !== undefined) {
+      if (!topMover || r.change_24h > topMover.chg) topMover = { sym: w.symbol ?? shorten(w.token), chg: r.change_24h }
+    }
+  }
+
+  const onAdd = () => {
+    const res = addWatchItem(chain, ca)
+    if (res.ok) { setCa(''); setAddMsg(null) } else { setAddMsg(ADD_FAIL[res.reason]) }
+  }
+
   return (
     <div className="ta-page">
-      <Head title="Portfolio Watch" sub="Watchlist values from public market data only — no wallet connection, no custody." right={<Badge color="cyan">READ-ONLY</Badge>} />
+      <Head
+        title="Portfolio Watch"
+        sub="Account-less watchlist — tokens persist in this browser only; market facts come verbatim from the deepest GeckoTerminal pool. No account, no custody."
+        right={<Badge color="green">LIVE · $0</Badge>}
+      />
       <div className="grid-3">
-        <Card title="TOTAL VALUE"><div style={{ fontFamily: 'var(--f-display)', fontSize: 30, fontWeight: 700 }}>${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
-          <div className="up mono" style={{ fontSize: 13, marginTop: 4 }}>+18.4% (24h)</div></Card>
-        <Card title="POSITIONS"><div style={{ fontFamily: 'var(--f-display)', fontSize: 30, fontWeight: 700 }}>{PORTFOLIO.length}</div>
-          <div className="mono" style={{ fontSize: 13, marginTop: 4, color: 'var(--muted)' }}>avg risk 52/100</div></Card>
-        <Card title="TOP MOVER"><div style={{ fontFamily: 'var(--f-display)', fontSize: 30, fontWeight: 700 }}>PEPEKING</div>
-          <div className="up mono" style={{ fontSize: 13, marginTop: 4 }}>+41.2% (24h)</div></Card>
+        <Card title="TOTAL VALUE">
+          <div style={{ fontFamily: 'var(--f-display)', fontSize: 30, fontWeight: 700 }}>{valuedCount ? fmtUsdCompact(total) : '–'}</div>
+          <div className="mono" style={{ fontSize: 12, marginTop: 4, color: 'var(--muted)' }}>
+            {items.length === 0 ? 'add a token to begin'
+              : valuedCount ? `${valuedCount} of ${items.length} positions valued`
+              : 'set amounts — a value needs both an amount and a live price'}
+          </div>
+        </Card>
+        <Card title="POSITIONS">
+          <div style={{ fontFamily: 'var(--f-display)', fontSize: 30, fontWeight: 700 }}>{items.length}<span style={{ fontSize: 16, color: 'var(--muted)' }}> / {WATCH_CAP}</span></div>
+          <div className="mono" style={{ fontSize: 12, marginTop: 4, color: 'var(--muted)' }}>stored in vilmei.watchlist · reload-safe</div>
+        </Card>
+        <Card title="TOP MOVER · 24H">
+          <div style={{ fontFamily: 'var(--f-display)', fontSize: 30, fontWeight: 700 }}>{topMover ? topMover.sym : '–'}</div>
+          <div className={`mono ${topMover && topMover.chg >= 0 ? 'up' : 'down'}`} style={{ fontSize: 13, marginTop: 4 }}>
+            {topMover ? fmtPct(topMover.chg) : 'no 24h change data yet'}
+          </div>
+        </Card>
       </div>
-      <Card title="HOLDINGS">
-        <div className="ta-table-wrap">
-          <table className="ta-table">
-            <thead><tr><th>Token</th><th>Chain</th><th className="r">Amount</th><th className="r">Value</th><th className="r">24h</th><th>Trend</th><th className="r">Risk</th></tr></thead>
-            <tbody>
-              {PORTFOLIO.map((p) => (
-                <tr key={p.symbol}>
-                  <td><b>{p.symbol}</b></td>
-                  <td className="mono dim">{p.chain.toUpperCase()}</td>
-                  <td className="r mono">{p.amount.toLocaleString('en-US')}</td>
-                  <td className="r mono">${p.value.toFixed(2)}</td>
-                  <td className={`r mono ${p.chg >= 0 ? 'up' : 'down'}`}>+{p.chg}%</td>
-                  <td>{p.spark == null ? <span className="dim mono">n/a</span> : <Spark seed={p.spark} up={p.chg >= 0} />}</td>
-                  <td className="r"><span className={`ta-badge ${p.risk >= 70 ? 'b-red' : p.risk >= 50 ? 'b-amber' : 'b-green'}`}>{p.risk}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+
+      <Card title="ADD TO WATCHLIST">
+        <div className="ai-mode" style={{ marginBottom: 10 }}>
+          {LIVE_CHAINS.map((c) => (
+            <button key={c} className={chain === c ? 'on' : ''} data-testid={`pf-chain-${c}`} onClick={() => setChain(c)}>
+              {LIVE_CHAIN_LABEL[c].toUpperCase()}
+            </button>
+          ))}
+        </div>
+        <div className="ta-searchrow">
+          <div className="ta-search">
+            <span style={{ color: 'var(--dim)' }}>⌕</span>
+            <input
+              data-testid="pf-ca"
+              placeholder={`Contract address on ${LIVE_CHAIN_LABEL[chain]}…`}
+              value={ca}
+              onChange={(e) => setCa(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && onAdd()}
+              spellCheck={false}
+            />
+          </div>
+          <button className="btn-analyze" data-testid="pf-add" onClick={onAdd}>WATCH</button>
+          <button className="btn-analyze as-ghost" data-testid="pf-refresh" onClick={refresh} disabled={items.length === 0 || loading}>
+            {loading ? '…' : 'REFRESH'}
+          </button>
+        </div>
+        <div className="mono" style={{ fontSize: 11.5, marginTop: 8, color: addMsg ? 'var(--amber, #fbbf24)' : 'var(--dim)' }} data-testid="pf-add-note">
+          {addMsg ?? `${items.length}/${WATCH_CAP} used · account-less — no login, no keys, nothing leaves this browser`}
         </div>
       </Card>
+
+      {items.length === 0 ? (
+        <Card>
+          <EmptyState icon="▤" title="No tokens watched yet"
+            hint="Paste a contract address above — the list lives only in this browser (vilmei.watchlist). Prices, liquidity and 24h facts arrive live from GeckoTerminal." />
+        </Card>
+      ) : err ? (
+        <Card>
+          <EmptyState icon="⚠" title="Snapshot unreachable" hint={`${err} — the watchlist itself is safe in this browser; REFRESH when the API is back.`} />
+        </Card>
+      ) : (
+        <>
+          {snap && snap.rate_limited.length > 0 && (
+            <Card className="reveal" glow="#fbbf24">
+              <div className="mono" style={{ fontSize: 12, color: 'var(--amber, #fbbf24)' }}>
+                RATE LIMITED · {snap.rate_limited.length} of {items.length} tokens — GeckoTerminal free tier
+                (retry in ~60s or hit REFRESH). Their rows show no facts until then; nothing is guessed.
+              </div>
+            </Card>
+          )}
+          <Card title="WATCHED TOKENS">
+            <div className="ta-table-wrap">
+              <table className="ta-table">
+                <thead>
+                  <tr><th>Token</th><th>Chain</th><th className="r">Price</th><th className="r">24h</th><th className="r">Liquidity</th><th className="r">Vol 24h</th><th className="r">Amount</th><th className="r">Value</th><th /></tr>
+                </thead>
+                <tbody>
+                  {valued.map(({ w, r, value }) => {
+                    const ok = r?.status === 'ok'
+                    return (
+                      <tr key={`${w.chain}:${w.token}`}>
+                        <td>
+                          <b>{w.symbol ?? shorten(w.token)}</b>
+                          {ok && r?.pool_name && <div className="mono dim" style={{ fontSize: 10.5 }}>{r.pool_name}</div>}
+                          {r && r.status !== 'ok' && r.note && (
+                            <div className="mono dim" style={{ fontSize: 10.5, maxWidth: 340 }} data-testid={`pf-note-${w.chain}`}>{r.note}</div>
+                          )}
+                        </td>
+                        <td className="mono dim">{w.chain.toUpperCase()}</td>
+                        {r === undefined ? (
+                          <td colSpan={6}><Skeleton h={12} w={180} /></td>
+                        ) : r.status === 'rate_limited' ? (
+                          <td colSpan={6} className="mono dim">awaiting the free-tier window — no facts invented</td>
+                        ) : !ok ? (
+                          <td colSpan={6} className="mono dim">–</td>
+                        ) : (
+                          <>
+                            <td className="r mono">{fmtPrice(r.price_usd === undefined ? null : String(r.price_usd))}</td>
+                            <td className={`r mono ${r.change_24h == null ? 'dim' : r.change_24h >= 0 ? 'up' : 'down'}`}>{fmtPct(r.change_24h ?? null)}</td>
+                            <td className="r mono">{fmtUsdCompact(r.liquidity_usd ?? null)}</td>
+                            <td className="r mono">{fmtUsdCompact(r.volume_24h ?? null)}</td>
+                          </>
+                        )}
+                        <td className="r"><AmountInput chain={w.chain} token={w.token} amount={w.amount} /></td>
+                        <td className="r mono" data-testid={`pf-value-${w.chain}`}>{value === null ? '–' : fmtUsdCompact(value)}</td>
+                        <td className="r">
+                          <button
+                            data-testid={`pf-remove-${w.chain}`}
+                            onClick={() => removeWatchItem(w.chain, w.token)}
+                            style={{ background: 'none', border: 'none', color: 'var(--dim)', cursor: 'pointer', fontSize: 14, padding: '2px 6px' }}
+                            title="Remove from watchlist"
+                          >×</button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="mono" style={{ fontSize: 10.5, color: 'var(--dim)', marginTop: 10 }}>
+              {snap
+                ? `walked ${snap.pools_walked} pool(s) · sources: ${snap.sources.join(', ')} · ${fmtUtcClock(snap.ts ?? null)} · amounts never leave this browser`
+                : loading ? 'fetching market facts…' : 'no snapshot yet'}
+            </div>
+          </Card>
+        </>
+      )}
     </div>
   )
 }

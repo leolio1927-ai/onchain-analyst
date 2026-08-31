@@ -160,6 +160,17 @@ brackets) and was last re-verified 2026-08-29.
   [providers/vaults.py]. The tolerant .env parser ships alongside
   (webapp/envfile.py + scripts/dev-server.sh): broken lines are skipped,
   never fatal.
+- GET /api/v1/portfolio/snapshot?items=chain:token,... — PROMPT-V4 M4: market
+  facts for up to 15 watchlist tokens (over the cap → 400; unknown chain → 404
+  with the allowed list; malformed pair → 400). One row per item, order
+  preserved: price/liquidity/24h volume/24h change verbatim from the token's
+  deepest GeckoTerminal pool (rides M1 governance — TTL cache + single-flight +
+  capped backoff). Row statuses are honest states, never red: ok | no_pool
+  (a sentence) | rate_limited (listed once in rate_limited[] for ONE aggregate
+  banner, M1 law) | upstream_error. The FE pairs it with the account-less
+  watchlist (vilmei.watchlist, localStorage only, cap 15): positions/amounts
+  never leave the browser; value = amount × price is computed client-side
+  [providers/portfolio.py, frontend/src/lib/watchlist.ts].
 - GET /api/v1/rug/sol/{mint} — Solana rug summary via RugCheck.xyz
   (score, score_normalised, lp_locked_pct, risks[] verbatim; TTL 300s,
   single-flight; a missing report ships empty risks + a degraded reason)
@@ -264,7 +275,7 @@ Shipped ledger (newest first, letters are the sprint taxonomy):
 
 Design queue (stable IDs, each with a WHY and the proof that marks it shipped):
 - VM-101 · Wallet session + quote engine [IN BUILD]
-- VM-102 · Watchlist [DESIGN]
+- VM-102 · Watchlist [IN BUILD] — PARTIAL: M4 shipped the account-less watchlist + portfolio snapshot; sync/alerts remain design
 - VM-103 · Trade tape on the board (the /ws/tape route already ships) [IN BUILD]
 - VM-104 · AI analyst panel (the /api/explain local tier already ships) [DESIGN]
 - VM-105 · Backend foundations, one additive route at a time [IN BUILD]

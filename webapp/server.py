@@ -48,6 +48,7 @@ from providers import (
     helius,
     live,
     market,
+    portfolio,
     rugcheck,
     vaults,
     whale_windows,
@@ -127,6 +128,7 @@ _DESCRIPTION = """Read-only multichain memecoin research terminal — reduce noi
 - **GET /api/v1/whale/auto** — AUTO: resolve a contract across networks + trending top-N candidates
 - **GET /api/v1/fees/estimate** — the PLANNED VILMEI fee (0.50% split 0.30/0.10/0.10) as inspectable data; nothing is charged, VILMEI is read-only
 - **GET /api/v1/fees/destinations** — the claim-based vault map: per chain, the three fee slices with their PUBLIC founder-claimed address (or a declared-null awaiting-founder sentence); no key enters the repo
+- **GET /api/v1/portfolio/snapshot** — market facts for up to 15 watchlist tokens (deepest GT pool per token, verbatim; positions stay client-side)
 - **WS /ws/snap** — full honest snapshot ticker · **WS /ws/tape** — live trade-tape deltas for the active pool
 
 Every value is copied verbatim from the upstream APIs; absent fields stay absent —
@@ -909,6 +911,36 @@ async def api_fees_destinations() -> dict:
     nothing is charged — policy data published before a basis point moves
     (docs/FEE-VAULTS.md). data_mode='static'."""
     return vaults.destinations()
+
+
+# ── PROMPT-V4 M4: portfolio watch — market facts for a watchlist ──────────
+# Positions live client-side (vilmei.watchlist); the server answers only
+# public market facts from the deepest GT pool per token.
+
+@app.get("/api/v1/portfolio/snapshot", response_model=schemas.PortfolioSnapshotResponse,
+         tags=["market"])
+async def api_portfolio_snapshot(items: str = "") -> dict:
+    """Market facts for up to 15 watchlist tokens. items = comma list of
+    chain:token pairs (e.g. sol:CA,bnb:CA); order is preserved. An empty
+    watchlist is a fact (empty rows). Over the 15 cap → 400; an unknown
+    chain → 404 with the allowed list; a malformed pair → 400."""
+    pairs: list[tuple[str, str]] = []
+    for raw in (p.strip() for p in items.split(",")):
+        if not raw:
+            continue
+        chain, sep, token = raw.partition(":")
+        chain = chain.strip().lower()
+        token = token.strip()
+        if not sep or not chain or not token:
+            raise HTTPException(400, f"malformed item '{raw}' — expected chain:token")
+        if chain not in fee_models.CHAINS:
+            raise HTTPException(404, f"unknown chain '{chain}' — "
+                                     f"pick {'|'.join(fee_models.CHAINS)}")
+        pairs.append((chain, token))
+    if len(pairs) > portfolio.MAX_ITEMS:
+        raise HTTPException(400, f"watchlist cap is {portfolio.MAX_ITEMS} items — "
+                                 f"got {len(pairs)}")
+    return portfolio.snapshot(pairs)
 
 
 # ── PROMPT-V2B P6: machine surfaces (read-only) ─────────────────────────
