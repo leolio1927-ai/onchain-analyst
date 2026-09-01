@@ -111,12 +111,8 @@ export function Shell({ pages }: { pages: Record<string, ReactNode> }) {
         </nav>
         <div className="ta-user">
           <div className="who">VILMEI User</div>
-          <div className="plan">Premium Deep</div>
-          <div className="valid">Valid until 2026-12-31</div>
-          <div className="ta-meter"><span style={{ width: '89%' }} /></div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', margin: '5px 0 12px', fontSize: 10.5, color: 'var(--dim)' }}>
-            <span>Cycle usage</span><span>89%</span>
-          </div>
+          <div className="plan">FREE</div>
+          <div className="valid">No plan required — every surface is open; no entitlement backend exists yet</div>
           <button className="btn-analyze" style={{ width: '100%', height: 38, fontSize: 12.5, opacity: 0.5, cursor: 'not-allowed' }} disabled>
             UPGRADE PLAN · SOON
           </button>

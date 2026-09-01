@@ -312,6 +312,10 @@ function SwapRail({ pair, quote, qErr }: { pair: ActivePair | null; quote: SwapQ
   const nativeBal = session?.balances?.[chain] ?? 3.421
   const tokenBal = pair ? demoTokenBalance(session?.providerId ?? 'anon', pair.tokenAddress) : 0
   const nativeUsd = quote ? quote.priceUsd && quote.priceNative ? (quote.priceUsd / quote.priceNative) : NATIVE_USD_HINT[chain] : NATIVE_USD_HINT[chain]
+  /* P0-H6: when the quote is missing, nativeUsd is a STATIC hint — every USD
+     figure derived from it must say ESTIMATE, never pose as live */
+  const nativeUsdIsHint = !(quote?.priceUsd && quote.priceNative)
+  const usdTag = nativeUsdIsHint ? <span className="tk-mock">ESTIMATE</span> : null
 
   /* BUY: pay native, get token. SELL: pay token, get native (1.5). */
   const payingNative = dir === 'buy'
@@ -361,7 +365,7 @@ function SwapRail({ pair, quote, qErr }: { pair: ActivePair | null; quote: SwapQ
 
         <div className="sw2-field">
           <div className="sw2-hd"><span>YOU PAY</span>
-            <span className="mono">{payBal.toFixed(payingNative ? 3 : 2)} {paySymbol} · ~{fmtUsd(payBalUsd)}</span>
+            <span className="mono">{payBal.toFixed(payingNative ? 3 : 2)} {paySymbol} · ~{fmtUsd(payBalUsd)}{usdTag}</span>
           </div>
           <div className="sw2-row">
             <input className="sw2-input" inputMode="decimal" placeholder="0" value={amount}

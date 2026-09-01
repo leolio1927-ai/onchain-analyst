@@ -212,9 +212,9 @@ export function ClusterPage() {
   const clusters = buildClusters(11)
   return (
     <div className="ta-page">
-      <Head title="Cluster Analysis" sub="Burst timing + amount uniformity across per-wallet trades. Below 8 wallets we refuse to score — insufficient data is an answer." right={<Badge color="cyan">BETA</Badge>} />
+      <Head title="Cluster Analysis" sub="SIMULATED — deterministic fixture (mock/data.ts), NOT connected to the backend; no cluster endpoint exists. Real per-scan wallet clustering already ships inside /api/scan → clustering. Below 8 wallets we refuse to score — insufficient data is an answer." right={<Badge color="amber">SIMULATED</Badge>} />
       <div className="grid-23">
-        <Card title={`WALLET GRAPH — ${MEMEATCHI.symbol}`}>
+        <Card title={`WALLET GRAPH — ${MEMEATCHI.symbol} · SIMULATED FIXTURE`}>
           <div className="clus-graph" style={{ height: 420 }}>
             <ClusterGraph clusters={clusters} />
           </div>

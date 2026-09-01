@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ALERTS, SYSTEM_STATUS } from '../mock/data'
+import { ALERTS } from '../mock/data'
 import { AiHttpError, analystName, answerKey, askAiStream, rememberAnswer } from '../lib/aiApi'
 import type { AiAskRequest, AiMode, AiProvenance, AiUsage } from '../lib/aiApi'
 import { ThinkingPill } from '../components/ThinkingPill'
@@ -11,7 +11,7 @@ import { getHoldingsChain, setHoldingsChain } from '../lib/prefs'
 import { WATCH_CAP, addWatchItem, removeWatchItem, setWatchAmount, useWatchlist } from '../lib/watchlist'
 import { WALLET_LABEL } from '../wallet/registry'
 import { useWallet } from '../wallet/WalletContext'
-import { Badge, Card, EmptyState, Meter, Skeleton, Tabs, Toggle } from '../components/ui'
+import { Badge, Card, EmptyState, Skeleton, Tabs, Toggle } from '../components/ui'
 import { ChainLogo } from './chainLogos'
 
 function Head({ title, sub, right }: { title: string; sub: string; right?: React.ReactNode }) {
@@ -565,7 +565,7 @@ export function AlertsPage() {
   const rows = ALERTS.filter((a) => tab === 'all' || (tab === 'unread' && a.unread) || (tab === 'high' && a.sev === 'HIGH'))
   return (
     <div className="ta-page">
-      <Head title="Alerts" sub="Heuristic triggers on your watchlist — signals, not instructions." right={<Badge color="red">3 UNREAD</Badge>} />
+      <Head title="Alerts" sub="Heuristic triggers on your watchlist — signals, not instructions. SIMULATED fixture: no alert backend, engine, or delivery exists yet." right={<Badge color="red">{`${ALERTS.filter((a) => a.unread).length} UNREAD · SIMULATED`}</Badge>} />
       <Tabs active={tab} onPick={setTab} tabs={[{ id: 'all', label: 'All' }, { id: 'unread', label: 'Unread' }, { id: 'high', label: 'High severity' }]} />
       {rows.length === 0 ? <Card><EmptyState icon="◆" title="No alerts in this filter" /></Card> : (
         <div style={{ display: 'grid', gap: 10 }}>
@@ -930,18 +930,14 @@ export function HoldingsPage() {
 export function GatePage() {
   return (
     <div className="ta-page">
-      <Head title="Token Gate" sub="Access depth, not truth: the plan changes how deep the AI digs — never what the data says." right={<Badge color="purple">SOULBOUND · TIME-BOUND</Badge>} />
+      <Head title="Token Gate" sub="Access depth, not truth: the plan changes how deep the AI digs — never what the data says." right={<Badge color="amber">PLANNED · NOT ACTIVE</Badge>} />
       <div className="grid-3">
-        <Card title="CURRENT PLAN" glow="#00ffa3">
-          <div style={{ fontFamily: 'var(--f-display)', fontSize: 28, fontWeight: 700 }}>Premium Deep</div>
-          <div className="mono" style={{ color: 'var(--violet)', fontSize: 12, margin: '4px 0 14px' }}>VALID UNTIL 2026-12-31</div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: 'var(--muted)', marginBottom: 4 }}>
-            <span>Cycle usage</span><span className="mono">89%</span>
-          </div>
-          <Meter value={89} color="#00ffa3" />
+        <Card title="CURRENT PLAN (from backend: resolve_tier → free)" glow="#00ffa3">
+          <div style={{ fontFamily: 'var(--f-display)', fontSize: 28, fontWeight: 700 }}>FREE</div>
+          <div className="mono" style={{ color: 'var(--violet)', fontSize: 12, margin: '4px 0 14px' }}>no entitlement / billing backend exists yet — nothing is gated</div>
           <div className="rug-list" style={{ marginTop: 14 }}>
-            <div className="rug-row"><span className="k">Deep AI runs</span><span className="v ok-yes">unlimited</span></div>
-            <div className="rug-row"><span className="k">Cluster graph export</span><span className="v ok-yes">enabled</span></div>
+            <div className="rug-row"><span className="k">Deep AI runs</span><span className="v">rate-limited free budget</span></div>
+            <div className="rug-row"><span className="k">Cluster graph export</span><span className="v">— (cluster not wired)</span></div>
             <div className="rug-row"><span className="k">Evidence correctness</span><span className="v ok-yes">identical on every tier</span></div>
           </div>
         </Card>
@@ -964,7 +960,7 @@ export function GatePage() {
                 <div style={{ fontWeight: 700, fontSize: 13 }}>{t as string}</div>
                 <div className="mono dim" style={{ fontSize: 11.5 }}>{d as string}</div>
               </div>
-              {hot ? <Badge color="green">ACTIVE</Badge> : <button className="btn-analyze" style={{ height: 34, fontSize: 11, padding: '0 14px' }}>SELECT</button>}
+              {hot ? <Badge color="amber">PLANNED</Badge> : <button className="btn-analyze" style={{ height: 34, fontSize: 11, padding: '0 14px', opacity: 0.5, cursor: 'not-allowed' }} disabled title="PLANNED — no billing backend exists yet">SELECT</button>}
             </div>
           ))}
         </Card>
@@ -1058,15 +1054,50 @@ export function DocsPage() {
 }
 
 /* ─────────────── FEEDBACK ─────────────── */
+/* P0-H2/H3: no POST /api/feedback exists — the button must never claim a
+   delivery that did not happen, and the status card must show the LIVE
+   /api/health probe instead of the fabricated fixture. */
+function SystemStatusLive() {
+  const [st, setSt] = useState<{ state: 'loading' | 'ok' | 'down'; body?: { status?: string; chains?: string[]; tier?: string; ai_providers?: string[] } }>({ state: 'loading' })
+  useEffect(() => {
+    let on = true
+    fetch('/api/health')
+      .then((r) => r.json())
+      .then((j) => { if (on) setSt({ state: 'ok', body: j }) })
+      .catch(() => { if (on) setSt({ state: 'down' }) })
+    return () => { on = false }
+  }, [])
+  if (st.state === 'loading') return <div className="sys-foot"><span>probing /api/health…</span></div>
+  if (st.state === 'down') return <div className="sys-foot"><span>API HEALTH: unreachable from your browser — nothing fabricated in its place</span></div>
+  const b = st.body ?? {}
+  const rows: [string, string][] = [
+    ['API', b.status === 'ok' ? 'online (status: ok)' : `status: ${b.status ?? 'unknown'}`],
+    ['Chain coverage', (b.chains ?? []).join(' · ') || '—'],
+    ['Tier (backend)', b.tier ?? '—'],
+    ['AI providers (analyst plane)', (b.ai_providers ?? []).length ? b.ai_providers!.join(', ') : 'none configured on the analyst plane — the chat plane runs on a separate key'],
+  ]
+  return (
+    <div>
+      {rows.map(([n, v]) => (
+        <div className="sys-row" key={n}>
+          <span className="n"><i style={{ background: 'var(--green)', width: 6, height: 6, borderRadius: 99, boxShadow: '0 0 8px var(--green)' }} />{n}</span>
+          <span className="s" style={{ color: 'var(--green)', fontFamily: 'var(--f-mono)', fontSize: 11.5 }}>{v}</span>
+        </div>
+      ))}
+      <div className="sys-foot"><span>LIVE PROBE · /api/health</span><span>·</span><span>no region/ping is claimed</span></div>
+    </div>
+  )
+}
+
 export function FeedbackPage() {
-  const [sent, setSent] = useState(false)
+  const [drafted, setDrafted] = useState(false)
   const [text, setText] = useState('')
   return (
     <div className="ta-page">
       <Head title="Feedback" sub="Found a false positive? A cluster that looked fake but was an airdrop? Tell us — heuristics improve from misses." />
       <div className="grid-2">
         <Card title="SEND FEEDBACK">
-          {sent ? <EmptyState icon="✓" title="Feedback received" hint="Thank you — every report trains the heuristics." /> : (
+          {drafted ? <EmptyState icon="✎" title="LOCAL DRAFT — not sent" hint="No feedback transport is wired yet (POST /api/feedback does not exist), so this text went nowhere. It stays in this tab until you close it." /> : (
             <>
               <textarea
                 value={text}
@@ -1074,18 +1105,12 @@ export function FeedbackPage() {
                 placeholder="What did the terminal get right, wrong, or weird?"
                 style={{ width: '100%', minHeight: 140, background: 'rgba(5,6,15,0.5)', border: '1px solid var(--line)', borderRadius: 10, padding: 14, color: 'var(--text)', fontSize: 13, resize: 'vertical', outline: 'none' }}
               />
-              <button className="btn-analyze" style={{ marginTop: 12 }} onClick={() => text.trim() && setSent(true)}>SEND FEEDBACK</button>
+              <button className="btn-analyze" style={{ marginTop: 12 }} onClick={() => text.trim() && setDrafted(true)}>SAVE LOCAL DRAFT</button>
             </>
           )}
         </Card>
         <Card title="SYSTEM STATUS">
-          {SYSTEM_STATUS.map((s) => (
-            <div className="sys-row" key={s.name}>
-              <span className="n"><i style={{ background: 'var(--green)', width: 6, height: 6, borderRadius: 99, boxShadow: '0 0 8px var(--green)' }} />{s.name}</span>
-              <span className="s" style={{ color: 'var(--green)', fontFamily: 'var(--f-mono)', fontSize: 11.5 }}>{s.state}</span>
-            </div>
-          ))}
-          <div className="sys-foot"><span>REGION: AP-SOUTHEAST-1</span><span>·</span><span>PING: 41MS</span></div>
+          <SystemStatusLive />
         </Card>
       </div>
     </div>
