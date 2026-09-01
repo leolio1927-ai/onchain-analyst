@@ -31,6 +31,17 @@ opini — jadi kebutuhan trader, investor, dan komunitas. VILMEI dibangun sebaga
 verifikasi untuk manusia DAN agen AI ("agent-driven economy"; jangan mengarang label
 zaman).
 
+## §3 · DATA & SOURCES
+Upstream public: GeckoTerminal (pools, trades, feeds — keyless) · DexScreener
+(pairs, socials) · Solana public RPC (supply, mint/freeze authority, top holders,
+byte-proof) · GoPlus (EVM deployer/mint/honeypot heuristics — EVM chains) ·
+Raydium (venue context). Keyless dulu; key founder hanya membuka kuota/fitur,
+tidak pernah mengubah data. Chip status = kontrak tampilan: LIVE = data upstream
+sungguhan · SIMULATED = data set deterministik berlabel · ONCHAIN TEST = terbaca
+langsung dari chain · IN BUILD = sedang dikerjakan · DESIGN = ter-scope, belum
+dikerjakan. GAPS panel = daftar apa yang BELUM bisa dibuktikan — tampil, tidak
+disembunyikan; klaim yang kalah dari chain dipublikasi sebagai koreksi.
+
 ## §4 · SURFACES (chip + fungsi saja; jangan melebihi teks)
 Token Scanner —LIVE · Rug Check —LIVE (heuristik EVM+Solana) · Swap Intelligence —LIVE
 (context, non-custodial) · Chain Coverage —LIVE. TOKEN LEDGER — ONCHAIN TEST: page
@@ -47,6 +58,16 @@ F0 Fondasi terminal — LIVE · F1 Ledger test di-nyalakan on-chain — DONE ·
 F2 Launch $VLM + halaman ledger pakai datanya sendiri — NEXT ·
 F3 Fee aktif (F2 selesai) + audit publik — PLANNED · F4 Alerts/watchlist/portfolio —
 PLANNED · F5 Agent-economy surfaces — PLANNED · F6 Agnoistik assets + agent identity — RESEARCH.
+
+## §6 · MACHINE SURFACES
+Agen AI mengaudit VILMEI tanpa percaya VILMEI: /api/docs (OpenAPI contract) ·
+/api/health (chain coverage, tier, ai providers) · /ledger.jsonl (mesin-dump
+per baris: pembuka → holder* → penutup) · /assets/llms.txt (indeks mesin) ·
+/api/v1/ai/ask + /api/v1/landing/chat (SSE: provenance → delta* → [DONE],
+prompt_version berubah di git, bukan di UI). Setiap angka ledger membawa
+{source, fetched_at, verified_by}; byte-proof curl disertakan per baris.
+Verifikasi browser langsung (VERIFY NOW) menjalankan getAccountInfo dari
+browser pembaca — VILMEI bukan satu-satunya sumber.
 
 ## §7 · AUDIENS
 Trader → di mana context/edge-nya; apa label artinya; dan jujur apa yang

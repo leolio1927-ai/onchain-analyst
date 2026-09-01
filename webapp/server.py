@@ -866,6 +866,15 @@ async def api_ledger(chain: str = "sol", mint: str | None = None) -> dict:
     return ledger_solana.fetch_ledger(chain.strip().lower(), mint)
 
 
+@app.get("/api/ledger/history", tags=["ledger"])
+async def api_ledger_history(chain: str = "sol", mint: str | None = None) -> dict:
+    """48h supply + top-2 concentration points from the snapshot store.
+    Empty-by-law until points exist — the chart is honest about it."""
+    mint_key = (mint or os.environ.get("LEDGER_MINT_ADDRESS")
+                or ledger_solana.DEFAULT_MINT).strip()
+    return ledger_solana.read_history(mint_key)
+
+
 @app.get("/ledger.jsonl", tags=["ledger"])
 async def ledger_jsonl(chain: str = "sol", mint: str | None = None) -> StreamingResponse:
     """Full machine-readable dump: one JSON object per line, envelope + GAPS.

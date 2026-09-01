@@ -37,8 +37,25 @@
       ]
     }
     </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        { "@type": "Question", "name": "Is VILMEI a trading bot?",
+          "acceptedAnswer": { "@type": "Answer", "text": "No. Zero transaction paths exist in the product — read-only research infrastructure by architecture." } },
+        { "@type": "Question", "name": "Where does the data come from?",
+          "acceptedAnswer": { "@type": "Answer", "text": "GeckoTerminal and DexScreener keyless public tiers, copied verbatim or rendered as an honest dash. Solana public RPC powers the token ledger with byte-proof." } },
+        { "@type": "Question", "name": "Can AI agents verify VILMEI without trusting it?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes: OpenAPI contract at /api/docs, machine index at /assets/llms.txt, per-row machine dump at /ledger.jsonl, and byte-proof curls per claim." } }
+      ]
+    }
+    </script>
     <link rel="llms" type="text/plain" href="/assets/llms.txt" title="Machine-readable project index" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M6 4h20L6 26z' fill='%2300ffa3'/%3E%3C/svg%3E" />
+    <link rel="llms" type="text/plain" href="/assets/llms-full.txt" title="Full machine-readable corpus (llms + brief + fee models + rug matrix)" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/img/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/img/favicon-16.png" />
+    <link rel="apple-touch-icon" href="/assets/img/favicon-180.png" />
   </head>
   <body>
     <div id="root"></div>

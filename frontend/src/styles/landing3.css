@@ -933,3 +933,37 @@ a { color: inherit; text-decoration: none; }
 .decode-static { animation: lv-fadein .18s ease both; }
 @keyframes lv-fadein { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .decode-static { animation: none; } }
+
+/* PROMPT-W+ brand: the VLM token mark rides the nav wordmark (32px, thread ring) */
+.lv-logo-img { width: 32px; height: 32px; border-radius: 9px; object-fit: cover;
+  border: 1px solid rgba(20, 241, 149, .4); box-shadow: 0 0 14px rgba(20, 241, 149, .22); }
+
+/* ── PKG1: answer cards + follow-up chips + ask-bridge ── */
+.lv-answercards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+.lv-answercard { display: grid; gap: 2px; padding: 10px 12px; border-radius: 10px;
+  border: 1px dashed rgba(20, 241, 149, .3); background: rgba(6, 16, 11, .6);
+  transition: border-color .15s, box-shadow .15s; }
+.lv-answercard:hover { border-style: solid; border-color: rgba(20, 241, 149, .6);
+  box-shadow: 0 0 18px rgba(20, 241, 149, .12); }
+.lv-answercard b { font-family: var(--fm); font-size: 9px; letter-spacing: .16em; color: var(--g); }
+.lv-answercard span { font-size: 10.5px; color: var(--mut); }
+.lv-followups { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.lv-askbtn { height: 30px; padding: 0 12px; font-size: 10px; font-family: var(--fm); letter-spacing: .1em; }
+@media (max-width: 760px) { .lv-answercards { grid-template-columns: 1fr; } }
+
+/* ── PKG3 — scroll-stitched thread rail (desktop only) ── */
+.lv-threadrail { position: fixed; left: 14px; top: 12vh; bottom: 12vh; width: 2px; z-index: 80;
+  pointer-events: none; }
+.lv-threadrail-needle { position: absolute; inset: 0; transform-origin: top; transform: scaleY(0);
+  background: var(--emb-band);
+  box-shadow: 0 0 12px rgba(20, 241, 149, .3); }
+.lv-threadrail::before { content: ''; position: absolute; inset: 0;
+  background: rgba(22, 53, 42, .5); }
+.lv-threadrail-node { position: absolute; left: 50%; width: 7px; height: 7px; border-radius: 50%;
+  transform: translate(-50%, -50%); background: rgba(22, 53, 42, .9);
+  border: 1px solid rgba(20, 241, 149, .3); pointer-events: auto;
+  transition: background .3s, box-shadow .3s, border-color .3s; }
+.lv-threadrail-node.on { background: var(--emb-sol); border-color: var(--emb-sol);
+  box-shadow: 0 0 12px rgba(20, 241, 149, .55); }
+@media (max-width: 1360px) { .lv-threadrail { display: none; } }
+@media (prefers-reduced-motion: reduce) { .lv-threadrail-needle { transition: none; } }

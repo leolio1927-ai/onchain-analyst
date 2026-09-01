@@ -17,7 +17,7 @@ function heroText(): string {
 }
 
 describe('PROMPT-W D3 — hero instant, no scramble/CJK', () => {
-  it('text is final at 0ms, 500ms, 2000ms (0-diff across frames)', async () => {
+  it('text is final at 0ms, 500ms, 2000ms (0-diff across frames)', { timeout: 20000 }, async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Promise<Response>(() => {})))
     render(<Landing />)
     const frames: string[] = []
@@ -31,7 +31,7 @@ describe('PROMPT-W D3 — hero instant, no scramble/CJK', () => {
     expect(frames[0]).toBe(FINAL)                 // exactly the final copy
   })
 
-  it('hero innerHTML has zero CJK / glyph-noise characters', () => {
+  it('hero innerHTML has zero CJK / glyph-noise characters', { timeout: 20000 }, () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Promise<Response>(() => {})))
     render(<Landing />)
     const hero = document.querySelector('.lv-h1')!

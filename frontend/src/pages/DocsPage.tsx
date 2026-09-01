@@ -143,6 +143,98 @@ function useScrollspy(ids: readonly string[]) {
 
 const BAR = (pct: number) => ({ width: `${pct}%` })
 
+
+
+/* ── PKG4 — Cmd+K docs search + honest mini playground ─────────────────── */
+
+function DocsSearchHost() {
+  const [open, setOpen] = useState(false)
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setOpen((v) => !v) }
+      if (e.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('keydown', on)
+    return () => window.removeEventListener('keydown', on)
+  }, [])
+  return <DocsSearch open={open} onClose={() => setOpen(false)} />
+}
+
+function DocsSearch({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [q, setQ] = useState('')
+  const [hits, setHits] = useState<{ id: string; text: string }[]>([])
+  useEffect(() => {
+    if (!open) return
+    const idx = Array.from(document.querySelectorAll('h2[id], h3[id], .dd-h2, .dd-h3'))
+      .map((el) => ({
+        id: el.id || '',
+        text: (el.textContent ?? '').trim(),
+      }))
+      .filter((x) => x.text)
+    setHits(q.trim()
+      ? idx.filter((x) => x.text.toLowerCase().includes(q.toLowerCase())).slice(0, 9)
+      : idx.slice(0, 9))
+  }, [q, open])
+  if (!open) return null
+  return (
+    <div className="dd-ksearch" role="dialog" aria-label="search docs" onClick={onClose}>
+      <div className="dd-ksearch-panel" onClick={(e) => e.stopPropagation()}>
+        <input autoFocus value={q} onChange={(e) => setQ(e.target.value)}
+          placeholder="Search the docs… (Esc to close)" aria-label="search query" />
+        <ul>
+          {hits.map((h) => (
+            <li key={h.text}>
+              <button type="button" onClick={() => {
+                const el = h.id ? document.getElementById(h.id)
+                  : Array.from(document.querySelectorAll('.dd-h2, .dd-h3'))
+                    .find((x) => (x.textContent ?? '').trim() === h.text)
+                el?.scrollIntoView({ behavior: 'smooth' })
+                onClose()
+              }}>{h.text}</button>
+            </li>
+          ))}
+          {hits.length === 0 && <li className="dim">no match — the docs answer honestly here too</li>}
+        </ul>
+        <span className="dd-ksearch-hint">⌘K / CTRL+K · LOCAL INDEX — NO THIRD-PARTY SEARCH</span>
+      </div>
+    </div>
+  )
+}
+
+const PLAY_ENDPOINTS = [
+  { m: 'GET', u: '/api/v1/live/sol?mode=trending&limit=1', d: 'keyless feed — one trending pool on Solana' },
+  { m: 'GET', u: '/api/health', d: 'chain coverage + tier, self-reported' },
+  { m: 'GET', u: '/api/ledger/history', d: '48h supply points from the snapshot store' },
+]
+
+function ApiPlayground() {
+  const [st, setSt] = useState<Record<string, { busy?: boolean; out?: string; ms?: number }>>({})
+  const run = (u: string) => {
+    setSt((s) => ({ ...s, [u]: { busy: true } }))
+    const t0 = performance.now()
+    fetch(u)
+      .then((r) => r.json())
+      .then((j) => setSt((s) => ({ ...s, [u]: { out: JSON.stringify(j, null, 1).slice(0, 2400), ms: Math.round(performance.now() - t0) } })))
+      .catch((e) => setSt((s) => ({ ...s, [u]: { out: `unreachable: ${String(e).slice(0, 80)}` } })))
+  }
+  return (
+    <div className="dd-play">
+      {PLAY_ENDPOINTS.map((e) => (
+        <div className="dd-play-row" key={e.u}>
+          <code>{e.m} {e.u}</code>
+          <span>{e.d}</span>
+          <button type="button" className="dd-play-run" disabled={st[e.u]?.busy} onClick={() => run(e.u)}>
+            {st[e.u]?.busy ? 'RUNNING…' : 'RUN ▶'}
+          </button>
+          {st[e.u]?.out && (
+            <pre>{st[e.u].out}{st[e.u].ms != null ? `\n// ${st[e.u].ms} ms — real response, verbatim` : ''}</pre>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export function DocsPage() {
   document.title = 'Docs — VILMEI'
   const cur = useScrollspy(SECTIONS.map(([, id]) => id))
@@ -162,7 +254,8 @@ export function DocsPage() {
           </div>
         </nav>
 
-        <main>
+              <DocsSearchHost />
+<main>
           <div className="dd-topnav embroidery">
             <a className="dd-a" href="/">← LANDING</a>
             <a className="dd-a boxed" href="/live">MEMECOIN LIVE</a>
@@ -430,6 +523,7 @@ export function DocsPage() {
           </Sec>
 
           {/* ── 6 · API REFERENCE ────────────────────────────── */}
+          <ApiPlayground />
           <Sec id="api" n="6" title="API REFERENCE — /API/V1/LIVE"
             sub="The response below was captured from a running server (2026-08-29), not written by hand. Absent upstream fields stay null end-to-end.">
             <div className="dd-card">

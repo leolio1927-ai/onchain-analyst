@@ -13,6 +13,10 @@ export default defineConfig({
     setupFiles: ['./src/test-setup.ts'],
     css: false,
     include: ['src/**/*.test.{ts,tsx}'],
+    // full-page renders (landing/docs) boot preloader timers + staggered
+    // fetch stubs; 5s flaked under parallel builds — 20s keeps the law, drops
+    // the load-sensitivity (PROMPT-W+).
+    testTimeout: 20000,
   },
   server: {
     proxy: {

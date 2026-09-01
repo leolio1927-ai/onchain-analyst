@@ -365,3 +365,16 @@
 .lx-top-links a.lg-nav-ledger { position: relative; }
 .lx-top-links a.lg-nav-ledger::before { content: '$'; margin-right: 5px;
   color: var(--emb-bnb); font-weight: 700; }
+
+/* ── PKG4 — watchlist bar + star ── */
+.wl-bar { max-width: 1480px; margin: 14px auto 0; padding: 0 24px; display: flex; gap: 12px; align-items: center; }
+.wl-toggle { font-family: var(--f-m, monospace); font-size: 10px; letter-spacing: .16em; color: var(--muted);
+  background: rgba(6, 16, 11, .7); border: 1px dashed rgba(20, 241, 149, .35); border-radius: 999px;
+  padding: 7px 14px; cursor: pointer; }
+.wl-toggle.on { color: #eafff6; border-style: solid; box-shadow: 0 0 16px rgba(20, 241, 149, .2); }
+.wl-toggle:disabled { opacity: .45; cursor: default; }
+.wl-hint { font-size: 10px; color: var(--muted-deep, #649580); }
+.lx-card-hd .wl-star { order: -1; align-self: center; background: none; border: none; cursor: pointer;
+  font-size: 18px; color: rgba(156, 195, 178, .35); transition: color .15s, text-shadow .15s; padding: 0 2px; }
+.lx-card-hd .wl-star:hover { color: var(--brand, #00ffa3); }
+.lx-card-hd .wl-star.on { color: var(--brand, #00ffa3); text-shadow: 0 0 14px rgba(0, 255, 163, .6); }

@@ -48,6 +48,44 @@ function MiniRow({ item, onOpen }: { item: LiveItem; onOpen: (it: LiveItem) => v
   )
 }
 
+
+/* ── PKG4 — account-less watchlist (localStorage, founder law VM-102) ── */
+const WL_KEY = 'vilmei-watch-v1'
+
+function wlRead(): string[] {
+  try { return JSON.parse(localStorage.getItem(WL_KEY) ?? '[]') } catch { return [] }
+}
+
+function wlWrite(v: string[]) {
+  try { localStorage.setItem(WL_KEY, JSON.stringify(v)) } catch { /* private mode — star is best-effort */ }
+}
+
+function WatchlistBar() {
+  const [only, setOnly] = useState(false)
+  const [items, setItems] = useState<string[]>(wlRead)
+  useEffect(() => {
+    const on = () => setItems(wlRead())
+    window.addEventListener('vilmei:watch', on)
+    return () => window.removeEventListener('vilmei:watch', on)
+  }, [])
+  useEffect(() => {
+    document.querySelectorAll('.lx-card').forEach((el) => {
+      const c = el.getAttribute('data-chain') ?? ''
+      ;(el as HTMLElement).style.display = only && items.length > 0 && !items.includes(c) ? 'none' : ''
+    })
+  }, [only, items])
+  const star = items.length
+  return (
+    <div className="wl-bar" role="group" aria-label="watchlist">
+      <button type="button" className={`wl-toggle${only ? ' on' : ''}`}
+        onClick={() => setOnly(!only)} disabled={star === 0}>
+        ★ WATCHLIST {star > 0 ? `(${star})` : ''}{only ? ' · FILTER ON' : ''}
+      </button>
+      {star > 0 && <span className="wl-hint">stars live in YOUR browser — no account, no server copy</span>}
+    </div>
+  )
+}
+
 export function LiveBoard() {
   const [states, setStates] = useState<Partial<Record<LiveChain, CardState>>>({})
   const [cooldown, setCooldown] = useState<Partial<Record<LiveChain, number>>>({})
@@ -103,6 +141,7 @@ export function LiveBoard() {
 
   return (
     <div className="lvx">
+      <WatchlistBar />
       <header className="lx-top embroidery">
         <div className="lx-top-in">
           <a className="lx-logo" href="/"><span className="m">◤</span>VILMEI</a>
@@ -128,6 +167,16 @@ export function LiveBoard() {
             return (
               <article className="lx-card" data-chain={chain} key={chain} style={accentStyle(chain)}>
                 <div className="lx-card-hd">
+                  <button type="button" className={`wl-star${wlRead().includes(chain) ? ' on' : ''}`}
+                    aria-label={`star ${chain}`} title="watchlist (browser-local)"
+                    onClick={() => {
+                      const cur = wlRead()
+                      const next = cur.includes(chain) ? cur.filter((x) => x !== chain) : [...cur, chain]
+                      wlWrite(next)
+                      window.dispatchEvent(new Event('vilmei:watch'))
+                      ;(document.activeElement as HTMLElement | null)?.blur()
+                      window.dispatchEvent(new Event('vilmei:watch'))
+                    }}>★</button>
                   <ChainLogo chain={chain} size={56} />
                   <div className="lx-card-id">
                     <span className="lx-card-name">

@@ -33,6 +33,7 @@ interface Ledger {
   concentration: { top2_pct: number | null; top2_labels: string[] }
   cache_age_s?: number
   holders: Holder[]
+  holders_depth?: number
   holders_prov: { source: string; fetched_at: string; verified_by: string }
   delta_note: string
   invariant: { expression: string; top20_sum: number | null
@@ -200,6 +201,94 @@ function ByteProof({ ledger }: { ledger: Ledger }) {
   )
 }
 
+/* PKG2 — 48h supply/concentration history from the snapshot store. */
+interface HistPoint { ts: number; supply: number; top2_pct: number | null }
+
+function HistoryChart({ mint }: { mint: string }) {
+  const [st, setSt] = useState<{ st: 'load' | 'ok' | 'empty'; points: HistPoint[]; note: string }>({ st: 'load', points: [], note: '' })
+  useEffect(() => {
+    let on = true
+    fetch('/api/ledger/history')
+      .then((r) => r.json())
+      .then((j) => { if (on) setSt({ st: (j.points?.length ?? 0) >= 2 ? 'ok' : 'empty', points: j.points ?? [], note: j.note ?? '' }) })
+      .catch(() => { if (on) setSt({ st: 'empty', points: [], note: 'history unreachable — nothing invented' }) })
+    return () => { on = false }
+  }, [mint])
+  if (st.st !== 'ok') {
+    return (
+      <div className="lg-railcard lg-chart" data-testid="history-chart">
+        <b>SUPPLY · 48H</b>
+        <span className="lg-gapline">{st.st === 'load' ? 'reading the snapshot store…' : st.note}</span>
+      </div>
+    )
+  }
+  const pts = st.points
+  const W = 300, H = 96
+  const xs = pts.map((p) => p.ts)
+  const t0 = Math.min(...xs), t1 = Math.max(...xs) || 1
+  const ys = pts.map((p) => p.supply)
+  const y0 = Math.min(...ys), y1 = Math.max(...ys)
+  const span = y1 - y0 || 1
+  const px = (p: HistPoint) => ((p.ts - t0) / ((t1 - t0) || 1)) * (W - 8) + 4
+  const py = (v: number) => H - 10 - ((v - y0) / span) * (H - 22)
+  const line = pts.map((p, i) => `${i ? 'L' : 'M'}${px(p).toFixed(1)},${py(p.supply).toFixed(1)}`).join('')
+  const area = `${line}L${px(pts[pts.length - 1]).toFixed(1)},${H - 10}L${px(pts[0]).toFixed(1)},${H - 10}Z`
+  const t2 = pts.filter((p) => p.top2_pct != null)
+  const t2line = t2.map((p, i) => `${i ? 'L' : 'M'}${px(p).toFixed(1)},${(H - 10 - ((p.top2_pct ?? 0) / 100) * (H - 22)).toFixed(1)}`).join('')
+  return (
+    <div className="lg-railcard lg-chart" data-testid="history-chart">
+      <b>SUPPLY · 48H <small className="lg-mono-note">{pts.length} pts · top2% overlaid</small></b>
+      <svg viewBox={`0 0 ${W} ${H}`} className="lg-chart-svg" role="img" aria-label="supply history">
+        <defs>
+          <linearGradient id="histband" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#14F195" /><stop offset="25%" stopColor="#F0B90B" />
+            <stop offset="45%" stopColor="#4D8DFF" /><stop offset="65%" stopColor="#2DD4BF" />
+            <stop offset="85%" stopColor="#00C805" /><stop offset="100%" stopColor="#E84142" />
+          </linearGradient>
+        </defs>
+        <path d={area} fill="url(#histband)" opacity=".08" />
+        <path d={line} fill="none" stroke="url(#histband)" strokeWidth="1.8" />
+        {t2.length > 1 && <path d={t2line} fill="none" stroke="#a78bfa" strokeWidth="1" strokeDasharray="3 3" opacity=".8" />}
+      </svg>
+      <span className="lg-mono-note">{st.note}</span>
+    </div>
+  )
+}
+
+/* PKG2 — VERIFY NOW: the visitor's OWN browser re-reads the mint account
+   from the public RPC (CORS *) and compares it to the numbers on this page.
+   VILMEI is not the only source — that is the whole point. */
+function VerifyNow({ mint, mintAbsent, freezeAbsent }: { mint: string; mintAbsent: boolean; freezeAbsent: boolean }) {
+  const [st, setSt] = useState<{ busy: boolean; raw?: string; match?: 'ok' | 'bad'; msg?: string }>({ busy: false })
+  const run = () => {
+    setSt({ busy: true })
+    fetch('https://api.mainnet-beta.solana.com', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getAccountInfo', params: [mint, { encoding: 'jsonParsed' }] }),
+    })
+      .then((r) => r.json())
+      .then((j) => {
+        const info = j?.result?.value?.data?.parsed?.info
+        if (!info) throw new Error('no account data returned')
+        const ok = (info.mintAuthority === null) === mintAbsent && (info.freezeAuthority === null) === freezeAbsent
+        setSt({ busy: false, raw: JSON.stringify(info, null, 1), match: ok ? 'ok' : 'bad' })
+      })
+      .catch((e) => setSt({ busy: false, msg: `browser verify blocked (${String(e).slice(0, 60)}) — use the curl below; nothing is hidden` }))
+  }
+  return (
+    <div className="lg-verifynow">
+      <button type="button" className="lv-cta ghost lg-verifybtn" onClick={run} disabled={st.busy}>
+        {st.busy ? 'VERIFYING FROM YOUR BROWSER…' : 'VERIFY NOW — FROM YOUR BROWSER →'}
+      </button>
+      {st.match === 'ok' && <span className="lg-verify-ok">✓ CONFIRMED — your browser read the chain directly; this page's chips match the RPC answer</span>}
+      {st.match === 'bad' && <span className="lg-verify-bad">✗ MISMATCH — the page and the chain disagree; treat the page as broken and read GAPS</span>}
+      {st.msg && <span className="lg-mono-note">{st.msg}</span>}
+      {st.raw && <pre className="mono lg-verify-raw">{st.raw}</pre>}
+    </div>
+  )
+}
+
 /* A2 — a broken docs claim appears as a structured correction row:
    claim | on-chain | status. Never deleted, never rendered as a metric. */
 function ClaimCorrectionRow({ cc }: { cc: Ledger['claim_correction'] }) {
@@ -237,13 +326,16 @@ function ConcentrationCard({ c }: { c: Ledger['concentration'] }) {
 
 function LedgerPage() {
   const { state } = useLedger(null)
-  const [tab, setTab] = useState<TabId>('holders')
+  const [tab, setTab] = useState<TabId>(() => {
+    const q = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null
+    return (TABS.some((x) => x.id === q) ? (q as TabId) : 'holders')
+  })
   const threadRef = useRef<HTMLDivElement>(null)
 
   return (
     <div className="lg-root">
       <header className="lg-top embroidery">
-        <a className="lg-logo" href="/"><span className="m">◤</span>VILMEI</a>
+        <a className="lg-logo" href="/"><img src="/assets/img/vlm-logo-96.png" alt="" className="lg-logo-img" /><span className="m">◤</span>VILMEI</a>
         <nav className="lg-seg" aria-label="site section">
           <a href="/live">MEMECOIN LIVE</a>
           <span className="lg-seg-on">$VLM · LEDGER</span>
@@ -263,6 +355,7 @@ function LedgerPage() {
           <>
             <div className="lg-headrow">
               <h1 className="lg-h1">TOKEN <em>LEDGER</em></h1>
+              {state.ledger.holders_depth === 100 && <span className="lg-chip ok" title="top-100 via indexed background walk (DAS) merged under the live top-20">TOP-100 · INDEXED</span>}
               <span className="lg-mint mono" title={state.ledger.mint}>
                 {state.ledger.mint.slice(0, 6)}…{state.ledger.mint.slice(-4)}
               </span>
@@ -276,10 +369,26 @@ function LedgerPage() {
                 <div className="lg-tabs" role="tablist">
                   {TABS.map((t) => (
                     <button key={t.id} role="tab" aria-selected={tab === t.id}
-                      className={`lg-tab${tab === t.id ? ' on' : ''}`} onClick={() => setTab(t.id)}>
+                      className={`lg-tab${tab === t.id ? ' on' : ''}`} onClick={() => {
+                        setTab(t.id)
+                        try { window.history.replaceState(null, '', `?tab=${t.id}`) } catch { /* sandboxed */ }
+                      }}>
                       {t.label}
                     </button>
                   ))}
+                  {tab === 'holders' && state.ledger.holders.length > 0 && (
+                    <button className="lg-tab lg-tab-csv" type="button" onClick={() => {
+                      const head = 'rank,token_account,owner,label,amount_exact,pct_supply'
+                      const lines = state.ledger!.holders.map((h) =>
+                        [h.rank, h.token_account, h.owner, h.label, h.amount_exact ?? h.amount, h.pct_supply ?? ''].join(','))
+                      const blob = new Blob([[head, ...lines].join('\n')], { type: 'text/csv' })
+                      const a = document.createElement('a')
+                      a.href = URL.createObjectURL(blob)
+                      a.download = 'vilmei-ledger-holders.csv'
+                      a.click()
+                      URL.revokeObjectURL(a.href)
+                    }}>CSV ↓</button>
+                  )}
                 </div>
                 <div className="lg-tabbody" ref={threadRef} key={tab}>
                   {tab === 'holders' && (
@@ -299,6 +408,7 @@ function LedgerPage() {
                 </div>
               </section>
               <aside className="lg-rail">
+                <HistoryChart mint={state.ledger.mint} />
                 <ClaimCorrectionRow cc={state.ledger.claim_correction} />
                 <ConcentrationCard c={state.ledger.concentration} />
                 <div className="lg-railcard">
@@ -315,6 +425,9 @@ function LedgerPage() {
                   <span>{state.ledger.labels_source}. Default UNKNOWN. Seeds require on-chain evidence — a label without proof violates the ledger law.</span>
                 </div>
                 <ByteProof ledger={state.ledger} />
+                <VerifyNow mint={state.ledger.mint}
+                  mintAbsent={state.ledger.supply.mint_absent}
+                  freezeAbsent={state.ledger.supply.freeze_absent} />
               </aside>
             </div>
           </>

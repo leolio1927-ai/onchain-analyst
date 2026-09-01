@@ -103,6 +103,23 @@ function Decode({ text, className = '' }: { text: string; delay?: number; classN
   return <span className={`decode-static ${className}`}>{text}</span>
 }
 
+/* PKG3 — the scroll-stitched thread: a 6-chain line sews itself down the
+   viewport edge as the visitor scrolls; section nodes light up when passed. */
+function ThreadRail({ ids }: { ids: string[] }) {
+  const progress = useScrollProgress()
+  const passed = useScrollspy(ids)
+  return (
+    <div className="lv-threadrail" aria-hidden="true">
+      <div className="lv-threadrail-needle" style={{ transform: `scaleY(${progress})` }} />
+      {ids.map((id) => (
+        <a key={id} href={`#${id}`}
+          className={`lv-threadrail-node${passed === id ? ' on' : ''}`}
+          style={{ top: `${(ids.indexOf(id) + 0.5) * (100 / ids.length)}%` }} />
+      ))}
+    </div>
+  )
+}
+
 /* spotlight follows the cursor (desktop) */
 function Spotlight() {
   const ref = useRef<HTMLDivElement>(null)
@@ -345,7 +362,7 @@ function Nav() {
       <div className="lv-progress"><span style={{ width: `${progress * 100}%` }} /></div>
       <nav className={`lv-nav bordir ${scrolled ? 'scrolled' : ''}`}>
         <div className="lv-nav-in">
-          <a href="#" className="lv-logo"><span className="m">◤</span>VIL<span className="lg">MEI</span></a>
+          <a href="#" className="lv-logo"><img src="/assets/img/vlm-logo-96.png" alt="" className="lv-logo-img" /><span className="m">◤</span>VIL<span className="lg">MEI</span></a>
           <div className="lv-nav-links">
             {NAV.map(([l, id]) => (
               <a key={id} href={`#${id}`} className={cur === id ? 'on' : ''}>{l}</a>
@@ -658,6 +675,14 @@ function LiveScan() {
                 </div>
                 <div className="pair">{p.pairAddress ?? '–'} · {p.quoteToken?.symbol ?? '–'}</div>
               </div>
+              <button type="button" className="lv-cta ghost lv-askbtn" onClick={() => {
+                const a = res.assessment
+                const q = `Baru saja saya scan ${p.baseToken?.symbol ?? 'token'} di scanner: risk score ${a.score ?? '–'}/100 (${a.level_label ?? '–'}). Jelaskan artinya pakai sinyal dari verdict ini dan apa yang TIDAK diketahui.`
+                window.dispatchEvent(new CustomEvent('vilmei:ask', { detail: q }))
+                document.querySelector('#ai')?.scrollIntoView({ behavior: 'smooth' })
+              }} title="Ask the VILMEI chat about this verdict">
+                ASK VILMEI →
+              </button>
               <span style={{ marginLeft: 'auto' }} className={`lv-status ${lvlChip}`}>
                 {res.assessment.level_label}
               </span>
@@ -967,6 +992,15 @@ function AiSection() {
   const reduceMotion = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
+  useEffect(() => {
+    const on = (e: Event) => {
+      const q = (e as CustomEvent<string>).detail
+      if (typeof q === 'string' && q.trim()) void ask(q)
+    }
+    window.addEventListener('vilmei:ask', on)
+    return () => window.removeEventListener('vilmei:ask', on)
+  })
+
   const ask = async (question: string) => {
     if (!question.trim() || state === 'connecting') return
     ctrlRef.current?.abort()
@@ -1051,7 +1085,14 @@ function AiSection() {
                   </div>
                 </div>
               ))}
-              {state === 'simulated' && (
+              {msgs.length > 0 && state === 'live' && (
+              <div className="lv-answercards" aria-label="related surfaces">
+                <a className="lv-answercard" href="/ledger"><b>TOKEN LEDGER</b><span>supply · holders · GAPS</span></a>
+                <a className="lv-answercard" href="/#scan"><b>SCANNER</b><span>paste address → verdict</span></a>
+                <a className="lv-answercard" href="/live"><b>LIVE BOARD</b><span>trending per chain</span></a>
+              </div>
+            )}
+            {state === 'simulated' && (
                 <div className="lv-msg ai">
                   <div className="who">VILMEI</div>
                   <div className="lv-bub">
@@ -1067,6 +1108,14 @@ function AiSection() {
                 </div>
               )}
             </div>
+            {state === 'live' && msgs.some((m) => m.who === 'ai' && m.text) && (
+              <div className="lv-followups">
+                {['Apa arti label UNKNOWN di ledger?', 'Bagaimana cara meng-audit invariant Σ?', 'Apa bedanya LIVE dan ONCHAIN TEST?'].map((f) => (
+                  <button key={f} type="button" className="lv-cta ghost" style={{ height: 32, fontSize: 11 }}
+                    onClick={() => void ask(f)}>{f}</button>
+                ))}
+              </div>
+            )}
             <form className="lv-composer" onSubmit={(e) => { e.preventDefault(); const q = draft.trim(); setDraft(''); void ask(q) }}>
               <input className="lv-composer-in" value={draft} onChange={(e) => setDraft(e.target.value)}
                 placeholder={state === 'connecting' ? 'streaming…' : 'Ask anything about VILMEI or a token…'}
@@ -1345,6 +1394,7 @@ export default function Landing() {
       <PageBackground />
       <Spotlight />
       <Nav />
+      <ThreadRail ids={['scan', 'problem', 'honesty', 'how', 'product', 'chains', 'ai', 'security', 'faq']} />
       <Hero />
       <TapeBand />
       <LiveScan />

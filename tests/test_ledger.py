@@ -60,7 +60,7 @@ def _wire(monkeypatch, *, supply=6862431145.753392, authority=None, freeze=None,
         return None, ""
     monkeypatch.setattr(L, "_call_first_ok", fake_call)
     monkeypatch.setattr(L, "_known_pools_from_env", lambda: {"POOLVAULT1": "deepest pool raydium $RAY"})
-    monkeypatch.setattr(L, "_snapshot_delta", lambda mint, holders: ([], "mocked"))
+    monkeypatch.setattr(L, "_snapshot_delta", lambda mint, holders, supply=None: ([], "mocked"))
     if labels is not None:
         monkeypatch.setattr(L, "_load_labels", lambda: labels)
     _reset()
@@ -223,3 +223,43 @@ def test_gaps_carries_ray_chronology_without_dates(client, monkeypatch):
     assert any("$RAY" in g and "decimal off-by-one" in g for g in j["gaps"])
     import re
     assert not re.search(r"\b20\d{2}-\d{2}-\d{2}\b", " ".join(j["gaps"]))
+
+
+# ── PROMPT-W+ PKG2 — top-100 index + history ──────────────────────────────
+
+def test_top100_index_merges_under_live_top20(client, monkeypatch):
+    """Indexed ranks 21-100 join the fresh top-20; ranks re-sort; labels stay
+    UNKNOWN (amount is proven, the owner label is not)."""
+    _wire(monkeypatch, holder_frac=0.01)   # live top-20, each 1% of supply
+    idx = {"schema": "top100-1", "mint": MINT, "done": True, "walked": 90000,
+           "pages": 90, "ts": "2026-01-01T00:00:00Z",
+           "rows": [{"token_account": f"IDX{i}", "owner": f"IXW{i}",
+                     "amount_raw": str(int(6862431145.753392 * 0.009 * 1e6))} for i in range(80)]}
+    from pathlib import Path as _P
+    idx_path = _P(L.SNAP_DIR) / f"{MINT}-top100.json"
+    idx_path.parent.mkdir(parents=True, exist_ok=True)
+    idx_path.write_text(json.dumps(idx), encoding="utf-8")
+    _reset()
+    j = client.get("/api/ledger", params={"chain": "sol", "mint": MINT}).json()
+    assert j["holders_depth"] == 100
+    assert len(j["holders"]) == 100
+    amounts = [h["amount"] for h in j["holders"]]
+    assert amounts == sorted(amounts, reverse=True)
+    assert all(h["label"] == "UNKNOWN" for h in j["holders"])
+    assert any(h["token_account"].startswith("IDX") for h in j["holders"])
+
+
+def test_history_points_from_snapshot_store(client, monkeypatch):
+    """The chart's data plane: snapshots with supply become (ts, supply, top2%)."""
+    _wire(monkeypatch)
+    snap_file = L.SNAP_DIR / f"{MINT}.json"
+    snap_file.parent.mkdir(parents=True, exist_ok=True)
+    snap_file.write_text(json.dumps([
+        {"ts": 1750000000, "holders": {"TA1": 100.0, "TA2": 60.0}, "supply": 1000.0},
+        {"ts": 1750060000, "holders": {"TA1": 110.0, "TA2": 60.0}, "supply": 1010.0},
+    ]), encoding="utf-8")
+    r = client.get("/api/ledger/history", params={"chain": "sol", "mint": MINT})
+    j = r.json()
+    assert r.status_code == 200 and len(j["points"]) == 2
+    assert j["points"][0]["supply"] == 1000.0
+    assert j["points"][0]["top2_pct"] == 16.0   # (100+60)/1000

@@ -147,3 +147,18 @@
 
 /* A3 — holder concentration card */
 .lg-concentration .lg-cc-line { font-size: 13px; font-weight: 700; color: var(--text); }
+
+/* PROMPT-W+ brand: VLM mark in the ledger topbar */
+.lg-logo-img { width: 28px; height: 28px; border-radius: 8px; object-fit: cover;
+  border: 1px solid rgba(20, 241, 149, .4); box-shadow: 0 0 12px rgba(20, 241, 149, .2); }
+
+/* ── PROMPT-W+ PKG2 — chart, verify-now, csv ── */
+.lg-chart-svg { width: 100%; border-radius: 10px; background: rgba(3, 10, 7, .8);
+  border: 1px solid var(--border); }
+.lg-verifynow { display: grid; gap: 8px; }
+.lg-verifybtn { font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em; }
+.lg-verify-ok { font-size: 11px; color: var(--brand); }
+.lg-verify-bad { font-size: 11px; color: #fb7185; }
+.lg-verify-raw { overflow-x: auto; padding: 10px; border-radius: 10px; background: rgba(3, 10, 7, .9);
+  border: 1px solid var(--border); font-size: 9.5px; color: var(--muted); max-height: 180px; }
+.lg-tab-csv { border-style: dashed; }

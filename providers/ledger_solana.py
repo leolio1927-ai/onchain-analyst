@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -91,8 +92,20 @@ class RpcRateLimited(RpcError):
     pass
 
 
+def _dotenv_get(key: str) -> str:
+    """Founder's local .env as fallback (the webapp never auto-loads it).
+    Server-side config only — nothing from here reaches the wire."""
+    try:
+        for line in Path(".env").read_text(encoding="utf-8").splitlines():
+            if line.strip().startswith(key + "="):
+                return line.split("=", 1)[1].strip().strip("'\"")
+    except OSError:
+        pass
+    return ""
+
+
 def _helius_endpoint() -> str | None:
-    key = (os.environ.get("HELIUS_API_KEY") or "").strip()
+    key = (os.environ.get("HELIUS_API_KEY") or "").strip() or _dotenv_get("HELIUS_API_KEY")
     return f"{HELIUS_RPC}?api-key={key}" if key else None
 
 
@@ -145,7 +158,8 @@ def _resolve_label(owner: str, labels: dict, known_pools: dict) -> tuple[str, st
     return "UNKNOWN", ""
 
 
-def _snapshot_delta(mint: str, holders: list) -> tuple[list, str]:
+def _snapshot_delta(mint: str, holders: list, supply: float | None = None) -> tuple[list, str]:
+    _supply_probe = [supply]
     """Δ24h per holder from the persisted snapshot history. Honest null until
     a snapshot ≥6h old exists for the same mint."""
     SNAP_DIR.mkdir(parents=True, exist_ok=True)
@@ -159,7 +173,8 @@ def _snapshot_delta(mint: str, holders: list) -> tuple[list, str]:
     base = next((h for h in hist if now - h.get("ts", 0) >= 6 * 3600), None)
     if base is None:
         hist = [h for h in hist if now - h.get("ts", 0) < 48 * 3600]
-        hist.append({"ts": now, "holders": {h["token_account"]: h["amount"] for h in holders}})
+        hist.append({"ts": now, "holders": {h["token_account"]: h["amount"] for h in holders},
+                     "supply": _supply_probe[0]})
         try:
             path.write_text(json.dumps(hist[-48:]), encoding="utf-8")
         except OSError:
@@ -285,10 +300,25 @@ def fetch_ledger(chain: str, mint: str | None = None) -> dict:
                             or (scale_raw_amount(amt_raw, amt_dec) if amt_raw else None),
                             "pct_supply": round(amt / supply_ui * 100, 4) if supply_ui else None,
                             "label": label, "evidence": evidence})
-        _deltas, delta_note = _snapshot_delta(mint, holders)
+        _deltas, delta_note = _snapshot_delta(mint, holders, supply_ui)
     else:
         gaps.append("top-20 holders: both Helius and public RPC unreachable/limited — renders null, never guessed")
         delta_note = ""
+
+    # PKG2 — top-100: lazily start/refresh the background index walk, then
+    # merge indexed ranks 21-100 under the fresh live top-20. Until the walk
+    # completes the page says exactly that (GAPS), never a partial pretense.
+    ensure_top100(mint)
+    idx = _read_index(mint)
+    holders, depth100 = _merge_top100(holders, idx, supply_ui, supply_dec)
+    holders_depth = 100 if depth100 else 20
+    if not depth100:
+        prog = (f"top-100 index: building — walked {idx.get('walked', 0)} accounts "
+                f"across {idx.get('pages', 0)} pages so far; renders top-20 live meanwhile"
+                if idx else
+                "top-100 index: not built yet — background walk queued (Helius DAS); "
+                "renders top-20 live meanwhile")
+        gaps.append(prog)
 
     invariant = None
     if holders and supply_ui:
@@ -334,6 +364,7 @@ def fetch_ledger(chain: str, mint: str | None = None) -> dict:
         },
         "cache_age_s": 0.0,
         "holders": holders,
+        "holders_depth": holders_depth,
         "holders_prov": _provenance(top_prov, "getTokenLargestAccounts"),
         "delta_note": delta_note,
         "invariant": {
@@ -356,3 +387,159 @@ def fetch_ledger(chain: str, mint: str | None = None) -> dict:
     }
     _cache.update(payload=payload, ts=time.time(), key=key)
     return dict(payload)
+
+
+# ── PROMPT-W+ PKG2 — top-100 holders index (background crawler) ───────────
+# Helius DAS getTokenAccounts walks token accounts in creation order (no
+# server-side size sort, gPA blocked on the plan), so the true top-100 is
+# built by walking pages and keeping the largest-100 seen. The walk runs in
+# a daemon thread (started lazily by fetch_ledger), persists progress to
+# SNAP_DIR/{mint}-top100.json, and refreshes every INDEX_TTL_S. Zero extra
+# owner RPCs: DAS rows already carry the owner wallet.
+INDEX_TTL_S = 1800.0
+_INDEX_PAGE_CAP = 500
+_INDEX_RUNNING: set[str] = set()
+
+
+def _idx_path(mint: str) -> Path:
+    return SNAP_DIR / f"{mint}-top100.json"
+
+
+def _read_index(mint: str) -> dict:
+    try:
+        return json.loads(_idx_path(mint).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def _persist_idx(idx: dict) -> None:
+    try:
+        SNAP_DIR.mkdir(parents=True, exist_ok=True)
+        _idx_path(idx["mint"]).write_text(json.dumps(idx), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def _walk_top100(mint: str) -> None:
+    """Walk DAS pages, keep the top-100 by raw amount, persist progress every
+    20 pages (a server restart must not lose a 10-minute walk). Resumes from
+    the last persisted page when the index is incomplete."""
+    prev = _read_index(mint)
+    idx: dict = {"schema": "top100-1", "mint": mint, "done": False,
+                 "walked": prev.get("walked", 0), "pages": prev.get("pages", 0),
+                 "rows": prev.get("rows", []), "ts": _utc_iso(), "_epoch": time.time()}
+    top: list[tuple[int, str, str]] = []   # (amount_raw, token_account, owner)
+    for r in idx["rows"]:
+        try:
+            top.append((int(r["amount_raw"]), r["token_account"], r["owner"]))
+        except (KeyError, ValueError):
+            continue
+    try:
+        ep = _helius_endpoint()
+        if not ep:
+            return
+        page = idx["pages"] + 1
+        while page <= _INDEX_PAGE_CAP:
+            body = json.dumps({"jsonrpc": "2.0", "id": page, "method": "getTokenAccounts",
+                               "params": {"mint": mint, "page": page, "limit": 1000}}).encode()
+            req = urllib.request.Request(ep, data=body, headers={"Content-Type": "application/json"})
+            try:
+                with urllib.request.urlopen(req, timeout=45) as resp:
+                    d = json.loads(resp.read().decode("utf-8", "replace"))
+            except (OSError, ValueError):
+                break
+            rows = ((d.get("result") or {}).get("token_accounts")) or []
+            if not rows:
+                break
+            for r in rows:
+                amt = int(r.get("amount") or 0)
+                if amt <= 0:
+                    continue
+                top.append((amt, r.get("address") or "", r.get("owner") or ""))
+            top.sort(reverse=True)
+            del top[100:]
+            idx.update(walked=idx["walked"] + len(rows), pages=page,
+                       ts=_utc_iso(),
+                       rows=[{"token_account": ta, "owner": ow, "amount_raw": str(a)}
+                             for a, ta, ow in top])
+            if len(rows) < 1000:
+                break
+            page += 1
+            if page % 20 == 0:
+                _persist_idx(idx)
+        idx["done"] = True
+    finally:
+        idx["_epoch"] = time.time()
+        _persist_idx(idx)
+        _INDEX_RUNNING.discard(mint)
+
+
+def ensure_top100(mint: str) -> None:
+    """Lazily start/refresh the background walk. Never blocks the request;
+    a missing/stale index simply means the page renders top-20 + GAPS note."""
+    if not _helius_endpoint():
+        return
+    idx = _read_index(mint)
+    fresh = bool(idx.get("done")) and \
+        (time.time() - idx.get("_epoch", 0) < INDEX_TTL_S) \
+        if isinstance(idx.get("_epoch"), (int, float)) else False
+    if mint in _INDEX_RUNNING or fresh:
+        return
+    _INDEX_RUNNING.add(mint)
+    threading.Thread(target=_walk_top100, args=(mint,), daemon=True).start()
+
+
+def _merge_top100(holders: list, idx: dict, supply_ui: float | None,
+                  supply_dec: int = 6) -> tuple[list, bool]:
+    """Live top-20 (fresh) + indexed ranks 21-100. Returns (holders, depth100)."""
+    if supply_ui is None or not idx.get("done") or not idx.get("rows"):
+        return holders, False
+    known = {h["token_account"] for h in holders}
+    for row in idx["rows"]:
+        if len(holders) >= 100:
+            break
+        if row["token_account"] in known:
+            continue
+        amt_raw = int(row["amount_raw"])
+        amt = amt_raw / (10 ** supply_dec)
+        if amt <= 0:
+            continue
+        holders.append({"rank": len(holders) + 1, "token_account": row["token_account"],
+                        "owner": row["owner"] or "unresolved", "amount": amt,
+                        "amount_exact": scale_raw_amount(row["amount_raw"], supply_dec),
+                        "pct_supply": round(amt / supply_ui * 100, 4),
+                        "label": "UNKNOWN", "evidence": "on-chain amount via indexed top-100 walk; owner label unproven",
+                        "delta_24h": None})
+        known.add(row["token_account"])
+    holders.sort(key=lambda h: h["amount"], reverse=True)
+    for i, h in enumerate(holders):
+        h["rank"] = i + 1
+    return holders, True
+
+
+
+
+
+def read_history(mint: str) -> dict:
+    """48h supply/concentration points from the persisted snapshot store.
+    Empty-by-law when no points exist yet — the chart renders its own
+    honest empty state, never a fabrication."""
+    path = SNAP_DIR / f"{mint}.json"
+    try:
+        hist = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"mint": mint, "points": [],
+                "note": "no history yet — the store keeps one snapshot per fetch; charts appear as points accumulate (Δ24h needs a ≥6h-old snapshot)"}
+    points = []
+    for h in sorted(hist, key=lambda x: x.get("ts", 0)):
+        if not isinstance(h.get("supply"), (int, float)):
+            continue
+        amounts = sorted((h.get("holders") or {}).values(), reverse=True)
+        top2 = sum(amounts[:2]) if amounts else None
+        points.append({"ts": h.get("ts"),
+                       "supply": h["supply"],
+                       "top2_pct": round(top2 / h["supply"] * 100, 2) if top2 and h["supply"] else None})
+    return {"mint": mint, "points": points[-48:],
+            "note": ("Δ/curve precision grows as snapshots accumulate — one per fetch, "
+                     "first comparable pair needs a ≥6h gap") if len(points) >= 2 else
+                    "first snapshot stored — chart lights up as more points land"}
