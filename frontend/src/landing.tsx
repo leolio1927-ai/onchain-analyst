@@ -971,44 +971,65 @@ const AI_DEMO_QS: { label: string; persona: 'analyst' | 'guide'; question: strin
 
 type DemoState = 'idle' | 'connecting' | 'live' | 'simulated'
 
+type ChatMsg = { who: 'user' | 'ai'; text: string; streaming?: boolean }
+
 function AiSection() {
   const [state, setState] = useState<DemoState>('idle')
-  const [asked, setAsked] = useState<string | null>(null)
-  const [answer, setAnswer] = useState('')
+  const [msgs, setMsgs] = useState<ChatMsg[]>([])
+  const [draft, setDraft] = useState('')
   const [label, setLabel] = useState('')
   const [note, setNote] = useState<string | null>(null)
   const ctrlRef = useRef<AbortController | null>(null)
+  const chatRef = useRef<HTMLDivElement | null>(null)
   const reduceMotion = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-  const askDemo = async (q: typeof AI_DEMO_QS[number]) => {
+  const ask = async (question: string, persona: 'analyst' | 'guide') => {
+    if (!question.trim() || state === 'connecting') return
     ctrlRef.current?.abort()
     const ctrl = new AbortController()
     ctrlRef.current = ctrl
-    setAsked(q.question); setAnswer(''); setNote(null); setLabel('')
+    setMsgs((m) => [...m, { who: 'user', text: question }, { who: 'ai', text: '', streaming: true }])
+    setNote(null); setLabel('')
     setState('connecting')
     let text = ''
+    const push = () => setMsgs((m) => {
+      const next = [...m]
+      next[next.length - 1] = { who: 'ai', text, streaming: true }
+      return next
+    })
     try {
       await askAiStream({
-        question: q.question, mode: 'free', surface: 'landing', persona: q.persona,
-        ...(q.persona === 'analyst' ? LANDING_BONK : {}),
+        question, mode: 'free', surface: 'landing', persona,
+        ...(persona === 'analyst' ? LANDING_BONK : {}),
       }, (e) => {
         if (e.type === 'provenance') {
           setState('live')
           setLabel(`live · vilmei ai · analyst ${e.mode} tier${e.cached ? ' · cached' : ''}`)
         } else if (e.type === 'delta') {
           text += e.text
-          if (!reduceMotion) setAnswer(text)  // PB-8: reduced motion gets the full text at once
+          if (!reduceMotion) push()  // PB-8: reduced motion gets the full text at once
         }
       }, ctrl.signal)
-      setAnswer(text)
+      setMsgs((m) => {
+        const next = [...m]
+        next[next.length - 1] = { who: 'ai', text }
+        return next
+      })
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return
       setState('simulated')
       setLabel('simulated (live AI offline)')
       setNote(err instanceof AiHttpError ? err.message : 'The AI route did not answer.')
+      setMsgs((m) => m.filter((x, i) => !(i === m.length - 1 && x.who === 'ai' && x.text === '')))
     }
   }
+
+  const askDemo = (q: typeof AI_DEMO_QS[number]) => void ask(q.question, q.persona)
+
+  useEffect(() => {
+    chatRef.current?.scrollTo?.({ top: chatRef.current.scrollHeight })
+  }, [msgs])
 
   return (
     <section className="lv-sec alt" id="ai">
@@ -1025,35 +1046,32 @@ function AiSection() {
               {state === 'connecting' && <span className="lv-status build" style={{ marginLeft: 'auto' }}>connecting…</span>}
               {state === 'idle' && <span className="lv-status build" style={{ marginLeft: 'auto' }}>four questions · free tier</span>}
             </div>
-            {asked && state !== 'simulated' && (
-              <>
-                <div className="lv-msg user">
-                  <div className="who">YOU</div>
-                  <div className="lv-bub">“{asked}”</div>
+            <div className="lv-thread" ref={chatRef}>
+              {msgs.length === 0 && (
+                <div className="lv-hello">
+                  <div className="lv-hello-ico" aria-hidden="true">✦</div>
+                  <b>ASK THE ANALYST</b>
+                  <span>Evidence-first answers · streaming · read-only. A token question runs on today's BONK evidence.</span>
                 </div>
-                <div className="lv-msg ai">
-                  <div className="who">AI ANALYST</div>
+              )}
+              {msgs.map((m, i) => (
+                <div className={`lv-msg ${m.who}`} key={i}>
+                  <div className="who">{m.who === 'user' ? 'YOU' : 'ANALYST'}</div>
                   <div className="lv-bub">
-                    {state === 'connecting' ? (
+                    {m.who === 'ai' && m.text === '' && m.streaming ? (
                       <span style={{ display: 'grid', gap: 8 }}>
                         <span className="ta-skel" style={{ height: 11, width: '90%' }} />
                         <span className="ta-skel" style={{ height: 11, width: '64%' }} />
                       </span>
                     ) : (
-                      <span style={{ whiteSpace: 'pre-wrap' }}>{answer}{state === 'live' && <span className="ai-caret" aria-hidden="true" />}</span>
+                      <span style={{ whiteSpace: 'pre-wrap' }}>{m.text}{m.streaming && state === 'live' && <span className="ai-caret" aria-hidden="true" />}</span>
                     )}
                   </div>
                 </div>
-              </>
-            )}
-            {state === 'simulated' && (
-              <>
-                <div className="lv-msg user">
-                  <div className="who">YOU</div>
-                  <div className="lv-bub">“Why is this token considered medium risk?”</div>
-                </div>
+              ))}
+              {state === 'simulated' && (
                 <div className="lv-msg ai">
-                  <div className="who">AI ANALYST</div>
+                  <div className="who">ANALYST</div>
                   <div className="lv-bub">
                     <span className="lv-verdict">◈ MEDIUM RISK · 68/100</span>
                     <div className="sect">KEY SIGNALS</div>
@@ -1065,9 +1083,15 @@ function AiSection() {
                     </ul>
                   </div>
                 </div>
-              </>
-            )}
-            <div className="btns">
+              )}
+            </div>
+            <form className="lv-composer" onSubmit={(e) => { e.preventDefault(); const q = draft.trim(); setDraft(''); void ask(q, /bonk|token|rug|coin/i.test(q) ? 'analyst' : 'guide') }}>
+              <input className="lv-composer-in" value={draft} onChange={(e) => setDraft(e.target.value)}
+                placeholder={state === 'connecting' ? 'streaming…' : 'Ask anything about VILMEI or a token…'}
+                aria-label="ask the analyst" disabled={state === 'connecting'} maxLength={280} />
+              <button type="submit" className="lv-composer-send" disabled={state === 'connecting' || !draft.trim()} aria-label="send">➤</button>
+            </form>
+            <div className="btns lv-suggest">
               {AI_DEMO_QS.map((q) => (
                 <button key={q.label} className="lv-cta ghost" style={{ height: 38, fontSize: 12 }}
                   disabled={state === 'connecting'} onClick={() => void askDemo(q)}>

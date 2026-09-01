@@ -37,3 +37,24 @@
   --shadow-panel: 0 18px 50px rgba(0,0,0,.5);
 }
 ::selection { background: rgba(0,255,163,.3); }
+
+
+/* V6-2 — per-chain nav accents (lives HERE because every page imports
+   tokens.css): each boxed link carries ONE band color, so topnavs on
+   landing/docs/roadmap/live read as the 6-chain bordir, not all-green. */
+.lv-nav-links a.boxed, .lx-top-links a.boxed, .dd-topnav a.boxed, .rr-topnav a.boxed { --nav-accent: var(--emb-sol); }
+.lv-nav-links a.boxed:nth-of-type(2), .lx-top-links a.boxed:nth-of-type(2), .dd-topnav a.boxed:nth-of-type(2), .rr-topnav a.boxed:nth-of-type(2) { --nav-accent: var(--emb-bnb); }
+.lv-nav-links a.boxed:nth-of-type(3), .lx-top-links a.boxed:nth-of-type(3), .dd-topnav a.boxed:nth-of-type(3), .rr-topnav a.boxed:nth-of-type(3) { --nav-accent: var(--emb-base); }
+.lv-nav-links a.boxed:nth-of-type(4), .lx-top-links a.boxed:nth-of-type(4), .dd-topnav a.boxed:nth-of-type(4), .rr-topnav a.boxed:nth-of-type(4) { --nav-accent: var(--emb-hype); }
+.lv-nav-links a.boxed:nth-of-type(5), .lx-top-links a.boxed:nth-of-type(5), .dd-topnav a.boxed:nth-of-type(5), .rr-topnav a.boxed:nth-of-type(5) { --nav-accent: var(--emb-hood); }
+.lv-nav-links a.boxed:nth-of-type(6), .lx-top-links a.boxed:nth-of-type(6), .dd-topnav a.boxed:nth-of-type(6), .rr-topnav a.boxed:nth-of-type(6) { --nav-accent: var(--emb-avax); }
+.lv-nav-links a.boxed:hover, .lv-nav-links a.boxed.on, .lx-top-links a.boxed:hover,
+.dd-topnav a.boxed:hover, .rr-topnav a.boxed:hover {
+  box-shadow: 0 0 18px color-mix(in srgb, var(--nav-accent, #00ffa3) 35%, transparent);
+  border-image: none; }
+.lv-nav-links a.boxed::before, .lx-top-links a.boxed::before, .dd-topnav a.boxed::before, .rr-topnav a.boxed::before {
+  content: ''; display: inline-block; width: 5px; height: 5px; border-radius: 50%;
+  background: var(--nav-accent, #00ffa3); box-shadow: 0 0 8px var(--nav-accent, #00ffa3);
+  margin-right: 7px; vertical-align: 1px; }
+.lv-nav-links a.boxed:hover, .lx-top-links a.boxed:hover, .dd-topnav a.boxed:hover, .rr-topnav a.boxed:hover {
+  color: color-mix(in srgb, var(--nav-accent, #00ffa3) 55%, #eafff6); }

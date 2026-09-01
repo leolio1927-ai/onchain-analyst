@@ -81,3 +81,40 @@ describe('landing §06 — label state machine (label always == truth)', () => {
     expect(document.body.textContent).toContain('AI BUDGET BUSY — TRY AGAIN IN A MINUTE')
   })
 })
+
+/* ── V6-2: real chat — free-text composer + multi-turn history ── */
+describe('landing §06 — chat composer (V6-2)', () => {
+  it('free-text ask sends the typed question and streams the answer bubble', async () => {
+    stubAi(() => streamResponse([
+      prov('x-test/analyst'),
+      'data: {"type":"delta","text":"Words."}\n\n',
+      'data: {"type":"usage","prompt_tokens":1,"completion_tokens":1,"total_tokens":2}\n\n',
+      'data: [DONE]\n\n',
+    ]))
+    render(<Landing />)
+    fireEvent.change(screen.getByLabelText('ask the analyst'), { target: { value: 'What is the honesty law?' } })
+    fireEvent.click(screen.getByLabelText('send'))
+    await waitFor(() => expect(document.body.textContent).toContain('Words.'))
+    expect(document.body.textContent).toContain('What is the honesty law?')
+    expect(document.body.textContent).toContain('ANALYST')   /* the reply is attributed to the Analyst, never a vendor */
+  })
+
+  it('multi-turn: a second ask keeps the first exchange in the thread', async () => {
+    let n = 0
+    stubAi(() => {
+      n += 1
+      return streamResponse(n === 1
+        ? [prov('x-test/analyst'), 'data: {"type":"delta","text":"one"}\n\n', 'data: [DONE]\n\n']
+        : [prov('x-test/analyst'), 'data: {"type":"delta","text":"two"}\n\n', 'data: [DONE]\n\n'])
+    })
+    render(<Landing />)
+    fireEvent.change(screen.getByLabelText('ask the analyst'), { target: { value: 'first question' } })
+    fireEvent.click(screen.getByLabelText('send'))
+    await waitFor(() => expect(document.body.textContent).toContain('one'))
+    fireEvent.change(screen.getByLabelText('ask the analyst'), { target: { value: 'second question' } })
+    fireEvent.click(screen.getByLabelText('send'))
+    await waitFor(() => expect(document.body.textContent).toContain('two'))
+    expect(document.body.textContent).toContain('first question')
+    expect(document.body.textContent).toContain('second question')
+  })
+})
