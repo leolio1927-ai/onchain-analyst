@@ -90,7 +90,7 @@ export function Shell({ pages }: { pages: Record<string, ReactNode> }) {
     <div className="ta-shell">
       <aside className="ta-side embroidery">
         <div className="ta-side-logo">
-          <span className="mark">◤</span>
+          <span className="mark"><img src="/assets/img/vlm-logo-96.png" alt="VLM logo" className="ta-side-logo-img" /></span>
           <span className="name">VILMEI</span>
         </div>
         <nav className="ta-nav">

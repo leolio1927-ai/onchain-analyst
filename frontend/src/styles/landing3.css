@@ -935,8 +935,9 @@ a { color: inherit; text-decoration: none; }
 @media (prefers-reduced-motion: reduce) { .decode-static { animation: none; } }
 
 /* PROMPT-W+ brand: the VLM token mark rides the nav wordmark (32px, thread ring) */
-.lv-logo-img { width: 32px; height: 32px; border-radius: 9px; object-fit: cover;
+.lv-logo-img { width: 38px; height: 38px; border-radius: 11px; object-fit: cover;
   border: 1px solid rgba(20, 241, 149, .4); box-shadow: 0 0 14px rgba(20, 241, 149, .22); }
+.logo-unit::after { inset: -7px; border-radius: 14px; }
 
 /* ── PKG1: answer cards + follow-up chips + ask-bridge ── */
 .lv-answercards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }

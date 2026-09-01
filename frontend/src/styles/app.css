@@ -862,3 +862,7 @@ input, select { font-family: inherit; }
 .wl-foot { margin: 12px 0 0; text-align: center; color: var(--muted-deep);
   font-family: var(--font-mono); font-size: 9px; letter-spacing: .14em; }
 @media (prefers-reduced-motion: reduce) { .wl-opt { transition: none; } }
+
+/* ── PROMPT-W+ logo fix: terminal sidebar wears the VLM mark (logo only —
+   the terminal's own upgrade waits for its phase prompt) ── */
+.ta-side-logo-img { width: 100%; height: 100%; border-radius: 9px; object-fit: cover; display: block; }

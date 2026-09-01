@@ -431,7 +431,6 @@ function Hero() {
           <span className="lv-badge hot"><Icon name="scan" size={13} /> Keyless Live Feeds</span>
           <span className="lv-badge"><Icon name="hex" size={13} /> Five Chains</span>
           <span className="lv-badge"><Icon name="cpu" size={13} /> Public Heuristics</span>
-          <span className="lv-badge"><Icon name="ban" size={13} /> No Trading Execution</span>
           <span className="lv-badge"><Icon name="lock" size={13} /> No Custody</span>
         </div>
         <div className="lv-hero-cta">
@@ -1355,7 +1354,7 @@ function Foot() {
     <footer className="lv-foot">
       <div className="lv-foot-grid">
         <div>
-          <div className="lv-logo" style={{ marginBottom: 12 }}><span className="m">◤</span>VIL<span className="lg">MEI</span></div>
+          <div className="lv-logo" style={{ marginBottom: 12 }}><span className="logo-unit"><img src="/assets/img/vlm-logo-96.png" alt="VLM logo" className="lv-logo-img" /></span>VIL<span className="lg">MEI</span></div>
           <p className="disc">Read-only memecoin research across five chains. Analysis &amp; education only — risk scores are heuristics, not audits. DYOR.</p>
         </div>
         <div className="lv-foot-col">
