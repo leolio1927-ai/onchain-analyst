@@ -362,7 +362,7 @@ function Nav() {
       <div className="lv-progress"><span style={{ width: `${progress * 100}%` }} /></div>
       <nav className={`lv-nav bordir ${scrolled ? 'scrolled' : ''}`}>
         <div className="lv-nav-in">
-          <a href="#" className="lv-logo"><img src="/assets/img/vlm-logo-96.png" alt="" className="lv-logo-img" /><span className="m">◤</span>VIL<span className="lg">MEI</span></a>
+          <a href="#" className="lv-logo"><span className="logo-unit"><img src="/assets/img/vlm-logo-96.png" alt="VLM logo" className="lv-logo-img" /></span>VIL<span className="lg">MEI</span></a>
           <div className="lv-nav-links">
             {NAV.map(([l, id]) => (
               <a key={id} href={`#${id}`} className={cur === id ? 'on' : ''}>{l}</a>

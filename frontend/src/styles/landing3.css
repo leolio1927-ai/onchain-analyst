@@ -967,3 +967,15 @@ a { color: inherit; text-decoration: none; }
   box-shadow: 0 0 12px rgba(20, 241, 149, .55); }
 @media (max-width: 1360px) { .lv-threadrail { display: none; } }
 @media (prefers-reduced-motion: reduce) { .lv-threadrail-needle { transition: none; } }
+
+/* ── PROMPT-W+ logo fix (founder): ONE identity unit — the VLM mark inside,
+   the rotating 3D thread-ring outside. The ◤ glyph leaves the nav entirely
+   (it survives only as a text glyph in the footer wordmark). ── */
+.lv-logo { gap: 10px; }
+.logo-unit { position: relative; display: inline-block; flex: none; }
+.logo-unit::after { content: ''; position: absolute; inset: -6px;
+  border: 1px dashed rgba(20, 241, 149, .55); border-radius: 13px;
+  animation: ta-orbit 9s linear infinite; pointer-events: none;
+  box-shadow: 0 0 18px rgba(20, 241, 149, .12); }
+.lv-logo-img { display: block; }
+@media (prefers-reduced-motion: reduce) { .logo-unit::after { animation: none; } }
