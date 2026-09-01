@@ -67,7 +67,7 @@ describe('M2 — wallet session persistence + live connect', () => {
     await waitFor(() => expect(view.getByText('DEMO WALLET')).toBeTruthy())
     expect(JSON.parse(localStorage.getItem('vilmei.wallet-session') ?? 'null')).toMatchObject({ kind: 'mock' })
     fireEvent.click(view.getByText('DEMO WALLET'))            // open the menu
-    fireEvent.click(view.getByText('disconnect'))
+    fireEvent.click(view.getByTestId('wallet-disconnect'))
     expect(localStorage.getItem('vilmei.wallet-session')).toBe('null')
   })
 })

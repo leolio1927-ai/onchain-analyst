@@ -21,7 +21,7 @@ describe('P2 solid-overlay gate (2026-08-31)', () => {
   })
 
   it('popover + modal surfaces are opaque: no rgba()/oklch alpha < .97 on their blocks', () => {
-    for (const sel of ['.ta-search-drop', '.ta-wallet-menu', '.ta-modal-veil']) {
+    for (const sel of ['.ta-search-drop', '.wl-modal', '.ta-modal-veil']) {
       const idx = css.indexOf(sel)
       expect(idx, `${sel} block exists`).toBeGreaterThan(-1)
       const block = css.slice(idx, idx + 700)
@@ -33,7 +33,7 @@ describe('P2 solid-overlay gate (2026-08-31)', () => {
   })
 
   it('blur is never the only differentiator — border + shadow required on overlays', () => {
-    for (const sel of ['.ta-search-drop', '.ta-wallet-menu']) {
+    for (const sel of ['.ta-search-drop', '.wl-modal']) {
       const block = css.slice(css.indexOf(sel), css.indexOf(sel) + 700)
       expect(block).toMatch(/border:\s*1px solid/)
       expect(block).toMatch(/box-shadow:/)

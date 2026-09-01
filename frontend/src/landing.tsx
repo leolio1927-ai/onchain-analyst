@@ -11,7 +11,7 @@ import { api, ApiError } from './api'
 import type { Chain, ScanResult } from './api'
 import { ChainLogo } from './pages/chainLogos'
 import { BRAND_NAME, BRAND_LEGAL } from './lib/brand'
-import { AiHttpError, askAiStream } from './lib/aiApi'
+import { AiHttpError, landingChatStream } from './lib/aiApi'
 
 /* ═══════════ helpers ═══════════ */
 
@@ -960,8 +960,6 @@ function Chains() {
    a live answer shows the model id from its own provenance; ANY failure
    falls back to the deterministic scripted trace labeled SIMULATED. */
 
-const LANDING_BONK = { chain: 'sol', token: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263' }
-
 const AI_DEMO_QS: { label: string; persona: 'analyst' | 'guide'; question: string }[] = [
   { label: 'What is VILMEI?', persona: 'guide', question: 'What is VILMEI, in a few sentences?' },
   { label: 'Is this token a rug?', persona: 'analyst', question: 'Based on the evidence block, is this token showing rug signals? Say what is and what isn\'t in the evidence.' },
@@ -984,7 +982,7 @@ function AiSection() {
   const reduceMotion = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-  const ask = async (question: string, persona: 'analyst' | 'guide') => {
+  const ask = async (question: string) => {
     if (!question.trim() || state === 'connecting') return
     ctrlRef.current?.abort()
     const ctrl = new AbortController()
@@ -999,10 +997,12 @@ function AiSection() {
       return next
     })
     try {
-      await askAiStream({
-        question, mode: 'free', surface: 'landing', persona,
-        ...(persona === 'analyst' ? LANDING_BONK : {}),
-      }, (e) => {
+      const history = msgs
+        .filter((m) => m.text)
+        .slice(-6)
+        .map((m): { role: 'user' | 'assistant'; content: string } =>
+          ({ role: m.who === 'user' ? 'user' : 'assistant', content: m.text }))
+      await landingChatStream({ message: question, history }, (e) => {
         if (e.type === 'provenance') {
           setState('live')
           setLabel(`live · vilmei ai · analyst ${e.mode} tier${e.cached ? ' · cached' : ''}`)
@@ -1025,7 +1025,7 @@ function AiSection() {
     }
   }
 
-  const askDemo = (q: typeof AI_DEMO_QS[number]) => void ask(q.question, q.persona)
+  const askDemo = (q: typeof AI_DEMO_QS[number]) => void ask(q.question)
 
   useEffect(() => {
     chatRef.current?.scrollTo?.({ top: chatRef.current.scrollHeight })
@@ -1085,7 +1085,7 @@ function AiSection() {
                 </div>
               )}
             </div>
-            <form className="lv-composer" onSubmit={(e) => { e.preventDefault(); const q = draft.trim(); setDraft(''); void ask(q, /bonk|token|rug|coin/i.test(q) ? 'analyst' : 'guide') }}>
+            <form className="lv-composer" onSubmit={(e) => { e.preventDefault(); const q = draft.trim(); setDraft(''); void ask(q) }}>
               <input className="lv-composer-in" value={draft} onChange={(e) => setDraft(e.target.value)}
                 placeholder={state === 'connecting' ? 'streaming…' : 'Ask anything about VILMEI or a token…'}
                 aria-label="ask the analyst" disabled={state === 'connecting'} maxLength={280} />

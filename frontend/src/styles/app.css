@@ -808,3 +808,70 @@ input, select { font-family: inherit; }
   box-shadow: 0 0 10px color-mix(in srgb, var(--acc, var(--brand)) 40%, transparent); }
 .sc-verdict .lv-sev .fill.hot { background: repeating-linear-gradient(90deg,
   rgba(251,113,133,.9) 0 6px, rgba(251,113,133,.3) 6px 10px); }
+
+/* ── V6-3: ONE bordir DNA everywhere — every garis rides the 6-chain ──
+   Sidebar edge, topbar edge, every ta-card head line, and the token-page
+   panels carry the full embroidery thread. Same tokens as the landing. */
+.ta-side { position: relative; border-right: none; }
+.ta-side::after { content: ''; position: absolute; top: 0; bottom: 0; right: 0; width: 2px;
+  background: var(--emb-band); opacity: .8; pointer-events: none; }
+.ta-topbar { border-bottom: none; }
+.ta-topbar.embroidery::after { height: 2px; opacity: .9; }
+.ta-card { border: 1px solid var(--border); position: relative; overflow: hidden; }
+.ta-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--emb-thread); opacity: .8; pointer-events: none; }
+.ta-card-head { margin-top: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .ta-side::after, .ta-card::before { opacity: .5; }
+}
+
+/* ── V6-3: wallet connect — centered solid modal, premium ────────────────
+   Founder: popup lama menempel di pojok dan transparan — sekarang modal
+   di tengah layar, latar SOLID, ring bordir 6-chain. */
+.wl-overlay { position: fixed; inset: 0; z-index: var(--z-modal); display: grid; place-items: center;
+  background: rgba(2, 8, 6, .92); backdrop-filter: blur(6px); }
+.wl-modal { position: relative; width: min(400px, calc(100vw - 32px)); border-radius: 18px;
+  padding: 20px 20px 16px; overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--brand) 40%, var(--border));
+  background: var(--surf-solid);
+  box-shadow: 0 0 40px color-mix(in srgb, var(--brand) 16%, transparent), 0 28px 70px rgba(0, 0, 0, .6); }
+.wl-modal::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--emb-thread); opacity: .9; pointer-events: none; }
+.wl-modal-inner { border: 1px solid color-mix(in srgb, var(--brand) 30%, var(--border)); border-radius: 12px; }
+.wl-modal-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.wl-modal-hd b { font-family: var(--font-display); font-size: 13px; letter-spacing: .22em; color: var(--text); }
+.wl-close { width: 30px; height: 30px; border-radius: 9px; border: 1px solid var(--border);
+  background: none; color: var(--muted); cursor: pointer; font-size: 12px; }
+.wl-close:hover { color: var(--text); border-color: color-mix(in srgb, var(--brand) 55%, transparent); }
+.wl-sub { display: flex; align-items: center; gap: 10px; margin: 0 0 14px;
+  color: var(--muted-deep); font-size: 11.5px; }
+.wl-copy { border: none; background: none; color: var(--brand); cursor: pointer;
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .08em; }
+.wl-list { display: grid; gap: 8px; margin-bottom: 12px; }
+.wl-opt { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px;
+  border: 1px dashed var(--border); background: rgba(6, 16, 11, .6); color: var(--text);
+  cursor: pointer; text-align: left; transition: border-color .15s, transform .15s, box-shadow .15s;
+  font-size: 12.5px; }
+.wl-opt:hover { border-color: color-mix(in srgb, var(--brand) 60%, transparent);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--brand) 18%, transparent); transform: translateY(-1px); }
+.wl-opt.static, .wl-opt.static:hover { cursor: default; transform: none; box-shadow: none; }
+.wl-opt.demo { border-style: dashed; color: var(--muted); }
+.wl-ico { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
+  flex: none; font-size: 16px; color: var(--brand);
+  border: 2px solid transparent;
+  background:
+    linear-gradient(180deg, rgba(9, 23, 16, .95), rgba(6, 14, 10, .97)) padding-box,
+    var(--emb-thread) border-box; }
+.wl-name { flex: 1; font-weight: 600; }
+.wl-error { padding: 10px 12px; border-radius: 10px; border-left: 3px solid var(--rose);
+  background: rgba(251, 113, 133, .07); color: var(--muted); font-size: 11.5px; margin-bottom: 10px; }
+.wl-disconnect { width: 100%; height: 40px; border-radius: 11px; cursor: pointer;
+  border: 2px solid transparent; color: #ffd9de; font-family: var(--font-display);
+  font-weight: 700; font-size: 11px; letter-spacing: .2em;
+  background:
+    linear-gradient(180deg, #210a10, #180a0d) padding-box,
+    linear-gradient(90deg, var(--rose), #f43f5e) border-box; }
+.wl-disconnect:hover { filter: brightness(1.12); }
+.wl-foot { margin: 12px 0 0; text-align: center; color: var(--muted-deep);
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: .14em; }
+@media (prefers-reduced-motion: reduce) { .wl-opt { transition: none; } }

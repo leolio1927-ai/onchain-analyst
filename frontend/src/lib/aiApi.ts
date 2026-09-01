@@ -156,3 +156,50 @@ export function cachedAnswer(key: string): AiAnswer | null {
 export function analystName(mode: AiMode): string {
   return mode === 'deep' ? 'ANALYST · DEEP TIER' : 'ANALYST · FAST TIER'
 }
+
+/* ── V6-3: the landing §06 chat rides its own fast lane ──────────────────
+   POST /api/v1/landing/chat — same SSE event contract (provenance → delta*
+   → [DONE]), backed by the founder's chat key so the first word lands in
+   milliseconds instead of the free-tier stall. Multi-turn: the client sends
+   the running thread. */
+export interface LandingChatRequest {
+  message: string
+  history?: { role: 'user' | 'assistant'; content: string }[]
+}
+
+export async function landingChatStream(
+  req: LandingChatRequest,
+  onEvent: (e: AiEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const res = await fetch('/api/v1/landing/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+    signal,
+  })
+  if (!res.ok || !res.body) {
+    let detail = `HTTP ${res.status}`
+    try {
+      const j = (await res.json()) as { detail?: unknown }
+      if (typeof j.detail === 'string') detail = j.detail
+    } catch { /* non-JSON error body — keep the HTTP code line */ }
+    throw new AiHttpError(res.status, detail)
+  }
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buf = ''
+  try {
+    for (;;) {
+      const { value, done } = await reader.read()
+      if (done) break
+      buf += decoder.decode(value, { stream: true })
+      const parsed = parseSseBuffer(buf)
+      buf = parsed.rest
+      for (const e of parsed.events) onEvent(e)
+      if (parsed.done) break
+    }
+  } finally {
+    reader.releaseLock()
+  }
+}

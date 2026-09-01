@@ -97,6 +97,12 @@ brackets) and was last re-verified 2026-08-29.
 - POST /api/explain — evidence-first narrative; provider "local" is a deterministic
   keyless tier; LLM providers are rate-limited per IP (5/hour, 30/day default);
   evidence is always re-fetched and re-assessed server-side [webapp/server.py].
+- POST /api/v1/landing/chat — the Analyst chat (V6-3): the landing §06
+  conversation lane. Streams SSE provenance → delta* → data: [DONE] from
+  the founder's chat key (BAI_API_KEY, model via VILMEI_CHAT_MODEL, default
+  glm-5.3-flash); multi-turn history clamped (12 turns × 500 chars);
+  grounding + anti-fabrication rules ride the system prompt; no key → honest
+  503, upstream failure → honest error event [webapp/server.py, providers/bai.py].
 - POST /api/v1/ai/ask — VILMEI AI (PROMPT-AI-V). Streams SSE:
   provenance → delta* → usage → data: [DONE]. Body: { question, mode free|deep,
   surface terminal|landing, persona? analyst|guide, chain?, token?, history[] }.

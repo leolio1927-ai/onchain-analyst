@@ -17,7 +17,7 @@ const prov = (model: string) =>
 function stubAi(aiResponse: () => Response | Promise<Response>) {
   vi.stubGlobal('fetch', vi.fn(async (input: unknown) => {
     const url = String(input)
-    if (url.includes('/api/v1/ai/ask')) return aiResponse()
+    if (url.includes('/api/v1/ai/ask') || url.includes('/api/v1/landing/chat')) return aiResponse()
     return new Promise<Response>(() => {})   // keep every other panel honest-loading
   }))
 }

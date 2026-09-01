@@ -32,7 +32,11 @@
 
 /* generic bordered panel — 2px bordir + glow + inner dashed hairline */
 .tk-panel { position: relative; background: linear-gradient(180deg, #0a1a12, #071410);
-  border: 2px solid color-mix(in srgb, var(--acc, var(--brand)) 55%, transparent);
+  border: 2px solid transparent;
+  background-image:
+    linear-gradient(180deg, #0a1a12, #071410),
+    var(--emb-thread);
+  background-origin: border-box; background-clip: padding-box, border-box;
   border-radius: var(--radius-lg); overflow: hidden;
   box-shadow: 0 0 24px color-mix(in srgb, var(--acc, var(--brand)) 10%, transparent),
     0 16px 44px rgba(0, 0, 0, .5); }
@@ -472,3 +476,18 @@
 .sw2-split-lg { display: flex; justify-content: space-between; font-family: var(--font-mono);
   font-size: 8.5px; letter-spacing: .12em; color: var(--muted-deep); }
 .sw2-split-lg b { font-variant-numeric: tabular-nums; }
+
+/* ── V6-3: right-column clarity — the rail reads top-to-bottom in one
+   rhythm: header → tabs → fields → rate → facts → CTA. Bigger type, one
+   accent per zone, no cramped 10px paddings. ── */
+.sw-rail { padding: 6px 6px 10px; }
+.sw-rail .tk-phd { padding: 12px 14px 10px; border-bottom: 1px solid
+  color-mix(in srgb, var(--acc, var(--brand)) 22%, transparent); margin-bottom: 12px;
+  font-family: var(--font-display); font-weight: 700; letter-spacing: .24em; font-size: 13px; }
+.sw-rail .tk-swap { display: grid; gap: 14px; padding: 0 12px; }
+.sw-rail .sw2-grid { grid-template-columns: 1fr 1fr; gap: 9px; }
+.sw-rail .sw2-grid .l { font-size: 9px; }
+.sw-rail .sw2-grid b { font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.sw-rail .sw2-note { font-size: 11px; }
+.sw-rail .sw2-disclaimer { padding: 0 4px; }
+@media (max-width: 1380px) { .tk-main { grid-template-columns: minmax(0, 1fr) 400px; } }

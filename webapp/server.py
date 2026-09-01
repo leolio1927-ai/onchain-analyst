@@ -21,6 +21,7 @@ import sys
 import time
 import urllib.error
 from collections import defaultdict, deque
+from collections.abc import AsyncGenerator
 from contextvars import ContextVar
 from datetime import UTC, datetime
 from pathlib import Path
@@ -42,6 +43,7 @@ import ai_analyst
 from access import token_gate
 from heuristics import clustering, rug_check
 from providers import (
+    bai,
     chains_map,
     dexscreener,
     discovery,
@@ -757,6 +759,98 @@ async def api_ai_ask(body: AiAskBody, request: Request):
                      persona=persona, chain=chain, token=token,
                      mode=body.mode, model=model),
         media_type="text/event-stream", headers=_AI_SSE_HEADERS)
+
+
+# ── V6-3: the landing §06 chat — the Analyst, fast lane ──────────────────
+# The NVIDIA free tier stalls for minutes at a time (G0 probe), which kills a
+# chat-first surface. The landing chat rides the B.AI endpoint instead
+# (founder key, glm-5.3-flash): plain SSE passthrough, first upstream byte
+# relays within milliseconds of arriving. Same honesty law: no key → honest
+# 503, upstream failure → honest error event, never a red wall. The system
+# prompt carries the same anti-fabrication + grounding rules as the terminal
+# Analyst (AI-BRIEF facts, no prices/levels invented).
+
+_LANDING_CHAT_MAX_TOKENS = 1600     # glm-5.3-flash reasons first — content must survive the budget
+_LANDING_CHAT_MAX_TURNS = 12       # history turns relayed upstream (clamped)
+_LANDING_CHAT_MAX_CHARS = 500      # per-message clamp
+
+
+class LandingChatBody(BaseModel):
+    message: str
+    history: list[dict] = []
+
+
+def _landing_chat_messages(message: str, history: list[dict]) -> list[dict]:
+    brief = ai_ask.load_brief()
+    system = (
+        "You are the VILMEI Analyst — a read-only research assistant for the VILMEI "
+        "memecoin terminal. Facts about VILMEI come ONLY from this brief:\n"
+        f"{brief[:4000]}\n"
+        "Laws: never invent prices, support/resistance levels, dates or statistics; "
+        "if a fact is not in the brief or the user's message, say what is unknown. "
+        "Read-only: you never give financial advice, never tell anyone to buy or sell. "
+        "Answer in the user's language, concise (≤150 words), plain text."
+    )
+    msgs = [{"role": "system", "content": system}]
+    for turn in history[-_LANDING_CHAT_MAX_TURNS:]:
+        role = turn.get("role")
+        content = str(turn.get("content") or "")[:_LANDING_CHAT_MAX_CHARS]
+        if role in ("user", "assistant") and content:
+            msgs.append({"role": role, "content": content})
+    msgs.append({"role": "user", "content": message[:_LANDING_CHAT_MAX_CHARS]})
+    return msgs
+
+
+async def _landing_chat_stream(messages: list[dict]) -> AsyncGenerator[str]:
+    """Open the B.AI stream inside the generator — chunk-0 (a provenance
+    marker) leaves immediately, then upstream deltas relay verbatim."""
+    yield ai_ask.sse({"type": "provenance", "model": bai.model(), "mode": "free",
+                      "persona": "guide", "cached": False, "degraded": False,
+                      "prompt_version": "lc-v1.0", "evidence_sources": []})
+    try:
+        resp = await asyncio.to_thread(
+            bai.open_stream, messages, max_tokens=_LANDING_CHAT_MAX_TOKENS,
+            timeout=bai.TIMEOUT_S)
+    except bai.BaiError as e:
+        yield ai_ask.sse({"type": "error", "kind": e.kind, "detail": (
+            "The Analyst chat is offline right now — the chat key is not configured "
+            "(founder config)" if e.kind == "no_key" else
+            f"The Analyst chat could not answer — {e.detail}. Try again in a moment.")})
+        yield "data: [DONE]\n\n"
+        return
+    try:
+        loop = asyncio.get_running_loop()
+        while True:
+            raw = await loop.run_in_executor(None, resp.readline)
+            if not raw:
+                break
+            parsed = nvidia.parse_sse_line(raw.decode("utf-8", "replace"))
+            if parsed == "DONE":
+                break
+            if isinstance(parsed, dict):
+                text = nvidia.delta_text(parsed)
+                if text:
+                    yield ai_ask.sse({"type": "delta", "text": text})
+    except (OSError, ValueError):
+        yield ai_ask.sse({"type": "error", "kind": "stream_interrupted",
+                          "detail": "the chat stream dropped mid-answer — send again"})
+    finally:
+        resp.close()
+    yield "data: [DONE]\n\n"
+
+
+@app.post("/api/v1/landing/chat", tags=["ai"])
+async def api_landing_chat(body: LandingChatBody, request: Request) -> StreamingResponse:
+    """The landing §06 chat: one question in, an SSE chat answer out — fast."""
+    message = (body.message or "").strip()
+    if not message:
+        raise HTTPException(400, "message must be a non-empty string")
+    if len(message) > _LANDING_CHAT_MAX_CHARS:
+        raise HTTPException(400, f"message too long — keep it under {_LANDING_CHAT_MAX_CHARS} characters")
+    if not bai.api_key():
+        raise HTTPException(503, "The Analyst chat is offline — chat key not set (founder config)")
+    return StreamingResponse(_landing_chat_stream(_landing_chat_messages(message, body.history)),
+                             media_type="text/event-stream", headers=_AI_SSE_HEADERS)
 
 
 @app.post("/api/v1/whale", response_model=schemas.WhaleResponse, tags=["whale"])
