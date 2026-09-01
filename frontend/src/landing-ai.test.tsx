@@ -52,7 +52,7 @@ describe('landing §06 — label state machine (label always == truth)', () => {
     render(<Landing />)
     fireEvent.click(screen.getByText('What is VILMEI?'))
     await waitFor(() => expect(document.body.textContent)
-      .toContain('live · vilmei ai · moonshotai/kimi-k3'))
+      .toContain('live · vilmei ai · analyst free tier'))
     await waitFor(() => expect(document.body.textContent)
       .toContain('VILMEI is a read-only terminal.'))
     /* truth-run: a live state never renders the simulated chip */

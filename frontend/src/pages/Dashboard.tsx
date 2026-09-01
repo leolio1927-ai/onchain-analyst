@@ -6,7 +6,7 @@ import { api, ApiError } from '../api'
 import type { ChainsCatalog, WhalesResult } from '../api'
 import { ScoreDial } from '../components/charts'
 import { Badge, Card, EmptyState, Skeleton } from '../components/ui'
-import { AiHttpError, answerKey, askAiOnce, cachedAnswer, rememberAnswer } from '../lib/aiApi'
+import { AiHttpError, analystName, answerKey, askAiOnce, cachedAnswer, rememberAnswer } from '../lib/aiApi'
 import { useActivePair } from '../lib/tokenStore'
 import { shorten } from '../lib/liveFormat'
 import { useSpringNumber } from '../lib/spring'
@@ -115,7 +115,7 @@ function AiMicroFeed() {
         <a href="#/ai" style={{ textDecoration: 'none', color: 'inherit', display: 'grid', gap: 8 }}>
           <p style={{ color: 'var(--text)', fontSize: 13, lineHeight: 1.6 }}>{cached.text || '—'}</p>
           <div className="ai-prov" style={{ marginTop: 2 }}>
-            <span className="prov-chip live">● LIVE{cached.provenance ? ` · ${cached.provenance.model}` : ''}</span>
+            <span className="prov-chip live">● LIVE{cached.provenance ? ` · ${analystName(cached.provenance.mode)}` : ''}</span>
             {cached.provenance?.cached && <span className="prov-chip">CACHED</span>}
           </div>
           <div style={{ color: 'var(--dim)', fontSize: 10.5, fontFamily: 'var(--f-mono, monospace)' }}>OPEN AI PAGE →</div>

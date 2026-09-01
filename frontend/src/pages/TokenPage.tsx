@@ -465,6 +465,15 @@ function SwapRail({ pair, quote, qErr }: { pair: ActivePair | null; quote: SwapQ
                     <b>{(fees.planned_rate_bps / 100).toFixed(2)}%</b>
                     <span>OPS {(fees.split_bps.ops / 100).toFixed(2)} · BUYBACK {(fees.split_bps.buyback / 100).toFixed(2)} · REWARDS {(fees.split_bps.rewards / 100).toFixed(2)}</span>
                   </div>
+                  <div className="sw2-split" data-testid="fee-split">
+                    <div className="sw2-split-bar" role="img"
+                      aria-label={`planned fee split: ops ${(fees.split_bps.ops / 100).toFixed(2)}%, buyback ${(fees.split_bps.buyback / 100).toFixed(2)}%, rewards ${(fees.split_bps.rewards / 100).toFixed(2)}%`}>
+                      <i className="ops" style={{ width: `${(fees.split_bps.ops / fees.planned_rate_bps) * 100}%` }} />
+                      <i className="buyback" style={{ width: `${(fees.split_bps.buyback / fees.planned_rate_bps) * 100}%` }} />
+                      <i className="rewards" style={{ width: `${(fees.split_bps.rewards / fees.planned_rate_bps) * 100}%` }} />
+                    </div>
+                    <div className="sw2-split-lg"><span>OPS <b>{(fees.split_bps.ops / 100).toFixed(2)}%</b></span><span>BUYBACK <b>{(fees.split_bps.buyback / 100).toFixed(2)}%</b></span><span>REWARDS <b>{(fees.split_bps.rewards / 100).toFixed(2)}%</b></span></div>
+                  </div>
                   <div className="sw2-fees-est mono" title={`server estimate $${fees.estimate_usd.toFixed(2)} at $${fees.amount_usd} — line re-derives from the payload rate`}>
                     ≈ ${liveFeeUsd != null ? liveFeeUsd.toFixed(2) : fees.estimate_usd.toFixed(2)} at {notionalUsd > 0 ? fmtUsd(notionalUsd) : fmtUsd(fees.amount_usd)} notional
                   </div>

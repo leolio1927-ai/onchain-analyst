@@ -6,6 +6,8 @@ import { dataService } from '../services/dataService'
 import { Badge, Card, EmptyState, Skeleton, Tabs } from '../components/ui'
 import { MiniBadge, SevSpark } from '../components/RiskDisplay'
 import { ApiError, api, CHAINS as API_CHAINS, CHAIN_LABEL } from '../api'
+import { ScanVerdict } from '../components/ScanVerdict'
+import '../styles/landing3.css'
 import type { Chain, ScanResult } from '../api'
 
 
@@ -120,29 +122,8 @@ export function ScannerPage() {
       </div>
       {scanErr && <Card><span className="mono" style={{ color: '#fb7185' }}>✗ {scanErr}</span></Card>}
       {lastRes && (
-        <Card title="SCAN EVIDENCE — direct from /api/scan">
-          <div className="rug-list">
-            <div className="rug-row"><span className="k">Verdict</span><span className="v">{lastRes.assessment.level_label} · {lastRes.assessment.score ?? 'n/a'}/100</span></div>
-            <div className="rug-row"><span className="k">Sources</span><span className="v mono">{lastRes.sources.join(' + ')}</span></div>
-            {lastRes.launch_venue && (
-              <div className="rug-row"><span className="k">Launch venue</span><span className="v">{lastRes.launch_venue}</span></div>
-            )}
-            <div className="rug-row"><span className="k">Clustering</span><span className="v">{lastRes.clustering.wallets} wallets · {lastRes.clustering.buys} buys · sev {lastRes.clustering.severity ?? 'n/a'}</span></div>
-            <div className="rug-row"><span className="k">Cluster evidence</span><span className="v">{lastRes.clustering.evidence}</span></div>
-            <div className="rug-row"><span className="k">Scanned at</span><span className="v mono">{lastRes.ts}</span></div>
-          </div>
-          {lastRes.assessment.signals.length > 0 && (
-            <div style={{ display: 'grid', gap: 6, marginTop: 10 }}>
-              {lastRes.assessment.signals.map((g) => (
-                <div key={g.key} className="mono-line" style={{ fontSize: 12 }}>
-                  <b>[{g.severity == null ? 'n/a' : `sev ${g.severity}`}] {g.label}</b> · w{g.weight} — {g.evidence}
-                </div>
-              ))}
-            </div>
-          )}
-          {lastRes.assessment.notes.length > 0 && (
-            <p style={{ color: 'var(--muted)', fontSize: 12.5, marginTop: 10 }}>{lastRes.assessment.notes.join(' · ')}</p>
-          )}
+        <Card className="pb-acc" title="SCAN EVIDENCE — direct from /api/scan">
+          <ScanVerdict res={lastRes} chain={scanChain} />
         </Card>
       )}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>

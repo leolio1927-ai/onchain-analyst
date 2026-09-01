@@ -61,7 +61,7 @@ describe('AiPage — live streaming', () => {
     d.close()
     await waitFor(() => expect(document.body.textContent).toContain('hello world'))
     /* grounding row derives ONLY from provenance + usage events */
-    await waitFor(() => expect(logRow('moonshotai/kimi-k3 · free · analyst')).toBe(true))
+    await waitFor(() => expect(logRow('ANALYST · FAST TIER · free · analyst')).toBe(true))
     expect(logRow('15 tok')).toBe(true)
     expect(document.body.textContent).toContain('ai-v1.0')
     /* the canned fake providers are gone for good */
@@ -139,7 +139,7 @@ describe('AiPage — V5-G2 fast lane', () => {
     const { unmount } = render(<AiPage />)
     fireEvent.click(screen.getByRole('button', { name: 'Explain Score' }))
     d.push(PROV)
-    await waitFor(() => expect(document.body.textContent).toContain('moonshotai/kimi-k3'))
+    await waitFor(() => expect(document.body.textContent).toContain('ANALYST · FAST TIER'))
     expect(aborted).toBe(false)
     unmount()
     expect(aborted).toBe(true)

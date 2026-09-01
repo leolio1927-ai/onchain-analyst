@@ -786,3 +786,25 @@ input, select { font-family: inherit; }
    balanced headings, compositor-only rule. */
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: .16s; }
 .page-title, .hero-title h1, .tk-name, .page-sub { text-wrap: balance; }
+
+/* ── V5 visual pass: terminal ScanVerdict (landing-class verdict card) ──
+   The landing verdict markup rides global .lv-* classes from landing3.css;
+   this bridge maps its private var names onto the terminal token scale so
+   the card renders identically inside the shell. */
+.sc-verdict { --g: var(--brand); --line: var(--border); --line2: var(--border-soft);
+  --mut: var(--muted); --dim: var(--muted-deep); --fm: var(--font-mono);
+  --fd: var(--font-display); --y: var(--amber); --r: #fb7185;
+  border: 1px solid color-mix(in srgb, var(--acc, var(--brand)) 30%, var(--border));
+  border-radius: 14px; overflow: hidden;
+  background: rgba(6, 16, 11, .5);
+  box-shadow: 0 0 24px color-mix(in srgb, var(--acc, var(--brand)) 10%, transparent); }
+.sc-verdict .lv-vhd-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.sc-verdict .lv-status.high { color: var(--rose); border: 2px solid rgba(251,113,133,.5);
+  box-shadow: 0 0 12px rgba(251,113,133,.25); }
+.sc-verdict .lv-status.sim { color: var(--amber); border: 2px dashed rgba(251,191,36,.5); }
+.sc-verdict .lv-sig .fill { background: repeating-linear-gradient(90deg,
+  color-mix(in srgb, var(--acc, var(--brand)) 85%, transparent) 0 6px,
+  color-mix(in srgb, var(--acc, var(--brand)) 25%, transparent) 6px 10px);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--acc, var(--brand)) 40%, transparent); }
+.sc-verdict .lv-sev .fill.hot { background: repeating-linear-gradient(90deg,
+  rgba(251,113,133,.9) 0 6px, rgba(251,113,133,.3) 6px 10px); }

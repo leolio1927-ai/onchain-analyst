@@ -149,3 +149,10 @@ export function rememberAnswer(key: string, answer: AiAnswer): void {
 export function cachedAnswer(key: string): AiAnswer | null {
   return _sessionAnswers.get(key) ?? null
 }
+
+/* Brand-law (founder, 2026-08-31): no AI vendor name renders anywhere — the
+   answer is attributed to "the Analyst". The tier comes from the REAL
+   provenance mode, so the chip still derives from the actual response. */
+export function analystName(mode: AiMode): string {
+  return mode === 'deep' ? 'ANALYST · DEEP TIER' : 'ANALYST · FAST TIER'
+}

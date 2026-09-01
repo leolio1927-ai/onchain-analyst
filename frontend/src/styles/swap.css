@@ -394,3 +394,81 @@
   line-height: 1.5; color: var(--muted-deep); }
 .sw2-fees-note abbr { text-decoration: underline dotted; text-underline-offset: 3px;
   color: var(--amber); cursor: help; }
+
+/* ═══════════════════════════════════════════════════════════════
+   V5 ULTRA-PREMIUM SWAP RAIL — same DNA as the landing bordir:
+   6-chain thread rings, raised glass fields, vault split viz.
+   Colors ride the shared --emb-* tokens; zero new deps/hex.
+   ═══════════════════════════════════════════════════════════════ */
+.sw-rail { border: 2px solid transparent; border-radius: var(--radius-lg);
+  background:
+    linear-gradient(180deg, rgba(8, 20, 14, .96), rgba(6, 14, 10, .98)) padding-box,
+    var(--emb-thread) border-box;
+  box-shadow: 0 0 32px color-mix(in srgb, var(--acc, var(--brand)) 14%, transparent),
+    0 22px 60px rgba(0, 0, 0, .55); }
+.sw-rail::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  background: var(--emb-thread); opacity: .55; pointer-events: none; }
+
+.sw-rail .sw-tab2 { height: 40px; font-size: 11.5px; letter-spacing: .22em; border-radius: 11px; }
+.sw-rail .sw-tab2.buy.on { background: linear-gradient(135deg, var(--emb-sol), var(--emb-hood));
+  box-shadow: 0 0 18px rgba(20, 241, 149, .3), 0 6px 18px rgba(0, 0, 0, .4); }
+.sw-rail .sw-tab2.sell.on { background: linear-gradient(135deg, var(--rose), #f43f5e); }
+
+.sw-rail .sw2-field { padding: 12px 12px 10px; border-radius: 14px; border: 1px solid transparent;
+  background:
+    linear-gradient(180deg, rgba(10, 26, 18, .9), rgba(6, 15, 11, .94)) padding-box,
+    var(--emb-thread) border-box;
+  transition: box-shadow .18s, transform .18s; }
+.sw-rail .sw2-field:focus-within { box-shadow: 0 0 0 1px color-mix(in srgb, var(--acc, var(--brand)) 45%, transparent),
+  0 0 22px color-mix(in srgb, var(--acc, var(--brand)) 18%, transparent); }
+.sw-rail .sw2-input { font-size: 23px; letter-spacing: .01em; }
+.sw-rail .sw2-hd { font-size: 9px; }
+.sw-rail .sw2-chip { height: 34px; padding: 0 10px; border-radius: 10px; gap: 7px;
+  border: 2px solid transparent;
+  background:
+    linear-gradient(180deg, rgba(12, 30, 21, .95), rgba(8, 18, 13, .96)) padding-box,
+    var(--emb-thread) border-box;
+  transition: transform .15s, box-shadow .15s; }
+.sw-rail .sw2-chip:hover { transform: translateY(-1px);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--acc, var(--brand)) 25%, transparent); }
+.sw-chip-sym { font-size: 11px; font-weight: 700; }
+
+.sw-rail .sw2-flip { margin: -8px 0; position: relative; z-index: 2; }
+.sw-rail .sw2-flip button { width: 34px; height: 34px; font-size: 14px; border: 2px solid transparent;
+  background:
+    linear-gradient(180deg, var(--panel-2, #0d1a14), var(--panel, #0a1410)) padding-box,
+    var(--emb-thread) border-box;
+  box-shadow: 0 0 14px color-mix(in srgb, var(--acc, var(--brand)) 22%, transparent); }
+.sw-rail .sw2-flip button:hover { transform: rotate(180deg) scale(1.06); }
+@media (prefers-reduced-motion: reduce) {
+  .sw-rail .sw2-flip button:hover { transform: none; }
+  .sw-rail .sw2-field, .sw-rail .sw2-chip { transition: none; }
+}
+
+.sw-rail .sw2-rate { border-radius: 999px; text-align: center; padding: 8px 14px;
+  border: 1px dashed color-mix(in srgb, var(--acc, var(--brand)) 38%, transparent);
+  background: rgba(4, 12, 9, .55); font-variant-numeric: tabular-nums; }
+.sw-rail .sw2-grid > div { border-radius: 10px; padding: 10px 12px;
+  background: rgba(7, 18, 13, .65); border: 1px dashed var(--border); }
+.sw-rail .sw2-cta { height: 46px; font-size: 12px; letter-spacing: .26em; border-radius: 12px;
+  border: 2px solid transparent;
+  background:
+    linear-gradient(120deg, #04130b, #062014) padding-box,
+    var(--emb-thread) border-box;
+  color: #d9ffe9;
+  text-shadow: 0 0 12px color-mix(in srgb, var(--acc, var(--brand)) 60%, transparent);
+  box-shadow: 0 0 26px color-mix(in srgb, var(--acc, var(--brand)) 22%, transparent),
+    0 10px 26px rgba(0, 0, 0, .45); }
+.sw-rail .sw2-cta:hover { filter: brightness(1.12); }
+
+/* fee split — the three vaults as one readable bar */
+.sw2-split { display: grid; gap: 4px; margin-top: 6px; }
+.sw2-split-bar { display: flex; height: 10px; border-radius: 999px; overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--acc, var(--brand)) 30%, transparent); }
+.sw2-split-bar i { display: block; height: 100%; }
+.sw2-split-bar .ops { background: linear-gradient(90deg, var(--emb-sol), var(--emb-hood)); }
+.sw2-split-bar .buyback { background: linear-gradient(90deg, var(--emb-bnb), #d9a514); }
+.sw2-split-bar .rewards { background: linear-gradient(90deg, var(--emb-base), var(--emb-hype)); }
+.sw2-split-lg { display: flex; justify-content: space-between; font-family: var(--font-mono);
+  font-size: 8.5px; letter-spacing: .12em; color: var(--muted-deep); }
+.sw2-split-lg b { font-variant-numeric: tabular-nums; }

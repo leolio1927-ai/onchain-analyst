@@ -995,7 +995,7 @@ function AiSection() {
       }, (e) => {
         if (e.type === 'provenance') {
           setState('live')
-          setLabel(`live · vilmei ai · ${e.model}${e.cached ? ' · cached' : ''}`)
+          setLabel(`live · vilmei ai · analyst ${e.mode} tier${e.cached ? ' · cached' : ''}`)
         } else if (e.type === 'delta') {
           text += e.text
           if (!reduceMotion) setAnswer(text)  // PB-8: reduced motion gets the full text at once

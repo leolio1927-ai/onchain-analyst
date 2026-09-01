@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ALERTS, SYSTEM_STATUS } from '../mock/data'
-import { AiHttpError, answerKey, askAiStream, rememberAnswer } from '../lib/aiApi'
+import { AiHttpError, analystName, answerKey, askAiStream, rememberAnswer } from '../lib/aiApi'
 import type { AiAskRequest, AiMode, AiProvenance, AiUsage } from '../lib/aiApi'
 import { getGeneration, useActivePair } from '../lib/tokenStore'
 import type { LiveChain } from '../lib/liveApi'
@@ -160,7 +160,7 @@ export function AiPage() {
       if (provDone) {
         idRef.current += 1
         setLog((rows) => [{
-          id: idRef.current, model: provDone.model, mode: askMode,
+          id: idRef.current, model: analystName(askMode), mode: askMode,
           persona: provDone.persona, tokens: usgDone?.total_tokens ?? null,
           cached: provDone.cached, ms, ts: new Date().toISOString().slice(11, 19),
         }, ...rows].slice(0, 8))
@@ -228,7 +228,7 @@ export function AiPage() {
             {note && <div className="ai-note">{note}</div>}
             {provenance && (
               <div className="ai-prov">
-                <span className="prov-chip live">● LIVE · {provenance.model}</span>
+                <span className="prov-chip live">● LIVE · {analystName(provenance.mode)}</span>
                 <span className="prov-chip">{provenance.mode.toUpperCase()}</span>
                 <span className="prov-chip">{provenance.persona.toUpperCase()}</span>
                 {provenance.cached && <span className="prov-chip">CACHED</span>}
