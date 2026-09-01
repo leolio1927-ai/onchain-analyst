@@ -1,0 +1,131 @@
+/* ═══════════════════════════════════════════════════════════════
+   VILMEI TOKEN LEDGER — build-in-public transparency page.
+   One bordir DNA: every garis rides the 6-chain --emb-* tokens.
+   ═══════════════════════════════════════════════════════════════ */
+@import './tokens.css';
+
+.lg-root { min-height: 100vh; background: var(--bg); color: var(--text);
+  font-family: var(--font-ui); -webkit-font-smoothing: antialiased; }
+.lg-root :focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.lg-mono-note { display: block; margin-top: 6px; font-family: var(--font-mono);
+  font-size: 9px; letter-spacing: .1em; color: var(--muted-deep); }
+.lg-logo { display: flex; align-items: center; gap: 8px; font-family: var(--font-display);
+  font-weight: 700; font-size: 14px; letter-spacing: .12em; color: var(--text);
+  text-decoration: none; }
+.lg-logo .m { color: var(--brand); }
+
+.lg-top { position: sticky; top: 0; z-index: 40; display: flex; align-items: center; gap: 18px;
+  padding: 12px 24px; background: rgba(4, 12, 9, .92); backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border-soft); position: relative; }
+.lg-top.embroidery::after { height: 2px; opacity: .9; }
+.lg-seg { display: flex; align-items: center; gap: 4px; padding: 3px; border-radius: 999px;
+  border: 2px solid transparent;
+  background:
+    linear-gradient(180deg, rgba(6, 16, 11, .95), rgba(5, 12, 9, .97)) padding-box,
+    var(--emb-thread) border-box; }
+.lg-seg a, .lg-seg span { padding: 6px 14px; border-radius: 999px; font-family: var(--font-mono);
+  font-size: 10px; letter-spacing: .14em; text-decoration: none; }
+.lg-seg a { color: var(--muted); transition: color .2s; }
+.lg-seg a:hover { color: var(--text); }
+.lg-seg-on { color: #04130b; background: linear-gradient(120deg, var(--emb-sol), var(--emb-hood));
+  font-weight: 700; box-shadow: 0 0 14px rgba(20, 241, 149, .3); }
+.lg-badge { margin-left: auto; font-size: 9px; letter-spacing: .14em; color: var(--amber);
+  border: 1px dashed rgba(251, 191, 36, .4); border-radius: 999px; padding: 4px 10px; }
+
+.lg-main { max-width: 1440px; margin: 0 auto; padding: 26px 24px 60px; display: grid; gap: 16px; }
+.lg-headrow { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.lg-h1 { font-family: var(--font-display); font-weight: 700; font-size: 30px; letter-spacing: .02em; }
+.lg-h1 em { font-style: normal; color: var(--brand); text-shadow: 0 0 18px rgba(20, 241, 149, .45); }
+.lg-mint { color: var(--muted); font-size: 11px; }
+.lg-chip { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .12em;
+  border-radius: 999px; padding: 4px 10px; }
+.lg-chip.ok { color: var(--brand); border: 2px solid rgba(20, 241, 149, .45);
+  box-shadow: 0 0 12px rgba(20, 241, 149, .18); }
+.lg-chip.red { color: #fb7185; border: 2px solid rgba(251, 113, 133, .5);
+  box-shadow: 0 0 12px rgba(251, 113, 133, .2); }
+.lg-chip.amber { color: var(--amber); border: 2px dashed rgba(251, 191, 36, .45); }
+.lg-chip.muted { color: var(--muted-deep); border: 1px solid var(--border); }
+
+.lg-prov { font-size: 9px; letter-spacing: .12em; color: var(--muted-deep);
+  border-bottom: 1px dashed var(--border); padding-bottom: 10px; }
+
+.lg-supply { display: grid; gap: 8px; padding: 16px; border-radius: 14px;
+  border: 1px solid var(--border); background: rgba(6, 16, 11, .55); }
+.lg-supply-bar { height: 12px; border-radius: 999px; overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--brand) 30%, transparent); }
+.lg-supply-bar i { display: block; height: 100%;
+  background: linear-gradient(90deg, var(--emb-bnb), var(--emb-hype), var(--emb-avax)); }
+.lg-supply-cells { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.lg-supply-cells > div { display: grid; gap: 3px; padding: 10px 12px; border-radius: 10px;
+  background: rgba(7, 18, 13, .7); border: 1px dashed var(--border); }
+.lg-supply-cells span { font-family: var(--font-mono); font-size: 8.5px;
+  letter-spacing: .16em; color: var(--muted-deep); }
+.lg-supply-cells b { font-family: var(--font-mono); font-size: 14px;
+  font-variant-numeric: tabular-nums; }
+.lg-supply-cells b.ok { color: var(--brand); }
+.lg-supply-cells b.warn { color: var(--amber); }
+
+.lg-grid { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; align-items: start; }
+.lg-left { display: grid; gap: 12px; min-width: 0; }
+.lg-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.lg-tab { height: 34px; padding: 0 16px; border-radius: 999px; cursor: pointer;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: .16em;
+  color: var(--muted); background: none; border: 1px dashed var(--border);
+  transition: color .15s, border-color .15s, box-shadow .15s; }
+.lg-tab:hover { color: var(--text); }
+.lg-tab.on { color: #04130b; font-weight: 700; border: 2px solid transparent;
+  background:
+    linear-gradient(120deg, var(--emb-sol), var(--emb-hood)) padding-box,
+    var(--emb-thread) border-box;
+  box-shadow: 0 0 14px rgba(20, 241, 149, .25); }
+.lg-tabbody { animation: lg-fade .35s ease; min-height: 260px; }
+@keyframes lg-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .lg-tabbody { animation: none; } }
+
+.lg-table-wrap { overflow-x: auto; border-radius: 14px; border: 1px solid var(--border); }
+.lg-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.lg-table th { text-align: left; font-family: var(--font-mono); font-size: 8.5px;
+  letter-spacing: .16em; color: var(--muted-deep); padding: 10px 12px;
+  border-bottom: 1px solid var(--border); position: sticky; top: 0;
+  background: rgba(5, 14, 9, .97); }
+.lg-table td { padding: 9px 12px; border-bottom: 1px dashed var(--border-soft); }
+.lg-table tr:hover td { background: rgba(20, 241, 149, .03); }
+.lg-table .r { text-align: right; }
+.lg-table .up { color: var(--brand); }
+.lg-table .down { color: #fb7185; }
+.lg-table .dim { color: var(--muted-deep); }
+.lg-label { font-family: var(--font-mono); font-size: 9px; letter-spacing: .1em;
+  border-radius: 999px; padding: 2px 8px; }
+.lg-label.lg-lp { color: var(--emb-base); border: 1px solid color-mix(in srgb, var(--emb-base) 50%, transparent); }
+.lg-label.lg-team { color: var(--emb-bnb); border: 1px solid color-mix(in srgb, var(--emb-bnb) 50%, transparent); }
+.lg-label.lg-cex { color: var(--emb-hype); border: 1px solid color-mix(in srgb, var(--emb-hype) 50%, transparent); }
+.lg-label.lg-unk { color: var(--muted); border: 1px dashed var(--border); }
+.lg-verify { color: var(--brand); font-family: var(--font-mono); font-size: 10px; text-decoration: none; }
+.lg-verify:hover { text-decoration: underline; }
+
+.lg-rail { display: grid; gap: 14px; }
+.lg-railcard { display: grid; gap: 8px; padding: 16px; border-radius: 14px;
+  border: 1px solid var(--border); background: rgba(6, 16, 11, .55);
+  font-size: 11.5px; color: var(--muted); }
+.lg-railcard b { font-family: var(--font-mono); font-size: 9.5px;
+  letter-spacing: .18em; color: var(--brand); }
+.lg-gaps { margin: 0; padding-left: 16px; display: grid; gap: 5px; }
+.lg-gapbox { display: grid; gap: 8px; padding: 16px; border-radius: 14px;
+  border: 1px dashed var(--border); background: rgba(6, 16, 11, .5); }
+.lg-gapbox b { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .18em;
+  color: var(--amber); }
+.lg-gapline { font-size: 12px; color: var(--muted); line-height: 1.6; }
+.lg-byteproof pre { overflow-x: auto; padding: 12px; border-radius: 10px;
+  background: rgba(3, 10, 7, .9); border: 1px solid var(--border); font-size: 10px;
+  color: var(--muted); }
+.lg-byteproof a { color: var(--brand); }
+.lg-errbox { padding: 22px; border-radius: 14px; border-left: 3px solid #fb7185;
+  background: rgba(251, 113, 133, .06); font-size: 13px; color: var(--muted); }
+.lg-skel { display: grid; gap: 10px; }
+.lg-skel i { display: block; height: 64px; border-radius: 12px;
+  background: linear-gradient(100deg, rgba(20, 241, 149, .05) 30%, rgba(20, 241, 149, .1) 50%, rgba(20, 241, 149, .05) 70%);
+  background-size: 240px 100%; animation: lg-shimmer 1.5s linear infinite; }
+@keyframes lg-shimmer { to { background-position: 240px 0; } }
+@media (prefers-reduced-motion: reduce) { .lg-skel i { animation: none; } }
+@media (max-width: 1100px) { .lg-grid { grid-template-columns: 1fr; }
+  .lg-supply-cells { grid-template-columns: 1fr 1fr; } }

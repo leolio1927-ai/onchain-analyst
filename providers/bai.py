@@ -34,7 +34,23 @@ class BaiError(Exception):
 
 def api_key() -> str | None:
     k = (os.environ.get("BAI_API_KEY") or "").strip()
-    return k or None
+    if k:
+        return k
+    # hot-read fallback: a long-running server process can predate a key the
+    # founder later added to .env (V6-3 fix — the 503 was exactly this). Read
+    # the file silently, never echo the value anywhere.
+    for path in (".env", "../.env"):
+        try:
+            with open(path, encoding="utf-8") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if line.startswith("BAI_API_KEY") and "=" in line:
+                        val = line.split("=", 1)[1].strip().strip("'\"")
+                        if val:
+                            return val
+        except OSError:
+            continue
+    return None
 
 
 def model() -> str:

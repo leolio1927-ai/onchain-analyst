@@ -148,7 +148,7 @@ const QUEUE: { id: string; tag: string; title: string; kind: ChipKind; why: stri
     proof: 'PROOF · board ticker consumes /ws/tape · back-pressure policy documented · snap schema untouched (3741173, 5428dfd)',
   },
   {
-    id: 'ta-104', tag: 'VM-104', title: 'AI analyst panel', kind: 'shipped',
+    id: 'ta-104', tag: 'VM-104', title: 'VILMEI AI panel', kind: 'shipped',
     why: 'Evidence-first narratives over live data — the VILMEI AI went live in the AI-V phase: streaming SSE proxy /api/v1/ai/ask (NVIDIA free tier, server-side key) + MCP ai_ask tool #7.',
     proof: 'PROOF · /api/v1/ai/ask SSE (provenance → deltas → usage → [DONE]) · ANALYST evidence-first + GUIDE grounded in AI-BRIEF.md · per-IP/daily budgets, cache, honest 429/502/503/504 · never trades',
   },

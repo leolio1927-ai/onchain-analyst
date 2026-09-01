@@ -97,6 +97,13 @@ brackets) and was last re-verified 2026-08-29.
 - POST /api/explain — evidence-first narrative; provider "local" is a deterministic
   keyless tier; LLM providers are rate-limited per IP (5/hour, 30/day default);
   evidence is always re-fetched and re-assessed server-side [webapp/server.py].
+- GET /api/ledger — VILMEI Token Ledger (PROMPT-V, build-in-public):
+  on-chain-proven supply/mint-authority/top-20-holders for the configured
+  mint (LEDGER_MINT_ADDRESS, $JUP preview today, $VLM venue later).
+  Every number carries {source, fetched_at, verified_by}; unprovable rows
+  render as GAPS. Σ invariant (top20 ≤ supply) recomputed every render.
+  Labels default UNKNOWN; seeds live in ledgers/labels.solana.json.
+- GET /ledger.jsonl — the same ledger as NDJSON: envelope → holder* → eof.
 - POST /api/v1/landing/chat — the Analyst chat (V6-3): the landing §06
   conversation lane. Streams SSE provenance → delta* → data: [DONE] from
   the founder's chat key (BAI_API_KEY, model via VILMEI_CHAT_MODEL, default

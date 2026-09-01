@@ -1,0 +1,5 @@
+{
+  "schema_version": "1.0",
+  "note": "LABEL ENGINE SEED — only addresses with ON-CHAIN evidence may live here (pool LP accounts, named program-owned accounts). Default for everything else is UNKNOWN. A label without an on-chain evidence field is a violation of the ledger law.",
+  "labels": {}
+}

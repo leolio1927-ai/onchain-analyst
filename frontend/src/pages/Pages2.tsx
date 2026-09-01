@@ -22,7 +22,7 @@ function Head({ title, sub, right }: { title: string; sub: string; right?: React
   )
 }
 
-/* ─────────────── AI ANALYST (PROMPT-AI-V — LIVE) ───────────────
+/* ─────────────── VILMEI AI (PROMPT-AI-V — LIVE) ───────────────
    The model only ever sees a server-assembled evidence block; this page
    never composes a prompt. P1 law: the active-pair identity is captured
    atomically per ask — if the token changes mid-answer, the stale stream
@@ -186,7 +186,7 @@ export function AiPage() {
 
   return (
     <div className="ta-page">
-      <Head title="AI Analyst" sub="Evidence-first: the model only sees the heuristic evidence block the server assembles. Free and Deep differ in depth — never in data correctness." right={<Badge color="green">LIVE · FREE TIER</Badge>} />
+      <Head title="VILMEI Analyst" sub="Evidence-first: the model only sees the heuristic evidence block the server assembles. Free and Deep differ in depth — never in data correctness." right={<Badge color="green">LIVE · FREE TIER</Badge>} />
       <div className="grid-23">
         <Card className="pb-acc">
           <div style={{ display: 'grid', gap: 12 }}>
@@ -287,7 +287,7 @@ export function AiPage() {
           </Card>
           <Card title="EVIDENCE LAW">
             <p style={{ color: 'var(--muted)', fontSize: 12.5 }}>
-              The analyst may only cite numbers, prices, levels or dates that exist in the
+              VILMEI may only cite numbers, prices, levels or dates that exist in the
               evidence block. Ask for a support level it can't ground and it refuses instead
               of inventing. Not financial advice — a read-only terminal never tells you to buy.
             </p>
@@ -1028,7 +1028,7 @@ export function DocsPage() {
             <li>Paste a token address (or symbol) into the scanner and hit <b style={{ color: 'var(--text)' }}>ANALYZE</b>.</li>
             <li>Read the six deterministic signals in <b style={{ color: 'var(--text)' }}>Rug Check</b> — thresholds are public.</li>
             <li>Open <b style={{ color: 'var(--text)' }}>Cluster Analysis</b> to see coordinated wallet graphs.</li>
-            <li>Ask the <b style={{ color: 'var(--text)' }}>AI Analyst</b> anything — it must cite the evidence or say “data not available”.</li>
+            <li>Ask <b style={{ color: 'var(--text)' }}>VILMEI</b> anything — it must cite the evidence or say “data not available”.</li>
           </ol>
         </Card>
         <Card title="THE 6 SIGNALS">

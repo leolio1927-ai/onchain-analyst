@@ -52,6 +52,7 @@ from providers import (
     goplus,
     helius,
     holdings,
+    ledger_solana,
     live,
     market,
     nvidia,
@@ -853,6 +854,35 @@ async def api_landing_chat(body: LandingChatBody, request: Request) -> Streaming
                              media_type="text/event-stream", headers=_AI_SSE_HEADERS)
 
 
+# ── PROMPT-V: VILMEI Token Ledger — build-in-public transparency page ────
+# Every number carries {source, fetched_at, verified_by}; anything without
+# on-chain proof renders as a GAPS row. $JUP today, $VLM = one env line.
+
+@app.get("/api/ledger", tags=["ledger"])
+async def api_ledger(chain: str = "sol", mint: str | None = None) -> dict:
+    """VILMEI Token Ledger — on-chain-proven supply/holders/invariant."""
+    return ledger_solana.fetch_ledger(chain.strip().lower(), mint)
+
+
+@app.get("/ledger.jsonl", tags=["ledger"])
+async def ledger_jsonl(chain: str = "sol", mint: str | None = None) -> StreamingResponse:
+    """Full machine-readable dump: one JSON object per line, envelope + GAPS.
+    Written for agents — the same bytes a human sees, provable line by line."""
+    data = ledger_solana.fetch_ledger(chain.strip().lower(), mint)
+
+    async def gen():
+        import json as _json
+        yield _json.dumps({"type": "envelope", **{k: v for k, v in data.items()
+                                                  if k not in ("holders",)}},
+                          ensure_ascii=False) + "\n"
+        for h in data.get("holders", []):
+            yield _json.dumps({"type": "holder", **h}, ensure_ascii=False) + "\n"
+        yield _json.dumps({"type": "eof", "ts": data["ts"]}) + "\n"
+
+    return StreamingResponse(gen(), media_type="application/x-ndjson",
+                             headers={"Cache-Control": "no-cache"})
+
+
 @app.post("/api/v1/whale", response_model=schemas.WhaleResponse, tags=["whale"])
 @app.post("/api/whale", response_model=schemas.WhaleResponse, tags=["whale"], deprecated=True)
 async def api_whale(body: WhaleBody) -> dict:
@@ -1580,6 +1610,11 @@ async def live_chain_page(chain: str):
     # unknown chains still serve the SPA — it renders an honest
     # "unknown chain" state from LIVE_CHAINS (no server-side data involved)
     return _page("live.html")
+
+
+@app.get("/ledger", include_in_schema=False)
+async def ledger_page():
+    return _page("ledger.html")
 
 
 @app.get("/swap-preview", include_in_schema=False)

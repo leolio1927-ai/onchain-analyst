@@ -650,7 +650,7 @@ const FLOW: FlowBox[] = [
   { t: 'WALLET CLUSTERING', s: 'COORDINATED WALLETS', accent: '#93c5fd' },
   { t: 'WHALE TRACKING', s: 'NET FLOW · ACCUMULATION', accent: '#cbb8ff' },
   { t: 'RISK ENGINE', s: 'DETERMINISTIC SCORE 0–100', accent: '#8dffcf', live: true },
-  { t: 'AI ANALYST', s: 'EVIDENCE-FIRST ANSWERS', accent: '#8dffcf' },
+  { t: 'VILMEI AI', s: 'EVIDENCE-FIRST ANSWERS', accent: '#8dffcf' },
   { t: 'TERMINAL', s: 'DASHBOARD · ALERTS · WATCHLIST', accent: '#8dffcf' },
 ]
 const FUTURE = ['SNIPER DETECTION', 'FUNDING SOURCE', 'DEEP RESEARCH']

@@ -108,7 +108,7 @@ function AiMicroFeed() {
   }
 
   return (
-    <Card title="AI ANALYST" right={<Badge color="green">LIVE</Badge>} glow="#00ffa3" className="pb-acc">
+    <Card title="VILMEI AI" right={<Badge color="green">LIVE</Badge>} glow="#00ffa3" className="pb-acc">
       {!pair ? (
         <EmptyState title="No token in context" hint="scan a token or pick one in the terminal — the AI answers about the token you are looking at" />
       ) : cached ? (

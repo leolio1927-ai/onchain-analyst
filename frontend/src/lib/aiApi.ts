@@ -150,11 +150,11 @@ export function cachedAnswer(key: string): AiAnswer | null {
   return _sessionAnswers.get(key) ?? null
 }
 
-/* Brand-law (founder, 2026-08-31): no AI vendor name renders anywhere — the
-   answer is attributed to "the Analyst". The tier comes from the REAL
+/* Brand-law (founder, 2026-09-01): no AI vendor name renders anywhere —
+   every answer is attributed to VILMEI itself. The tier comes from the REAL
    provenance mode, so the chip still derives from the actual response. */
 export function analystName(mode: AiMode): string {
-  return mode === 'deep' ? 'ANALYST · DEEP TIER' : 'ANALYST · FAST TIER'
+  return mode === 'deep' ? 'VILMEI · DEEP TIER' : 'VILMEI · FAST TIER'
 }
 
 /* ── V6-3: the landing §06 chat rides its own fast lane ──────────────────

@@ -109,6 +109,7 @@ export function LiveBoard() {
           <span className="lx-title">MEMECOIN LIVE</span>
           <nav className="lx-top-links">
             <a className="on" href="/live">BOARD</a>
+            <a className="boxed lg-nav-ledger" href="/ledger">$VLM · LEDGER</a>
             <a className="boxed" href="/docs">DOCS</a>
             <a className="boxed" href="/roadmap">ROADMAP</a>
             <a href="/terminal">TERMINAL →</a>

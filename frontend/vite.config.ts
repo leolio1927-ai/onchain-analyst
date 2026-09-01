@@ -29,6 +29,7 @@ export default defineConfig({
         live: 'live.html',
         docs: 'docs.html',
         roadmap: 'roadmap.html',
+        ledger: 'ledger.html',
       },
       output: {
         // V5-G4 (AMBIL, decision recorded in docs/TECH-DECISIONS.md):

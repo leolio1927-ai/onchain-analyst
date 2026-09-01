@@ -360,3 +360,8 @@
   .lx-skel i::after { animation: none; }
   .lx-tcard, .lx-tcard:hover { transition: none; transform: none; }
 }
+
+/* V6-4 — the ledger toggle: MEMECOIN LIVE │ $VLM · LEDGER (segmented DNA) */
+.lx-top-links a.lg-nav-ledger { position: relative; }
+.lx-top-links a.lg-nav-ledger::before { content: '$'; margin-right: 5px;
+  color: var(--emb-bnb); font-weight: 700; }

@@ -790,7 +790,7 @@ const STAGES = [
     chips: ['α lens · published weights', 'rug check', 'wallet clustering', 'no hidden models'],
   },
   {
-    n: 'STAGE 03', t: 'AI ANALYST', icon: 'spark', live: false,
+    n: 'STAGE 03', t: 'VILMEI AI', icon: 'spark', live: false,
     desc: 'Evidence-first narratives: the model cites its evidence or says “data not available”. Provider-agnostic, never trades.',
     chips: ['deterministic local tier', 'cites evidence', 'rate-limited', 'no fabrication'],
   },
@@ -854,7 +854,7 @@ const BP: { g: string; items: { t: string; d: string; chip: 'live' | 'sim' | 'bu
   {
     g: 'DESIGN — SCOPED, QUEUED',
     items: [
-      { t: 'AI Analyst', chip: 'design', d: 'Evidence-first narratives over live data — provider-agnostic, never trades (VM-104).' },
+      { t: 'VILMEI AI', chip: 'design', d: 'Evidence-first narratives over live data — provider-agnostic, never trades (VM-104).' },
       { t: 'Watchlist', chip: 'design', d: 'Track tokens across the five chains — account-less, local storage (VM-102).' },
       { t: 'Portfolio Watch', chip: 'design', d: 'Read-only positions from public market data — no wallet connection.' },
       { t: 'Alerts', chip: 'design', d: 'Signal alerts when a tracked token\'s risk posture changes.' },
@@ -1005,7 +1005,7 @@ function AiSection() {
       await landingChatStream({ message: question, history }, (e) => {
         if (e.type === 'provenance') {
           setState('live')
-          setLabel(`live · vilmei ai · analyst ${e.mode} tier${e.cached ? ' · cached' : ''}`)
+          setLabel(`live · vilmei · ${e.mode} tier${e.cached ? ' · cached' : ''}`)
         } else if (e.type === 'delta') {
           text += e.text
           if (!reduceMotion) push()  // PB-8: reduced motion gets the full text at once
@@ -1037,10 +1037,10 @@ function AiSection() {
       <div className="lv-ai">
         <div className="lv-core rv" aria-hidden="true"><SystemDiagram /></div>
         <div className="rv d1">
-          <div className="lv-k2">AI ANALYST</div>
+          <div className="lv-k2">VILMEI AI</div>
           <h2 className="lv-h2" style={{ marginBottom: 18 }}>Ask Why. <span className="a">Get Evidence.</span></h2>
           <div className="lv-chat">
-            <div className="hd"><span className="d" /><b>VILMEI AI — EVIDENCE-FIRST ASSISTANT</b>
+            <div className="hd"><span className="d" /><b>VILMEI — EVIDENCE-FIRST ASSISTANT</b>
               {state === 'live' && <span className="lv-status live" style={{ marginLeft: 'auto' }}><span className="dot" />{label}</span>}
               {state === 'simulated' && <span className="lv-status sim" style={{ marginLeft: 'auto' }}>{label}</span>}
               {state === 'connecting' && <span className="lv-status build" style={{ marginLeft: 'auto' }}>connecting…</span>}
@@ -1050,13 +1050,13 @@ function AiSection() {
               {msgs.length === 0 && (
                 <div className="lv-hello">
                   <div className="lv-hello-ico" aria-hidden="true">✦</div>
-                  <b>ASK THE ANALYST</b>
+                  <b>ASK VILMEI</b>
                   <span>Evidence-first answers · streaming · read-only. A token question runs on today's BONK evidence.</span>
                 </div>
               )}
               {msgs.map((m, i) => (
                 <div className={`lv-msg ${m.who}`} key={i}>
-                  <div className="who">{m.who === 'user' ? 'YOU' : 'ANALYST'}</div>
+                  <div className="who">{m.who === 'user' ? 'YOU' : 'VILMEI'}</div>
                   <div className="lv-bub">
                     {m.who === 'ai' && m.text === '' && m.streaming ? (
                       <span style={{ display: 'grid', gap: 8 }}>
@@ -1071,7 +1071,7 @@ function AiSection() {
               ))}
               {state === 'simulated' && (
                 <div className="lv-msg ai">
-                  <div className="who">ANALYST</div>
+                  <div className="who">VILMEI</div>
                   <div className="lv-bub">
                     <span className="lv-verdict">◈ MEDIUM RISK · 68/100</span>
                     <div className="sect">KEY SIGNALS</div>
@@ -1088,7 +1088,7 @@ function AiSection() {
             <form className="lv-composer" onSubmit={(e) => { e.preventDefault(); const q = draft.trim(); setDraft(''); void ask(q) }}>
               <input className="lv-composer-in" value={draft} onChange={(e) => setDraft(e.target.value)}
                 placeholder={state === 'connecting' ? 'streaming…' : 'Ask anything about VILMEI or a token…'}
-                aria-label="ask the analyst" disabled={state === 'connecting'} maxLength={280} />
+                aria-label="ask vilmei" disabled={state === 'connecting'} maxLength={280} />
               <button type="submit" className="lv-composer-send" disabled={state === 'connecting' || !draft.trim()} aria-label="send">➤</button>
             </form>
             <div className="btns lv-suggest">
@@ -1103,7 +1103,7 @@ function AiSection() {
               <div className="note">ANSWER STREAMED FROM THE FREE TIER — THE MODEL ID ABOVE COMES FROM THE RESPONSE ITSELF. <a href="/terminal#/ai" style={{ color: 'var(--g)' }}>OPEN THE FULL PANEL →</a></div>
             )}
             {state === 'simulated' && (
-              <div className="note">DETERMINISTIC SCRIPTED TRACE{note ? ` — ${note.toUpperCase()}` : ''}. AI ANALYST — LIVE WHEN THE FOUNDER KEY IS CONFIGURED. <a href="/terminal#/ai" style={{ color: 'var(--g)' }}>OPEN THE PANEL →</a></div>
+              <div className="note">DETERMINISTIC SCRIPTED TRACE{note ? ` — ${note.toUpperCase()}` : ''}. VILMEI — LIVE WHEN THE FOUNDER KEY IS CONFIGURED. <a href="/terminal#/ai" style={{ color: 'var(--g)' }}>OPEN THE PANEL →</a></div>
             )}
             {state === 'idle' && (
               <div className="note">PICK A QUESTION — ANSWERS STREAM LIVE FROM THE FREE TIER (SHARED DAILY BUDGET). THE TOKEN QUESTION RUNS ON TODAY'S BONK EVIDENCE. <a href="/terminal#/ai" style={{ color: 'var(--g)' }}>FULL PANEL →</a></div>

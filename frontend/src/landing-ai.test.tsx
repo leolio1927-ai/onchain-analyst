@@ -52,7 +52,7 @@ describe('landing §06 — label state machine (label always == truth)', () => {
     render(<Landing />)
     fireEvent.click(screen.getByText('What is VILMEI?'))
     await waitFor(() => expect(document.body.textContent)
-      .toContain('live · vilmei ai · analyst free tier'))
+      .toContain('live · vilmei · free tier'))
     await waitFor(() => expect(document.body.textContent)
       .toContain('VILMEI is a read-only terminal.'))
     /* truth-run: a live state never renders the simulated chip */
@@ -67,7 +67,7 @@ describe('landing §06 — label state machine (label always == truth)', () => {
     fireEvent.click(screen.getByText('What is VILMEI?'))
     await waitFor(() => expect(document.body.textContent).toContain('simulated (live AI offline)'))
     expect(document.body.textContent).toContain('DETERMINISTIC SCRIPTED TRACE')
-    expect(document.body.textContent).toContain('AI ANALYST — LIVE WHEN THE FOUNDER KEY IS CONFIGURED')
+    expect(document.body.textContent).toContain('VILMEI — LIVE WHEN THE FOUNDER KEY IS CONFIGURED')
     expect(document.body.textContent).toContain('MEDIUM RISK · 68/100')
   })
 
@@ -92,11 +92,11 @@ describe('landing §06 — chat composer (V6-2)', () => {
       'data: [DONE]\n\n',
     ]))
     render(<Landing />)
-    fireEvent.change(screen.getByLabelText('ask the analyst'), { target: { value: 'What is the honesty law?' } })
+    fireEvent.change(screen.getByLabelText('ask vilmei'), { target: { value: 'What is the honesty law?' } })
     fireEvent.click(screen.getByLabelText('send'))
     await waitFor(() => expect(document.body.textContent).toContain('Words.'))
     expect(document.body.textContent).toContain('What is the honesty law?')
-    expect(document.body.textContent).toContain('ANALYST')   /* the reply is attributed to the Analyst, never a vendor */
+    expect(document.body.textContent).toContain('VILMEI')   /* the reply is attributed to VILMEI, never a vendor */
   })
 
   it('multi-turn: a second ask keeps the first exchange in the thread', async () => {
@@ -108,10 +108,10 @@ describe('landing §06 — chat composer (V6-2)', () => {
         : [prov('x-test/analyst'), 'data: {"type":"delta","text":"two"}\n\n', 'data: [DONE]\n\n'])
     })
     render(<Landing />)
-    fireEvent.change(screen.getByLabelText('ask the analyst'), { target: { value: 'first question' } })
+    fireEvent.change(screen.getByLabelText('ask vilmei'), { target: { value: 'first question' } })
     fireEvent.click(screen.getByLabelText('send'))
     await waitFor(() => expect(document.body.textContent).toContain('one'))
-    fireEvent.change(screen.getByLabelText('ask the analyst'), { target: { value: 'second question' } })
+    fireEvent.change(screen.getByLabelText('ask vilmei'), { target: { value: 'second question' } })
     fireEvent.click(screen.getByLabelText('send'))
     await waitFor(() => expect(document.body.textContent).toContain('two'))
     expect(document.body.textContent).toContain('first question')

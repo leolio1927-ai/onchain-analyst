@@ -331,6 +331,126 @@
     }
    }
   },
+  "/api/ledger": {
+   "get": {
+    "tags": [
+     "ledger"
+    ],
+    "summary": "Api Ledger",
+    "description": "VILMEI Token Ledger \u2014 on-chain-proven supply/holders/invariant.",
+    "operationId": "api_ledger_api_ledger_get",
+    "parameters": [
+     {
+      "name": "chain",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string",
+       "default": "sol",
+       "title": "Chain"
+      }
+     },
+     {
+      "name": "mint",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Mint"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Api Ledger Api Ledger Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/ledger.jsonl": {
+   "get": {
+    "tags": [
+     "ledger"
+    ],
+    "summary": "Ledger Jsonl",
+    "description": "Full machine-readable dump: one JSON object per line, envelope + GAPS.\nWritten for agents \u2014 the same bytes a human sees, provable line by line.",
+    "operationId": "ledger_jsonl_ledger_jsonl_get",
+    "parameters": [
+     {
+      "name": "chain",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "string",
+       "default": "sol",
+       "title": "Chain"
+      }
+     },
+     {
+      "name": "mint",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Mint"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {}
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/whale": {
    "post": {
     "tags": [
