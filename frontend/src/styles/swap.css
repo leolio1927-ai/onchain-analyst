@@ -491,3 +491,47 @@
 .sw-rail .sw2-note { font-size: 11px; }
 .sw-rail .sw2-disclaimer { padding: 0 4px; }
 @media (max-width: 1380px) { .tk-main { grid-template-columns: minmax(0, 1fr) 400px; } }
+
+/* ═══════════════════════════════════════════════════════════════════
+   SWAP ULTRA-PREMIUM PASS (founder directive) — clear zones, bigger
+   targets, one glance = one understanding. Data flow unchanged.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* zone 1 — wallet strip: identity + balance + the all-wallets picker */
+.sw-wallet { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 14px; border-radius: 12px;
+  border: 1px dashed color-mix(in srgb, var(--brand) 35%, transparent);
+  background: linear-gradient(180deg, rgba(10, 22, 16, .75), rgba(6, 14, 10, .85)); }
+.sw-wallet-id { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.sw-wallet-id .dot { width: 7px; height: 7px; border-radius: 99px;
+  background: var(--brand); box-shadow: 0 0 10px var(--brand); }
+.sw-wallet-id .dot.amber { background: var(--amber); box-shadow: 0 0 10px var(--amber); }
+.sw-wallet-tag { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .12em;
+  color: var(--brand); border: 1px solid color-mix(in srgb, var(--brand) 40%, transparent);
+  border-radius: 999px; padding: 3px 9px; }
+.sw-wallet-tag.amber { color: var(--amber); border-color: color-mix(in srgb, var(--amber) 45%, transparent); }
+.sw-wallet-bal { display: grid; gap: 1px; font-size: 12px; }
+.sw-wallet-bal span:first-child { color: var(--text); font-weight: 700; }
+
+/* zone 2 — the trade card: one boxed instrument, generous targets */
+.tk-swap { padding: 14px; gap: 12px; }
+.sw-tabs2 { height: 46px; border-radius: 12px; }
+.sw-tab2 { font-size: 12.5px; letter-spacing: .18em; }
+.sw2-field { padding: 12px 14px; border-radius: 14px; gap: 8px;
+  background: linear-gradient(180deg, rgba(8, 20, 14, .55), rgba(4, 10, 7, .7)); }
+.sw2-input { height: 56px; font-size: 26px; font-weight: 700; }
+.sw2-chip { padding: 7px 12px; border-radius: 11px; }
+.sw2-quick button { height: 30px; padding: 0 12px; font-size: 11px; border-radius: 8px; }
+.sw2-rail { height: 8px; }
+.sw2-flip button { width: 44px; height: 44px; font-size: 18px; }
+
+/* zone 3 — market strip: quiet facts under the trade */
+.sw2-grid { border-radius: 12px; padding: 10px 12px; gap: 10px;
+  background: rgba(5, 12, 9, .55); }
+
+/* zone 4 — CTA: unmissable */
+.sw2-cta { height: 54px; font-size: 14px; letter-spacing: .08em; }
+
+/* header: quote chip breathes with the title */
+.sw-rail .tk-phd { padding: 4px 2px 2px; font-size: 13px; }
+@media (prefers-reduced-motion: reduce) { .sw-wallet, .sw2-field, .sw2-grid { transition: none; } }

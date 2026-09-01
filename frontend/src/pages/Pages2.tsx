@@ -569,7 +569,7 @@ interface AlertEvent {
 interface AlertRule { id: string; chain: string; token: string; kind: string; params: Record<string, number> }
 interface AlertsState { rules: AlertRule[]; events: AlertEvent[]; unread: number; cooldown_s: number; kinds: string[] }
 
-function AlertsPage() {
+export function AlertsPage() {
   const [tab, setTab] = useState<'all' | 'unread' | 'high'>('all')
   const [st, setSt] = useState<AlertsState | null>(null)
   const [err, setErr] = useState<string | null>(null)
@@ -649,7 +649,7 @@ function AlertsPage() {
           </Card>
         </div>
         <div style={{ display: 'grid', gap: 10 }}>
-          <Tabs active={tab} onPick={setTab} tabs={[{ id: 'all', label: 'All' }, { id: 'unread', label: 'Unread' }, { id: 'high', label: 'High severity' }]} />
+          <Tabs active={tab} onPick={(id) => setTab(id as 'all' | 'unread' | 'high')} tabs={[{ id: 'all', label: 'All' }, { id: 'unread', label: 'Unread' }, { id: 'high', label: 'High severity' }]} />
           <button className="btn-analyze as-ghost" style={{ height: 32, fontSize: 11 }}
             disabled={busy || !st || st.unread === 0} onClick={() => void markAll()}>MARK ALL READ</button>
           {rows.length === 0 ? <Card><EmptyState icon="◆" title="No alerts in this filter" hint="Add a rule, hit EVALUATE NOW — events come from live provider data only." /></Card> : (

@@ -311,6 +311,9 @@ function SwapRail({ pair, quote, qErr }: { pair: ActivePair | null; quote: SwapQ
      deterministic per-chain demo number — the header chip shows the same. */
   const nativeBal = session?.balances?.[chain] ?? 3.421
   const tokenBal = pair ? demoTokenBalance(session?.providerId ?? 'anon', pair.tokenAddress) : 0
+  /* SWAP-1 honesty: without a wallet these are DEMO numbers — the strip and
+     the YOU PAY row both say so, never posing as a live wallet balance */
+  const payBalSource = session ? `${nativeBal.toFixed(3)} ${NATIVE[chain]}` : '3.421 DEMO'
   const nativeUsd = quote ? quote.priceUsd && quote.priceNative ? (quote.priceUsd / quote.priceNative) : NATIVE_USD_HINT[chain] : NATIVE_USD_HINT[chain]
   /* P0-H6: when the quote is missing, nativeUsd is a STATIC hint — every USD
      figure derived from it must say ESTIMATE, never pose as live */
@@ -351,11 +354,38 @@ function SwapRail({ pair, quote, qErr }: { pair: ActivePair | null; quote: SwapQ
   return (
     <section className="tk-panel sw-rail" data-chain={chain} style={accentStyle(chain)}>
       <div className="tk-phd">
-        SWAP
+        <span>SWAP</span>
         {quote ? <span className="tk-live">LIVE QUOTE · DEXSCREENER</span> : <span className="tk-mock">NO QUOTE</span>}
-        <span style={{ marginLeft: 'auto' }}><WalletButton compact /></span>
       </div>
       <div className="tk-swap">
+        {/* SWAP-1: the wallet zone — ALL detected wallets (EIP-6963 + Solana
+           Wallet Standard) plus the labelled demo identity, address-only. */}
+        <div className="sw-wallet" data-testid="swap-wallet">
+          {session ? (
+            <>
+              <div className="sw-wallet-id">
+                <span className="dot" aria-hidden="true" />
+                <span className="mono">{session.address.slice(0, 6)}…{session.address.slice(-4)}</span>
+                <span className={`sw-wallet-tag${session.kind === 'live' ? ' live' : ''}`}>
+                  {session.kind === 'live' ? `${session.label.toUpperCase()} · CONNECTED` : 'DEMO WALLET · CONNECTED'}
+                </span>
+              </div>
+              <div className="sw-wallet-bal mono">
+                <span>{payBalSource}</span>
+                <span className="dim2">{session.kind === 'live' ? 'live public address' : 'demo balance'}</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="sw-wallet-id">
+                <span className="dot amber" aria-hidden="true" />
+                <span className="sw-wallet-tag amber">NO WALLET — balances below are DEMO</span>
+              </div>
+            </>
+          )}
+          <div style={{ marginLeft: 'auto' }}><WalletButton /></div>
+        </div>
+
         <div className="sw-tabs2" role="tablist" aria-label="direction">
           <button type="button" role="tab" aria-selected={dir === 'buy'}
             className={`sw-tab2 buy${dir === 'buy' ? ' on' : ''}`} onClick={() => dir !== 'buy' && flip()}>BUY</button>
@@ -365,7 +395,9 @@ function SwapRail({ pair, quote, qErr }: { pair: ActivePair | null; quote: SwapQ
 
         <div className="sw2-field">
           <div className="sw2-hd"><span>YOU PAY</span>
-            <span className="mono">{payBal.toFixed(payingNative ? 3 : 2)} {paySymbol} · ~{fmtUsd(payBalUsd)}{usdTag}</span>
+            <span className="mono">{payBal.toFixed(payingNative ? 3 : 2)} {paySymbol} · ~{fmtUsd(payBalUsd)}{usdTag}
+              {!session && <span className="tk-mock">DEMO BALANCE</span>}
+            </span>
           </div>
           <div className="sw2-row">
             <input className="sw2-input" inputMode="decimal" placeholder="0" value={amount}
