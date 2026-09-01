@@ -62,7 +62,7 @@ from providers import (
     whale_windows,
     whales,
 )
-from webapp import ai_ask, ai_runs, chains, db, mcp, schemas
+from webapp import ai_ask, ai_runs, alerts as alerts_engine, chains, db, mcp, schemas
 from webapp import lineage as lineage_mod
 
 CACHE_TTL_S = 30.0
@@ -911,6 +911,47 @@ async def api_ledger_history(chain: str = "sol", mint: str | None = None) -> dic
     mint_key = (mint or os.environ.get("LEDGER_MINT_ADDRESS")
                 or ledger_solana.DEFAULT_MINT).strip()
     return ledger_solana.read_history(mint_key)
+
+
+# ── P1-C: alert engine — rules on real providers, in-app events only ────
+@app.get("/api/v1/alerts", tags=["alerts"])
+async def alerts_list() -> dict:
+    """Rules + recent events + computed unread. No hardcoded counts."""
+    return alerts_engine.list_state()
+
+
+@app.post("/api/v1/alerts/rules", tags=["alerts"])
+async def alerts_add_rule(body: dict, request: Request) -> dict:
+    """Create one rule {chain, token, kind, params}. Duplicate token+kind and
+    the rule cap are honest 400s."""
+    chain = (body.get("chain") or "").strip().lower()
+    if chain not in geckoterminal.NETWORKS:
+        raise HTTPException(400, f"chain must be one of {sorted(geckoterminal.NETWORKS)}")
+    try:
+        rule = alerts_engine.add_rule(chain, body.get("token") or "", body.get("kind") or "", body.get("params"))
+    except alerts_engine.AlertError as e:
+        raise HTTPException(400, str(e)) from e
+    return {"rule": rule}
+
+
+@app.delete("/api/v1/alerts/rules/{rule_id}", tags=["alerts"])
+async def alerts_delete_rule(rule_id: str) -> dict:
+    if not alerts_engine.delete_rule(rule_id):
+        raise HTTPException(404, "rule not found")
+    return {"deleted": rule_id}
+
+
+@app.post("/api/v1/alerts/evaluate", tags=["alerts"])
+async def alerts_evaluate() -> dict:
+    """Evaluate every rule against live provider data — on demand, same
+    engines as /api/scan and the DexScreener reader."""
+    return await alerts_engine.evaluate_all(scan_chain_async=_scan_chain)
+
+
+@app.post("/api/v1/alerts/read", tags=["alerts"])
+async def alerts_read(body: dict) -> dict:
+    n = alerts_engine.mark_read(all_ids=bool(body.get("all")), ids=body.get("ids"))
+    return {"marked": n}
 
 
 @app.get("/api/v1/ai/runs", tags=["ai"])

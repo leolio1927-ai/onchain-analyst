@@ -455,6 +455,189 @@
     }
    }
   },
+  "/api/v1/alerts": {
+   "get": {
+    "tags": [
+     "alerts"
+    ],
+    "summary": "Alerts List",
+    "description": "Rules + recent events + computed unread. No hardcoded counts.",
+    "operationId": "alerts_list_api_v1_alerts_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Alerts List Api V1 Alerts Get"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/alerts/rules": {
+   "post": {
+    "tags": [
+     "alerts"
+    ],
+    "summary": "Alerts Add Rule",
+    "description": "Create one rule {chain, token, kind, params}. Duplicate token+kind and\nthe rule cap are honest 400s.",
+    "operationId": "alerts_add_rule_api_v1_alerts_rules_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "additionalProperties": true,
+        "type": "object",
+        "title": "Body"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Alerts Add Rule Api V1 Alerts Rules Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/alerts/rules/{rule_id}": {
+   "delete": {
+    "tags": [
+     "alerts"
+    ],
+    "summary": "Alerts Delete Rule",
+    "operationId": "alerts_delete_rule_api_v1_alerts_rules__rule_id__delete",
+    "parameters": [
+     {
+      "name": "rule_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Rule Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Alerts Delete Rule Api V1 Alerts Rules  Rule Id  Delete"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/alerts/evaluate": {
+   "post": {
+    "tags": [
+     "alerts"
+    ],
+    "summary": "Alerts Evaluate",
+    "description": "Evaluate every rule against live provider data \u2014 on demand, same\nengines as /api/scan and the DexScreener reader.",
+    "operationId": "alerts_evaluate_api_v1_alerts_evaluate_post",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Alerts Evaluate Api V1 Alerts Evaluate Post"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/alerts/read": {
+   "post": {
+    "tags": [
+     "alerts"
+    ],
+    "summary": "Alerts Read",
+    "operationId": "alerts_read_api_v1_alerts_read_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "additionalProperties": true,
+        "type": "object",
+        "title": "Body"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": true,
+         "type": "object",
+         "title": "Response Alerts Read Api V1 Alerts Read Post"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/ai/runs": {
    "get": {
     "tags": [

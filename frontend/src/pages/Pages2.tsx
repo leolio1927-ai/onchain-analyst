@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ALERTS } from '../mock/data'
 import { AiHttpError, analystName, answerKey, askAiStream, rememberAnswer } from '../lib/aiApi'
 import type { AiAskRequest, AiMode, AiProvenance, AiUsage } from '../lib/aiApi'
 import { ThinkingPill } from '../components/ThinkingPill'
@@ -560,31 +559,121 @@ export function PortfolioPage() {
 }
 
 /* ─────────────── ALERTS ─────────────── */
-export function AlertsPage() {
-  const [tab, setTab] = useState('all')
-  const rows = ALERTS.filter((a) => tab === 'all' || (tab === 'unread' && a.unread) || (tab === 'high' && a.sev === 'HIGH'))
+/* ── P1-C: alerts read from the REAL backend store (rules + events).
+   No mock fixture, no hardcoded counts; delivery is in-app only. ── */
+interface AlertEvent {
+  id: string; chain: string; token: string; kind: string; severity: string
+  message: string; evidence: Record<string, unknown>; ts: number
+  read: boolean; delivery: string
+}
+interface AlertRule { id: string; chain: string; token: string; kind: string; params: Record<string, number> }
+interface AlertsState { rules: AlertRule[]; events: AlertEvent[]; unread: number; cooldown_s: number; kinds: string[] }
+
+function AlertsPage() {
+  const [tab, setTab] = useState<'all' | 'unread' | 'high'>('all')
+  const [st, setSt] = useState<AlertsState | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [form, setForm] = useState({ chain: 'sol', token: '', kind: 'liquidity_below', min_usd: '50000' })
+
+  const refresh = () => {
+    fetch('/api/v1/alerts').then((r) => r.json()).then((j) => setSt(j)).catch((e) => setErr(String(e).slice(0, 80)))
+  }
+  useEffect(() => { refresh() }, [])
+
+  const act = (fn: () => Promise<unknown>) => {
+    setBusy(true); setErr(null)
+    fn().then(refresh).catch((e) => setErr(String(e).slice(0, 120))).finally(() => setBusy(false))
+  }
+  const rows = (st?.events ?? []).filter((e) => tab === 'all' || (tab === 'unread' && !e.read) || (tab === 'high' && e.severity === 'HIGH'))
+  const addRule = () => act(() => fetch('/api/v1/alerts/rules', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chain: form.chain, token: form.token.trim(), kind: form.kind,
+      params: form.kind === 'liquidity_below' ? { min_usd: Number(form.min_usd) || 0 } : {} }),
+  }).then(async (r) => { if (!r.ok) throw new Error((await r.json()).detail ?? `HTTP ${r.status}`) }))
+  const evaluate = () => act(() => fetch('/api/v1/alerts/evaluate', { method: 'POST' }))
+  const markAll = () => act(() => fetch('/api/v1/alerts/read', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ all: true }) }))
+
   return (
     <div className="ta-page">
-      <Head title="Alerts" sub="Heuristic triggers on your watchlist — signals, not instructions. SIMULATED fixture: no alert backend, engine, or delivery exists yet." right={<Badge color="red">{`${ALERTS.filter((a) => a.unread).length} UNREAD · SIMULATED`}</Badge>} />
-      <Tabs active={tab} onPick={setTab} tabs={[{ id: 'all', label: 'All' }, { id: 'unread', label: 'Unread' }, { id: 'high', label: 'High severity' }]} />
-      {rows.length === 0 ? <Card><EmptyState icon="◆" title="No alerts in this filter" /></Card> : (
+      <Head title="Alerts" sub="Rules you set are evaluated against live provider data (same engines as scan + DexScreener). Delivery = in-app only — no external notifications. Evaluate runs on demand."
+        right={<Badge color={st && st.unread > 0 ? 'red' : 'green'}>{st ? `${st.unread} UNREAD` : '…'}</Badge>} />
+      {err && <Card><div className="mono" style={{ color: 'var(--amber)', fontSize: 12 }}>{err}</div></Card>}
+      <div className="grid-23">
         <div style={{ display: 'grid', gap: 10 }}>
-          {rows.map((a) => (
-            <Card key={a.title} className="reveal" glow={a.sev === 'HIGH' ? '#fb7185' : undefined}>
-              <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-                <span className={`ta-badge ${a.sev === 'HIGH' ? 'b-red' : a.sev === 'MED' ? 'b-amber' : 'b-green'}`}>{a.sev}</span>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>
-                    {a.unread && <span style={{ color: 'var(--cyan)' }}>● </span>}{a.title}
-                  </div>
-                  <div style={{ color: 'var(--muted)', fontSize: 12.5, marginTop: 2 }}>{a.body}</div>
-                </div>
-                <span className="mono dim" style={{ fontSize: 11.5 }}>{a.time} ago</span>
+          <Card title="NEW RULE">
+            <div style={{ display: 'grid', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <select value={form.chain} onChange={(e) => setForm({ ...form, chain: e.target.value })}
+                  aria-label="chain" className="mono" style={{ flex: 'none', width: 90, background: 'rgba(5,6,15,.6)', color: 'var(--text)', border: '1px solid var(--line)', borderRadius: 8, padding: '8px 10px', fontSize: 12 }}>
+                  {['sol', 'bnb', 'base', 'hood'].map((c) => <option key={c} value={c}>{c.toUpperCase()}</option>)}
+                </select>
+                <input value={form.token} onChange={(e) => setForm({ ...form, token: e.target.value })}
+                  placeholder="token address" aria-label="token address" className="mono"
+                  style={{ flex: 1, background: 'rgba(5,6,15,.6)', color: 'var(--text)', border: '1px solid var(--line)', borderRadius: 8, padding: '8px 10px', fontSize: 12 }} />
               </div>
-            </Card>
-          ))}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <select value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}
+                  aria-label="rule kind" className="mono" style={{ flex: 1, background: 'rgba(5,6,15,.6)', color: 'var(--text)', border: '1px solid var(--line)', borderRadius: 8, padding: '8px 10px', fontSize: 12 }}>
+                  <option value="liquidity_below">liquidity falls below…</option>
+                  <option value="risk_level_changed">risk level changes</option>
+                </select>
+                {form.kind === 'liquidity_below' && (
+                  <input value={form.min_usd} onChange={(e) => setForm({ ...form, min_usd: e.target.value })}
+                    inputMode="decimal" aria-label="minimum USD liquidity" className="mono"
+                    style={{ width: 120, background: 'rgba(5,6,15,.6)', color: 'var(--text)', border: '1px solid var(--line)', borderRadius: 8, padding: '8px 10px', fontSize: 12 }} />
+                )}
+              </div>
+              <button className="btn-analyze" disabled={busy || !form.token.trim()} onClick={() => void addRule()}>ADD RULE</button>
+            </div>
+          </Card>
+          <Card title={`RULES (${st?.rules.length ?? 0})`}>
+            {(st?.rules ?? []).length === 0 ? <EmptyState icon="◆" title="No rules yet — add one above" /> : (
+              <div style={{ display: 'grid', gap: 6 }}>
+                {st!.rules.map((r) => (
+                  <div key={r.id} style={{ display: 'flex', gap: 10, alignItems: 'center', borderBottom: '1px dashed var(--line-soft)', paddingBottom: 6 }}>
+                    <span className="mono" style={{ fontSize: 11.5, flex: 1 }}>
+                      {r.chain.toUpperCase()} · {r.token.slice(0, 6)}…{r.token.slice(-4)} · {r.kind}
+                      {r.kind === 'liquidity_below' ? ` < $${(r.params.min_usd ?? 0).toLocaleString('en-US')}` : ''}
+                    </span>
+                    <button className="btn-analyze as-ghost" style={{ height: 28, fontSize: 10.5 }}
+                      disabled={busy} onClick={() => act(() => fetch(`/api/v1/alerts/rules/${r.id}`, { method: 'DELETE' }))}>DEL</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button className="btn-analyze" style={{ width: '100%', marginTop: 10 }} disabled={busy || !st || st.rules.length === 0} onClick={() => void evaluate()}>
+              {busy ? 'EVALUATING…' : 'EVALUATE NOW (live providers)'}
+            </button>
+          </Card>
         </div>
-      )}
+        <div style={{ display: 'grid', gap: 10 }}>
+          <Tabs active={tab} onPick={setTab} tabs={[{ id: 'all', label: 'All' }, { id: 'unread', label: 'Unread' }, { id: 'high', label: 'High severity' }]} />
+          <button className="btn-analyze as-ghost" style={{ height: 32, fontSize: 11 }}
+            disabled={busy || !st || st.unread === 0} onClick={() => void markAll()}>MARK ALL READ</button>
+          {rows.length === 0 ? <Card><EmptyState icon="◆" title="No alerts in this filter" hint="Add a rule, hit EVALUATE NOW — events come from live provider data only." /></Card> : (
+            rows.map((e) => (
+              <Card key={e.id} glow={e.severity === 'HIGH' ? '#fb7185' : undefined}>
+                <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                  <span className={`ta-badge ${e.severity === 'HIGH' ? 'b-red' : e.severity === 'MED' ? 'b-amber' : 'b-green'}`}>{e.severity}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>
+                      {!e.read && <span style={{ color: 'var(--cyan)' }}>● </span>}{e.kind}
+                    </div>
+                    <div style={{ color: 'var(--muted)', fontSize: 12.5, marginTop: 2 }}>{e.message}</div>
+                    <div className="mono dim" style={{ fontSize: 10.5, marginTop: 4 }}>
+                      {e.chain.toUpperCase()} · {e.token.slice(0, 6)}…{e.token.slice(-4)} · delivery: {e.delivery}
+                    </div>
+                  </div>
+                  <span className="mono dim" style={{ fontSize: 11.5 }}>{new Date(e.ts * 1000).toISOString().slice(11, 16)}Z</span>
+                </div>
+              </Card>
+            ))
+          )}
+          {st && <div className="mono dim" style={{ fontSize: 10.5 }}>dedup/cooldown window: {st.cooldown_s}s per rule+kind · delivery: in-app only</div>}
+        </div>
+      </div>
     </div>
   )
 }
