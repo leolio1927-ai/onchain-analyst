@@ -62,7 +62,7 @@ from providers import (
     whale_windows,
     whales,
 )
-from webapp import ai_ask, chains, db, mcp, schemas
+from webapp import ai_ask, ai_runs, chains, db, mcp, schemas
 from webapp import lineage as lineage_mod
 
 CACHE_TTL_S = 30.0
@@ -662,6 +662,8 @@ async def _ai_ask_lazy(*, question: str, history: list[dict], persona: str,
     stalls. A second provenance (real evidence sources + the model that
     actually answered) follows before the first delta; the FE chips read the
     latest one (label law intact)."""
+    _run_id = ai_runs.new_run_id()
+    _t0 = time.monotonic()
     yield ai_ask.provenance_event(model=model, mode=mode, persona=persona,
                                   cached=False, evidence_sources=[])
     sources: list[str] = []
@@ -682,6 +684,13 @@ async def _ai_ask_lazy(*, question: str, history: list[dict], persona: str,
         yield ai_ask.sse({"type": "usage", "prompt_tokens": None,
                           "completion_tokens": None, "total_tokens": None,
                           "cached": True})
+        ai_runs.record_run(surface="terminal", persona=persona, mode=mode,
+                           provider="bai", model=model,
+                           prompt_version=ai_ask.PROMPT_VERSION, run_id=_run_id,
+                           question=question, evidence_sources=sources,
+                           evidence_hash=digest, status="ok",
+                           latency_ms=int((time.monotonic() - _t0) * 1000),
+                           cached=True)
         yield "data: [DONE]\n\n"
         return
     messages = ai_ask.build_messages(persona=persona, question=question,
@@ -699,6 +708,13 @@ async def _ai_ask_lazy(*, question: str, history: list[dict], persona: str,
                                       cached=False, evidence_sources=sources)
         yield ai_ask.sse({"type": "error", "kind": getattr(err, "kind", "upstream_error"),
                           "detail": _ai_upstream_error_text(err)})
+        ai_runs.record_run(surface="terminal", persona=persona, mode=mode,
+                           provider="bai", model=model,
+                           prompt_version=ai_ask.PROMPT_VERSION, run_id=_run_id,
+                           question=question, evidence_sources=sources,
+                           evidence_hash=digest, status="error",
+                           error_kind=getattr(err, "kind", "upstream_error"),
+                           latency_ms=int((time.monotonic() - _t0) * 1000))
         yield "data: [DONE]\n\n"
         return
     ai_ask.circuit_note(ok=True)
@@ -706,6 +722,12 @@ async def _ai_ask_lazy(*, question: str, history: list[dict], persona: str,
                                   cached=False, evidence_sources=sources)
     async for event in _ai_relay(resp, ckey):
         yield event
+    ai_runs.record_run(surface="terminal", persona=persona, mode=mode,
+                       provider="bai", model=model_used,
+                       prompt_version=ai_ask.PROMPT_VERSION, run_id=_run_id,
+                       question=question, evidence_sources=sources,
+                       evidence_hash=digest, status="ok",
+                       latency_ms=int((time.monotonic() - _t0) * 1000))
 
 
 async def _ai_degraded_stream(detail: str, *, model: str, mode: str, persona: str):
@@ -805,9 +827,12 @@ def _landing_chat_messages(message: str, history: list[dict]) -> list[dict]:
     return msgs
 
 
-async def _landing_chat_stream(messages: list[dict]) -> AsyncGenerator[str]:
+async def _landing_chat_stream(messages: list[dict], question: str = "") -> AsyncGenerator[str]:
     """Open the B.AI stream inside the generator — chunk-0 (a provenance
-    marker) leaves immediately, then upstream deltas relay verbatim."""
+    marker) leaves immediately, then upstream deltas relay verbatim.
+    P1-B: every run is recorded (redacted) — wire behavior unchanged."""
+    _run_id = ai_runs.new_run_id()
+    _t0 = time.monotonic()
     yield ai_ask.sse({"type": "provenance", "model": bai.model(), "mode": "free",
                       "persona": "guide", "cached": False, "degraded": False,
                       "prompt_version": "lc-v2.0", "evidence_sources": []})
@@ -816,6 +841,12 @@ async def _landing_chat_stream(messages: list[dict]) -> AsyncGenerator[str]:
             bai.open_stream, messages, max_tokens=_LANDING_CHAT_MAX_TOKENS,
             timeout=bai.TIMEOUT_S)
     except bai.BaiError as e:
+        ai_runs.record_run(surface="landing", persona="guide", mode="free",
+                           provider="bai", model=bai.model(),
+                           prompt_version="lc-v2.0", run_id=_run_id,
+                           question=question, evidence_sources=[],
+                           evidence_hash=None, status="error", error_kind=e.kind,
+                           latency_ms=int((time.monotonic() - _t0) * 1000))
         yield ai_ask.sse({"type": "error", "kind": e.kind, "detail": (
             "The Analyst chat is offline right now — the chat key is not configured "
             "(founder config)" if e.kind == "no_key" else
@@ -840,6 +871,12 @@ async def _landing_chat_stream(messages: list[dict]) -> AsyncGenerator[str]:
                           "detail": "the chat stream dropped mid-answer — send again"})
     finally:
         resp.close()
+    ai_runs.record_run(surface="landing", persona="guide", mode="free",
+                       provider="bai", model=bai.model(),
+                       prompt_version="lc-v2.0", run_id=_run_id,
+                       question=question, evidence_sources=[],
+                       evidence_hash=None, status="ok",
+                       latency_ms=int((time.monotonic() - _t0) * 1000))
     yield "data: [DONE]\n\n"
 
 
@@ -853,7 +890,7 @@ async def api_landing_chat(body: LandingChatBody, request: Request) -> Streaming
         raise HTTPException(400, f"message too long — keep it under {_LANDING_CHAT_MAX_CHARS} characters")
     if not bai.api_key():
         raise HTTPException(503, "The Analyst chat is offline — chat key not set (founder config)")
-    return StreamingResponse(_landing_chat_stream(_landing_chat_messages(message, body.history)),
+    return StreamingResponse(_landing_chat_stream(_landing_chat_messages(message, body.history), question=message),
                              media_type="text/event-stream", headers=_AI_SSE_HEADERS)
 
 
@@ -874,6 +911,13 @@ async def api_ledger_history(chain: str = "sol", mint: str | None = None) -> dic
     mint_key = (mint or os.environ.get("LEDGER_MINT_ADDRESS")
                 or ledger_solana.DEFAULT_MINT).strip()
     return ledger_solana.read_history(mint_key)
+
+
+@app.get("/api/v1/ai/runs", tags=["ai"])
+async def api_ai_runs(limit: int = 50) -> dict:
+    """P1-B: recent AI run records — redacted (no raw addresses, no keys),
+    oldest-last. Bounded to 200 per read."""
+    return {"runs": ai_runs.read_runs(limit)}
 
 
 @app.get("/ledger.jsonl", tags=["ledger"])
@@ -1511,6 +1555,12 @@ async def _mcp_ai_ask(a: dict) -> dict:
     ckey = ai_ask.cache_key(question, mode, model, persona, digest)
     cached = ai_ask.cache_get(ckey)
     if cached is not None:
+        ai_runs.record_run(surface="mcp", persona=persona, mode=mode,
+                           provider="bai", model=model,
+                           prompt_version=ai_ask.PROMPT_VERSION,
+                           run_id=ai_runs.new_run_id(), question=question,
+                           evidence_sources=sources, evidence_hash=digest,
+                           status="ok", latency_ms=None, cached=True)
         return {"question": question, "mode": mode, "persona": persona,
                 "model": model, "cached": True, "text": cached,
                 "prompt_version": ai_ask.PROMPT_VERSION,

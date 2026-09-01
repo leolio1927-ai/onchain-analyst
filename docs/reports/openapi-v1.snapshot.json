@@ -455,6 +455,52 @@
     }
    }
   },
+  "/api/v1/ai/runs": {
+   "get": {
+    "tags": [
+     "ai"
+    ],
+    "summary": "Api Ai Runs",
+    "description": "P1-B: recent AI run records \u2014 redacted (no raw addresses, no keys),\noldest-last. Bounded to 200 per read.",
+    "operationId": "api_ai_runs_api_v1_ai_runs_get",
+    "parameters": [
+     {
+      "name": "limit",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "default": 50,
+       "title": "Limit"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "type": "object",
+         "additionalProperties": true,
+         "title": "Response Api Ai Runs Api V1 Ai Runs Get"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/ledger.jsonl": {
    "get": {
     "tags": [
