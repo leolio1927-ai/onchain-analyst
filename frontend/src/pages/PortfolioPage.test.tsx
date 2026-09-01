@@ -96,7 +96,7 @@ describe('PortfolioPage (M4 live watchlist)', () => {
     render(<PortfolioPage />)
     await waitFor(() => expect(screen.getByText(/RATE LIMITED · 1 of 3 tokens/)).toBeTruthy())
     expect(screen.getByTestId('pf-note-bnb').textContent).toContain('no pool for this contract on bnb')
-    expect(screen.getByText('awaiting the free-tier window — no facts invented')).toBeTruthy()
+    expect(screen.getByText('awaiting the public window — no facts invented')).toBeTruthy()
   })
 
   it('the 15-item cap refuses the 16th with a human sentence', () => {

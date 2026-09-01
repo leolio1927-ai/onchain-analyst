@@ -48,7 +48,7 @@ const hypePartial = {
   native_price_usd: null, native_change_24h: null,
   tokens: [], pricing_note: null,
   sources: [], data_mode: 'partial',
-  reasons: ['holdings:partial — no free-tier balance source verified for hype (M0 probe 2026-08-31): the terminal says so instead of guessing'],
+  reasons: ['holdings:partial — no public balance source verified for hype (M0 probe 2026-08-31): the terminal says so instead of guessing'],
 }
 const solNoKey = {
   schema_version: 'v1', ts: '2026-08-31T12:00:00Z',
@@ -162,7 +162,7 @@ describe('HoldingsPage (M5 live holdings)', () => {
     expect(lastUrl).toBe(`/api/v1/holdings/hype/${EVM_ADDR}`)
     await waitFor(() => expect(screen.getByText('PARTIAL')).toBeTruthy())
     expect(screen.getByTestId('hc-native').textContent).toBe('–')             // absent stays a dash
-    expect(screen.getByTestId('hc-reason').textContent).toContain('no free-tier balance source verified for hype')
+    expect(screen.getByTestId('hc-reason').textContent).toContain('no public balance source verified for hype')
   })
 
   it('no_key: amber NO KEY chip + the declared-null sentence', async () => {

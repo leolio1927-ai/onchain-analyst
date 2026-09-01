@@ -564,22 +564,9 @@ input, select { font-family: inherit; }
 @media (prefers-reduced-motion: reduce) { .ta-bg::before,.ta-bg::after,.ta-search,.ta-btn-primary::after,.ta-side-logo .mark::after,.ta-card .b-green::after { animation:none; } .ta-card,.ta-card:hover { transition-duration:.01ms; } }
 
 /* ═══ PROMPT-V (2026-08-30): global topbar — auto-detect search ═══ */
-/* ── V5-G3 embroidery uniform ────────────────────────────────────────────
-   The landing bordir bar, now one utility. Attach .embroidery to any
-   surface that needs position:relative — the band + travelling stitch
-   derive from tokens.css --emb-* only. Reduced motion = static band. */
-.embroidery { position: relative; }
-.embroidery::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0;
-  height: 2px; pointer-events: none;
-  background:
-    linear-gradient(100deg, transparent 20%, rgba(240,255,249,.95) 50%, transparent 80%) no-repeat,
-    var(--emb-band);
-  background-size: 240px 100%, 100% 100%;
-  opacity: .35; animation: emb-stitch 6s linear infinite; }
-@keyframes emb-stitch { from { background-position: -240px 0, 0 0; } to { background-position: calc(100% + 240px) 0, 0 0; } }
-@media (prefers-reduced-motion: reduce) {
-  .embroidery::after { animation: none; opacity: .5; }
-}
+/* ── V5-G3 embroidery uniform → MOVED to tokens.css (PROMPT-W A1):
+   every page imports tokens.css, so the utility is defined ONCE there.
+   app.css still consumes it (terminal surfaces keep .embroidery). */
 
 .ta-topbar { display: flex; align-items: center; gap: 14px; padding: 10px 18px;
   border-bottom: 1px solid var(--border-soft, #0f2419); background: rgba(4,12,9,.6);

@@ -103,7 +103,7 @@ export function LiveBoard() {
 
   return (
     <div className="lvx">
-      <header className="lx-top">
+      <header className="lx-top embroidery">
         <div className="lx-top-in">
           <a className="lx-logo" href="/"><span className="m">◤</span>VILMEI</a>
           <span className="lx-title">MEMECOIN LIVE</span>

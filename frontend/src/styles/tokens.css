@@ -58,3 +58,40 @@
   margin-right: 7px; vertical-align: 1px; }
 .lv-nav-links a.boxed:hover, .lx-top-links a.boxed:hover, .dd-topnav a.boxed:hover, .rr-topnav a.boxed:hover {
   color: color-mix(in srgb, var(--nav-accent, #00ffa3) 55%, #eafff6); }
+
+/* PROMPT-W A1 — THE bordir utility, defined ONCE where every page imports.
+   Attach .embroidery to any surface that needs the 2px 6-chain band +
+   travelling stitch. Reduced motion = static band. */
+.embroidery { position: relative; }
+.embroidery::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0;
+  height: 2px; pointer-events: none;
+  background:
+    linear-gradient(100deg, transparent 20%, rgba(240,255,249,.95) 50%, transparent 80%) no-repeat,
+    var(--emb-band);
+  background-size: 240px 100%, 100% 100%;
+  opacity: .35; animation: emb-stitch 6s linear infinite; }
+@keyframes emb-stitch { from { background-position: -240px 0, 0 0; } to { background-position: calc(100% + 240px) 0, 0 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .embroidery::after { animation: none; opacity: .5; }
+}
+
+/* PROMPT-W B1 — the THINKING pill (landing chat + terminal chat): brain SVG
+   stroked with the 6-chain gradient, 1 Hz blink, working dots. One DNA. */
+.think-pill { display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px;
+  border-radius: 999px; border: 1px dashed color-mix(in srgb, var(--emb-sol, #14F195) 35%, transparent);
+  background: rgba(5, 14, 10, .7); animation: think-blink 1s ease-in-out infinite;
+  width: fit-content; }
+.think-pill .think-brain { width: 20px; height: 20px; flex: none;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--emb-sol, #14F195) 40%, transparent)); }
+.think-pill b { font-family: var(--font-mono, monospace); font-size: 9.5px;
+  letter-spacing: .22em; color: var(--brand, #00ffa3); }
+.think-dots { display: inline-flex; gap: 3px; }
+.think-dots i { width: 4px; height: 4px; border-radius: 50%; background: var(--brand, #00ffa3);
+  animation: think-dot 1.2s ease-in-out infinite; }
+.think-dots i:nth-child(2) { animation-delay: .18s; }
+.think-dots i:nth-child(3) { animation-delay: .36s; }
+@keyframes think-blink { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+@keyframes think-dot { 0%, 100% { transform: translateY(0); opacity: .5; } 40% { transform: translateY(-2px); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .think-pill, .think-dots i { animation: none; }
+}

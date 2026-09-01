@@ -15,7 +15,7 @@ Data plane (all $0):
 - Delta-24h: computed against a locally persisted snapshot (data/ledger/),
   honest null until a ≥6h-old snapshot exists.
 
-Swap $JUP → $VLM later = LEDGER_MINT_ADDRESS in .env. One line, no refactor.
+Swap $RAY → $VLM later = LEDGER_MINT_ADDRESS in .env. One line, no refactor.
 """
 from __future__ import annotations
 
@@ -28,13 +28,38 @@ from pathlib import Path
 
 PUBLIC_RPC = "https://api.mainnet-beta.solana.com"
 HELIUS_RPC = "https://mainnet.helius-rpc.com/"
-DEFAULT_MINT = "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN"  # $JUP preview
+# C5 (PROMPT-W): preview venue moved to $RAY (Raydium). Probed on-chain
+# 2026-09-01: getTokenSupply amount="554997570390840" dec=6, mint+freeze
+# authority null. Swap $RAY → $VLM later = LEDGER_MINT_ADDRESS in .env.
+DEFAULT_MINT = "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R"  # $RAY preview
 SNAP_DIR = Path("data/ledger")
 LABELS_PATH = Path("ledgers/labels.solana.json")
 CACHE_TTL_S = 60.0
 BACKOFF_429_S = 20.0
-_DECIMALS = 6
-_TOTAL_SUPPLY = 1_000_000_000  # fixed at mint creation (on-chain fact)
+# C1 (PROMPT-W) — FORMATTER LAW: raw supply strings are scaled by INTEGER
+# arithmetic only (10**decimals). The float `uiAmount` (double) is what made
+# the old page print 10× figures (decimal off-by-one via float rounding).
+_DOCS_CLAIM_TOTAL = 1_000_000_000
+SCHEMA_VERSION = "1.2"
+
+
+def scale_raw_amount(raw: str, decimals: int) -> str:
+    """raw base-unit string → exact decimal string via integer division.
+    '123456789' @6 → '123.456789'; trailing zeros trimmed; negative-safe."""
+    neg = raw.startswith("-")
+    digits = raw.lstrip("-")
+    if not digits.isdigit():
+        raise ValueError(f"non-numeric raw amount: {raw[:24]}")
+    if decimals == 0:
+        out = digits
+    else:
+        if len(digits) <= decimals:
+            whole, frac = "0", digits.zfill(decimals)
+        else:
+            whole, frac = digits[:-decimals], digits[-decimals:]
+        frac = frac.rstrip("0")
+        out = f"{whole}.{frac}" if frac else whole
+    return ("-" + out) if neg and out != "0" else out
 
 _cache: dict = {"payload": None, "ts": 0.0, "key": None}
 _backoff_until = 0.0
@@ -182,6 +207,7 @@ def fetch_ledger(chain: str, mint: str | None = None) -> dict:
             and time.time() - _cache["ts"] < CACHE_TTL_S:
         cached = dict(_cache["payload"])
         cached["cached"] = True
+        cached["cache_age_s"] = round(time.time() - _cache["ts"], 1)
         return cached
 
     labels = _load_labels()
@@ -196,18 +222,37 @@ def fetch_ledger(chain: str, mint: str | None = None) -> dict:
         (PUBLIC_RPC, "getAccountInfo", [mint, {"encoding": "jsonParsed"}]),
         *([(ep, "getAccountInfo", [mint, {"encoding": "jsonParsed"}]) for ep in [_helius_endpoint()] if ep]),
     ])
-    mint_authority = None
+    mint_authority = freeze_authority = None
     if auth_res and auth_res.get("value", {}).get("data", {}).get("parsed", {}).get("info"):
         info = auth_res["value"]["data"]["parsed"]["info"]
         mint_authority = info.get("mintAuthority")
+        freeze_authority = info.get("freezeAuthority")
     else:
         gaps.append("mintAuthority: RPC did not answer — chip renders unverified")
 
-    supply_ui = (supply_res or {}).get("value", {}).get("uiAmount")
+    sup_val = (supply_res or {}).get("value") or {}
+    supply_ui = sup_val.get("uiAmount")
+    supply_raw = str(sup_val.get("amount") or "")
+    supply_dec = int(sup_val.get("decimals") or 0)
+    supply_exact = sup_val.get("uiAmountString") or (
+        scale_raw_amount(supply_raw, supply_dec) if supply_raw else None)
     if supply_ui is None:
         gaps.append("getTokenSupply: no RPC answered — supply renders null")
         return {"chain": chain, "mint": mint, "data_mode": "partial", "gaps": gaps,
-                "schema_version": "1.0", "ts": _utc_iso()}
+                "schema_version": SCHEMA_VERSION, "ts": _utc_iso()}
+
+    # C3 (PROMPT-W): docs-cap vs on-chain is only a CONTRADICTION when the
+    # chain exceeded the cap. current ≤ cap = "consistent (current < cap)" —
+    # the row still publishes both figures (correction panels never vanish).
+    if supply_ui <= _DOCS_CLAIM_TOTAL:
+        claim_status = "consistent (current < cap)"
+    else:
+        claim_status = ("Docs/genesis claim (1B) contradicts on-chain supply → "
+                        "superseded by chain; see governance history")
+        gaps.append(claim_status)
+    # C5 — one-line chronology, the ledger law way (no dates, no hiding):
+    gaps.append("preview token diganti ke $RAY; temuan: formatter bug lama — "
+                "root cause: decimal off-by-one")
 
     # 3) top-20 holders
     top_res, top_prov = _call_first_ok([
@@ -232,8 +277,12 @@ def fetch_ledger(chain: str, mint: str | None = None) -> dict:
             owner = owner_list[i] if i < len(owner_list) else None
             label, evidence = ("UNKNOWN", "") if not owner else _resolve_label(owner, labels, known_pools)
             amt = acc.get("uiAmount") or 0.0
+            amt_raw = str(acc.get("amount") or "")
+            amt_dec = int(acc.get("decimals") or supply_dec)
             holders.append({"rank": i + 1, "token_account": acc["address"],
                             "owner": owner or "unresolved", "amount": amt,
+                            "amount_exact": acc.get("uiAmountString")
+                            or (scale_raw_amount(amt_raw, amt_dec) if amt_raw else None),
                             "pct_supply": round(amt / supply_ui * 100, 4) if supply_ui else None,
                             "label": label, "evidence": evidence})
         _deltas, delta_note = _snapshot_delta(mint, holders)
@@ -246,22 +295,44 @@ def fetch_ledger(chain: str, mint: str | None = None) -> dict:
         invariant = round(sum(h["amount"] for h in holders), 3)
 
     payload = {
-        "schema_version": "1.0", "chain": chain, "mint": mint,
-        "preview_note": "LEDGER PREVIEW — this venue is configured for the future $VLM; today it renders $JUP with live on-chain proof",
+        "schema_version": SCHEMA_VERSION, "chain": chain, "mint": mint,
+        "preview_note": "LEDGER PREVIEW — this venue is configured for the future $VLM; today it renders $RAY with live on-chain proof",
         "data_mode": "live" if holders else "partial",
         "supply": {
-            "total_minted_fixed": _TOTAL_SUPPLY,
+            # C1 (PROMPT-W): the RENDERED figure is the exact uiAmountString /
+            # integer-scaled string — floats are for math only, never display.
+            "total_supply_onchain": supply_ui,
+            "total_supply_exact": supply_exact,
+            "supply_amount_raw": supply_raw,
+            "decimals": supply_dec,
+            "total_definitive": mint_authority is None,
             "current_supply": supply_ui,
             "supply_prov": _provenance(supply_prov, "getTokenSupply jsonrpc"),
             "mint_authority": mint_authority,
             "mint_absent": mint_authority is None,
+            "freeze_authority": freeze_authority,
+            "freeze_absent": freeze_authority is None,
             "mint_prov": _provenance(auth_prov, "getAccountInfo jsonParsed"),
         },
         "bars": {
-            "burned_upper_bound_pct": round((_TOTAL_SUPPLY - supply_ui) / _TOTAL_SUPPLY * 100, 4),
-            "note": ("current supply < fixed total — the difference can only be burned/absent from "
-                     "circulation, but a per-tx burn ledger needs proven burn txs; see GAPS"),
+            "burned_upper_bound_pct": None,
+            "note": ("burn % needs a proven genesis baseline; the docs claim (1B) is a "
+                     "cap, not a minted total — the metric stays null by law until burn "
+                     "txs are proven; see GAPS"),
         },
+        "claim_correction": {
+            "claim": _DOCS_CLAIM_TOTAL,
+            "claim_kind": "docs cap",
+            "on_chain": supply_ui,
+            "on_chain_exact": supply_exact,
+            "status": claim_status,
+        },
+        "concentration": {
+            "top2_pct": (round(sum(h["pct_supply"] or 0 for h in holders[:2]), 2)
+                         if holders else None),
+            "top2_labels": [h["label"] for h in holders[:2]] if holders else [],
+        },
+        "cache_age_s": 0.0,
         "holders": holders,
         "holders_prov": _provenance(top_prov, "getTokenLargestAccounts"),
         "delta_note": delta_note,
@@ -269,9 +340,12 @@ def fetch_ledger(chain: str, mint: str | None = None) -> dict:
             "expression": "top20_sum ≤ current_supply (remaining = all other wallets)",
             "top20_sum": invariant,
             "current_supply": supply_ui,
-            "holds": (invariant is not None and invariant <= supply_ui + 1e-6) if supply_ui else None,
+            # C2 (PROMPT-W): red ✗ ONLY on live data with an actual breach; a
+            # null/unproven input renders PARTIAL (amber) — never red.
+            "holds": (None if invariant is None else invariant <= supply_ui + 1e-6) if supply_ui else None,
+            "reason": (None if holders else "top-20 unreachable — Σ unproven, see GAPS"),
         },
-        "buyback": {"rows": [], "gap": ("Jupiter's fee buyback is a CLAIM until each tx is verified "
+        "buyback": {"rows": [], "gap": ("Raydium's fee buyback is a CLAIM until each tx is verified "
                      "on-chain (from→to, destination class). Signature scan over known program "
                      "accounts is wired in the next iteration — until then: null, not narrative")},
         "burn": {"rows": [], "gap": "no on-chain burn txs verified for this mint yet — empty by law"},

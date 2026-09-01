@@ -129,3 +129,21 @@
 @media (prefers-reduced-motion: reduce) { .lg-skel i { animation: none; } }
 @media (max-width: 1100px) { .lg-grid { grid-template-columns: 1fr; }
   .lg-supply-cells { grid-template-columns: 1fr 1fr; } }
+
+/* ── v1.1 hotfix (PROMPT-B PART A) ─────────────────────────────
+   A4 no page hscroll: every overflow lives in its own wrapper. */
+.lg-root { overflow-x: hidden; }
+.lg-rail { min-width: 0; }
+.lg-prov { overflow-wrap: anywhere; }
+
+/* A2 — DATA CORRECTION row: claim | on-chain | status */
+.lg-correction { border-left: 3px solid var(--amber); }
+.lg-cc-table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+.lg-cc-table th { text-align: left; font-size: 8.5px; letter-spacing: .16em;
+  color: var(--muted-deep); padding: 4px 8px; border-bottom: 1px dashed var(--border); }
+.lg-cc-table td { padding: 6px 8px; border-bottom: 1px solid var(--border-soft);
+  color: var(--text); vertical-align: top; font-variant-numeric: tabular-nums; }
+.lg-cc-table td.lg-cc-status { color: var(--amber); font-size: 10px; line-height: 1.5; }
+
+/* A3 — holder concentration card */
+.lg-concentration .lg-cc-line { font-size: 13px; font-weight: 700; color: var(--text); }

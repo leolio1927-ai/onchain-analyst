@@ -424,3 +424,29 @@ def test_fallback_answer_relabels_provenance(monkeypatch, client):
     assert provs[-1]["model"] == nvidia.model_fallback()
     deltas = [e for e in ev if isinstance(e, dict) and e.get("type") == "delta"]
     assert "".join(d["text"] for d in deltas) == "from fallback"
+
+
+# ── PROMPT-B PART C — brief v2.0.0 wiring guard ───────────────────────────
+
+def test_brief_v2_is_the_injected_source():
+    """C1: FAST+DEEP both inject the v2.0.0 living contract — the same
+    load_brief feeds guide (both modes) and the landing chat."""
+    brief = ai_ask.load_brief()
+    assert "OPERATING BRIEF v2.0.0" in brief
+    assert "VILMEI AI" in brief
+    sys_prompt = ai_ask.guide_system(brief)
+    assert "VILMEI AI" in sys_prompt
+    assert "OPERATING BRIEF v2.0.0" in sys_prompt
+
+
+def test_system_prompt_identity_and_free_of_forbidden_strings():
+    """C2 guard: the would-be system prompt carries the VILMEI AI identity AND
+    is free of vendor/infra strings — NVIDIA, NIM, api.b.ai, Helius, Alchemy,
+    the env var name, vendor key shapes. Fail = red."""
+    sys_prompt = ai_ask.guide_system(ai_ask.load_brief())
+    assert "VILMEI AI" in sys_prompt
+    forbidden = ["nvidia", "nim", "api.b.ai", "helius", "alchemy",
+                 "env", "api-key", "bearer ", "sk-", "glm", "prompt_version {version}"]
+    low = sys_prompt.lower()
+    for s in forbidden:
+        assert s not in low, f"forbidden string leaked into system prompt: {s}"

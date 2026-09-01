@@ -216,7 +216,7 @@ describe('M1 — 429 governance + a page that never stares at an empty floor', (
   it('a search-level 429 reads as AUTO SEARCH in the collapse', async () => {
     autoPayload = {
       ...AUTO, results: [], candidates: [], trending: [], rate_limited: ['search'],
-      data_sources: ['whale_auto:search rate-limited by GT (429) — the whole AUTO scan pauses, retry after the free-tier window (~60s)'],
+      data_sources: ['whale_auto:search rate-limited by GT (429) — the whole AUTO scan pauses, retry after the public window (~60s)'],
     }
     const { getByTestId } = await scan()
     await waitFor(() => getByTestId('whale-rl-banner'))

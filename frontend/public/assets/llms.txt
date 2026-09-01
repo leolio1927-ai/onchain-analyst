@@ -99,7 +99,7 @@ brackets) and was last re-verified 2026-08-29.
   evidence is always re-fetched and re-assessed server-side [webapp/server.py].
 - GET /api/ledger — VILMEI Token Ledger (PROMPT-V, build-in-public):
   on-chain-proven supply/mint-authority/top-20-holders for the configured
-  mint (LEDGER_MINT_ADDRESS, $JUP preview today, $VLM venue later).
+  mint (LEDGER_MINT_ADDRESS, $RAY preview today, $VLM venue later).
   Every number carries {source, fetched_at, verified_by}; unprovable rows
   render as GAPS. Σ invariant (top20 ≤ supply) recomputed every render.
   Labels default UNKNOWN; seeds live in ledgers/labels.solana.json.

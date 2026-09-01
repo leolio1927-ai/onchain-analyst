@@ -57,7 +57,7 @@ function Sec({ id, n, title, sub, children }: {
 
 /* hand-laid pipeline geometry (viewBox 1120×380) — statuses mirror the legend */
 const MAIN_NODES = [
-  { x: 14, t: 'GECKOTERMINAL', s: 'KEYLESS · FREE TIER' },
+  { x: 14, t: 'GECKOTERMINAL', s: 'KEYLESS · PUBLIC BUDGET' },
   { x: 194, t: 'NORMALIZE + GUARD', s: 'IMPOSSIBLE → “–”' },
   { x: 374, t: 'DEDUPE', s: 'DEEPEST POOL SURVIVES' },
   { x: 554, t: 'TTL CACHE', s: '180s · STALE-SAFE' },
@@ -163,7 +163,7 @@ export function DocsPage() {
         </nav>
 
         <main>
-          <div className="dd-topnav">
+          <div className="dd-topnav embroidery">
             <a className="dd-a" href="/">← LANDING</a>
             <a className="dd-a boxed" href="/live">MEMECOIN LIVE</a>
             <a className="dd-a boxed" href="/roadmap">ROADMAP</a>
@@ -411,7 +411,7 @@ export function DocsPage() {
                 <thead><tr><th>Source</th><th>Access</th><th>Constraints as wired</th></tr></thead>
                 <tbody>
                   <tr><td>GeckoTerminal API v2</td>
-                    <td>Keyless · free tier</td>
+                    <td>Keyless · public budget</td>
                     <td>~10 calls/min. Feed endpoints (new/trending/volume) wired for five networks: <code>solana</code>, <code>bsc</code>, <code>base</code>, <code>hyperevm</code>, <code>robinhood</code> — stage-0 verified against 248 network ids (2026-08-29); avax parked 2026-08-30 (founder 5-chain lineup). The trade-level path used by clustering currently resolves three chains (sol/bnb/base); hype/hood scans degrade honestly there. 180s feed cache keeps steady-state at ~6 rpm.</td></tr>
                   <tr><td>DexScreener</td>
                     <td>Keyless</td>
@@ -423,7 +423,7 @@ export function DocsPage() {
               </table>
               <blockquote className="dd-never">
                 <b>Why keyless:</b> no secret can leak, because none exists. The live pipeline holds
-                zero credentials, and the free-tier budget is enforced by the cache — 18
+                zero credentials, and the public budget is enforced by the cache — 18
                 (chain, source) combinations settle at ~6 requests/minute against a ~10 rpm tier.
               </blockquote>
             </div>
@@ -725,7 +725,7 @@ export function DocsPage() {
                 <div><dt>junk guard</dt><dd>The normalizer that turns impossible upstream values into “–”; zeros and negative changes pass through.</dd></div>
                 <div><dt>deterministic simulation</dt><dd>A rendered surface driven by a fixed seeded data set: same input → same page, labeled SIMULATED.</dd></div>
                 <div><dt>additive route</dt><dd>A new endpoint that touches no existing route's schema — the discipline the API grows by.</dd></div>
-                <div><dt>free tier</dt><dd>GeckoTerminal's keyless ~10 calls/min budget, respected by the cache (~6 rpm steady-state).</dd></div>
+                <div><dt>public budget</dt><dd>GeckoTerminal's keyless ~10 calls/min budget, respected by the cache (~6 rpm steady-state).</dd></div>
               </dl>
               <blockquote className="dd-never">
                 <b>Statement:</b> research tools — not financial advice. Data belongs to upstream

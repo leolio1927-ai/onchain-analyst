@@ -23,7 +23,7 @@ from collections import OrderedDict, defaultdict, deque
 from datetime import UTC, datetime
 from pathlib import Path
 
-PROMPT_VERSION = "ai-v1.0"
+PROMPT_VERSION = "ai-v2.0"   # v2.0.0 — brief v2 wiring (PROMPT-B PART C)
 
 QUESTION_MAX_CHARS = 2000
 HISTORY_MAX_TURNS = 6
@@ -41,7 +41,7 @@ DAILY_SPENT_COPY = ("AI daily budget spent — the free-tier pool resets at midn
 
 # ── personas ──────────────────────────────────────────────────────────────
 
-ANALYST_SYSTEM = """You are the AI analyst inside VILMEI, a read-only multichain memecoin research terminal. Prompt version {version}.
+ANALYST_SYSTEM = """You are VILMEI AI — the analyst inside VILMEI, a read-only multichain memecoin research terminal. Prompt version {version}.
 
 PRIME LAW — EVIDENCE ONLY: the JSON in the EVIDENCE block below is your ONE AND ONLY source of numbers.
 1. You may not output a single number, price, percentage, level, date or address that does not appear in EVIDENCE. Support levels, resistance levels and price targets are FORBIDDEN — no feed in this terminal produces them, so they cannot exist in your answer.
@@ -55,7 +55,7 @@ PRIME LAW — EVIDENCE ONLY: the JSON in the EVIDENCE block below is your ONE AN
 EVIDENCE block (verbatim terminal data):
 {evidence}"""
 
-GUIDE_SYSTEM = """You are the community guide of VILMEI, a read-only multichain memecoin research terminal. Prompt version {version}.
+GUIDE_SYSTEM = """You are VILMEI AI — the community guide of VILMEI, a read-only multichain memecoin research terminal. Prompt version {version}.
 
 PRIME LAW — BRIEF ONLY: the text in the BRIEF block below is your ONE AND ONLY source of facts. Never mention a token, launch, price, date, partnership or feature that is not written in it. If asked about something absent from the brief, say the brief does not cover it — never invent.
 
@@ -80,20 +80,25 @@ def guide_system(brief_text: str) -> str:
     return GUIDE_SYSTEM.format(version=PROMPT_VERSION, brief=brief_text)
 
 
-_BRIEF_PATH = Path(os.environ.get("VILMEI_AI_BRIEF", "docs/AI-BRIEF.md"))
+_BRIEF_PATH = Path(os.environ.get("VILMEI_AI_BRIEF", "docs/AI-BRIEF-v2.md"))
+_BRIEF_FALLBACK = Path("docs/AI-BRIEF.md")   # v1 remains as a degraded fallback
 _brief_cache: str | None = None
 
 
 def load_brief() -> str:
-    """docs/AI-BRIEF.md, cached after first read; a missing brief degrades to
-    a one-line honesty sentence rather than crashing the route."""
+    """docs/AI-BRIEF-v2.md (v2.0.0 living contract), cached after first read;
+    a missing v2 degrades to v1, then to a one-line honesty sentence rather
+    than crashing the route."""
     global _brief_cache
     if _brief_cache is None:
         try:
             _brief_cache = _BRIEF_PATH.read_text(encoding="utf-8")
         except OSError:
-            _brief_cache = ("(AI-BRIEF.md unavailable — answer only that VILMEI facts are "
-                            "momentarily unavailable; invent nothing.)")
+            try:
+                _brief_cache = _BRIEF_FALLBACK.read_text(encoding="utf-8")
+            except OSError:
+                _brief_cache = ("(AI-BRIEF unavailable — answer only that VILMEI facts are "
+                                "momentarily unavailable; invent nothing.)")
     return _brief_cache
 
 

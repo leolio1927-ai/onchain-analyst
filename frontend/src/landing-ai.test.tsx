@@ -37,12 +37,12 @@ describe('landing §06 — label state machine (label always == truth)', () => {
     for (const q of ['What is VILMEI?', 'Is this token a rug?', 'Is your AI safe?', 'What\'s the roadmap?']) {
       expect(screen.getByText(q)).toBeTruthy()
     }
-    expect(document.body.textContent).toContain('four questions · free tier')
+    expect(document.body.textContent).toContain('LIVE · VILMEI')
     expect(document.body.textContent).not.toContain('NOT WIRED YET')
     expect(document.body.textContent).not.toContain('ILLUSTRATIVE TRACE')
   })
 
-  it('live answer: chip carries the REAL model id from provenance, answer streams in', async () => {
+  it('live answer: chip is attributed to VILMEI only (no vendor/model words), answer streams in', async () => {
     stubAi(() => streamResponse([
       prov('moonshotai/kimi-k3'),
       'data: {"type":"delta","text":"VILMEI is a read-only terminal."}\n\n',
@@ -52,9 +52,11 @@ describe('landing §06 — label state machine (label always == truth)', () => {
     render(<Landing />)
     fireEvent.click(screen.getByText('What is VILMEI?'))
     await waitFor(() => expect(document.body.textContent)
-      .toContain('live · vilmei · free tier'))
+      .toContain('live · VILMEI'))
     await waitFor(() => expect(document.body.textContent)
       .toContain('VILMEI is a read-only terminal.'))
+    /* brand law: the REAL model id from provenance never renders */
+    expect(document.body.textContent).not.toContain('kimi')
     /* truth-run: a live state never renders the simulated chip */
     expect(document.body.textContent).not.toContain('simulated (live AI offline)')
   })

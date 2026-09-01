@@ -149,7 +149,7 @@ const QUEUE: { id: string; tag: string; title: string; kind: ChipKind; why: stri
   },
   {
     id: 'ta-104', tag: 'VM-104', title: 'VILMEI AI panel', kind: 'shipped',
-    why: 'Evidence-first narratives over live data — the VILMEI AI went live in the AI-V phase: streaming SSE proxy /api/v1/ai/ask (NVIDIA free tier, server-side key) + MCP ai_ask tool #7.',
+    why: 'Evidence-first narratives over live data — the VILMEI AI went live in the AI-V phase: streaming SSE proxy /api/v1/ai/ask (founder-configured upstream, server-side key) + MCP ai_ask tool #7.',
     proof: 'PROOF · /api/v1/ai/ask SSE (provenance → deltas → usage → [DONE]) · ANALYST evidence-first + GUIDE grounded in AI-BRIEF.md · per-IP/daily budgets, cache, honest 429/502/503/504 · never trades',
   },
   {
@@ -197,7 +197,7 @@ export function RoadmapPage() {
       <PageBackground />
       <div className="rr-aurora" aria-hidden="true" />
       <div className="rr-shell">
-        <div className="rr-topnav">
+        <div className="rr-topnav embroidery">
           <a className="rr-a" href="/">← LANDING</a>
           <a className="rr-a boxed" href="/live">MEMECOIN LIVE</a>
           <a className="rr-a boxed" href="/docs">DOCS</a>

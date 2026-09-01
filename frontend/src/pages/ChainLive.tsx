@@ -67,7 +67,7 @@ function FullRow({ item, chain, rank, onOpen }:
 
 function TopBar({ active }: { active: string }) {
   return (
-    <header className="lx-top">
+    <header className="lx-top embroidery">
       <div className="lx-top-in">
         <a className="lx-logo" href="/"><span className="m">◤</span>VILMEI</a>
         <span className="lx-title">MEMECOIN LIVE</span>

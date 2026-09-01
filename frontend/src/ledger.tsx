@@ -6,13 +6,13 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { useEffect, useRef, useState } from 'react'
-import { fmtUsdCompact } from './lib/liveFormat'
 import './styles/ledger.css'
 
 const EXPLORER = 'https://solscan.io'   // PUBLIC explorer — not ours, allowed
 
 interface Holder {
   rank: number; token_account: string; owner: string; amount: number
+  amount_exact?: string | null
   pct_supply: number | null; label: string; evidence: string
   delta_24h?: number | null
 }
@@ -20,16 +20,23 @@ interface Ledger {
   data_mode: 'live' | 'partial' | 'unwired'
   mint: string
   preview_note: string
-  supply: { total_minted_fixed: number; current_supply: number | null
+  supply: { total_supply_onchain: number | null; total_supply_exact: string | null
+    supply_amount_raw: string; decimals: number; total_definitive: boolean
+    current_supply: number | null
     supply_prov: { source: string; fetched_at: string; verified_by: string }
     mint_authority: string | null; mint_absent: boolean
+    freeze_authority: string | null; freeze_absent: boolean
     mint_prov: { source: string; fetched_at: string; verified_by: string } }
-  bars: { burned_upper_bound_pct: number; note: string }
+  bars: { burned_upper_bound_pct: number | null; note: string }
+  claim_correction: { claim: number; claim_kind: string
+    on_chain: number | null; on_chain_exact: string | null; status: string }
+  concentration: { top2_pct: number | null; top2_labels: string[] }
+  cache_age_s?: number
   holders: Holder[]
   holders_prov: { source: string; fetched_at: string; verified_by: string }
   delta_note: string
   invariant: { expression: string; top20_sum: number | null
-    current_supply: number | null; holds: boolean | null }
+    current_supply: number | null; holds: boolean | null; reason?: string | null }
   buyback: { rows: unknown[]; gap: string }
   burn: { rows: unknown[]; gap: string }
   vesting: { rows: unknown[]; gap: string }
@@ -72,40 +79,64 @@ function useLedger(mint: string | null) {
   return { state, fetchedAt }
 }
 
-/* Σ INVARIANT — recomputed client-side from the same payload every render */
-function InvariantChip({ inv }: { inv: Ledger['invariant'] }) {
-  if (inv.holds === null) return <span className="lg-chip muted">Σ INVARIANT · n/a</span>
+/* Σ INVARIANT — recomputed client-side from the same payload every render.
+   C2 law (PROMPT-W): ✗ red ONLY when live top-20 data shows an actual
+   breach; a null/unproven input renders PARTIAL (amber) with the reason —
+   red ✗ and PARTIAL can never appear together. */
+function InvariantChip({ inv, dataMode, holders }: { inv: Ledger['invariant']; dataMode: Ledger['data_mode']; holders: Holder[] }) {
+  if (inv.holds === null) {
+    return <span className="lg-chip amber" title={inv.reason ?? inv.expression}>Σ INVARIANT · PARTIAL/UNKNOWN — {inv.reason ?? 'input unproven'}</span>
+  }
+  if (inv.holds === false && (dataMode !== 'live' || holders.length === 0)) {
+    return <span className="lg-chip amber" title={inv.expression}>Σ INVARIANT · PARTIAL/UNKNOWN — top-20 unproven</span>
+  }
   return inv.holds
-    ? <span className="lg-chip ok" title={inv.expression}>Σ INVARIANT ✓ top20 {fmtUsdCompact(inv.top20_sum)} ≤ supply</span>
-    : <span className="lg-chip red" title={inv.expression}>Σ INVARIANT ✗ Δ = {fmtUsdCompact((inv.top20_sum ?? 0) - (inv.current_supply ?? 0))}</span>
+    ? <span className="lg-chip ok" title={inv.expression}>Σ INVARIANT ✓ top20 {(inv.top20_sum ?? 0).toLocaleString('en-US', { maximumFractionDigits: 3 })} ≤ supply</span>
+    : <span className="lg-chip red" title={inv.expression}>Σ INVARIANT ✗ Δ = {(inv.top20_sum ?? 0) - (inv.current_supply ?? 0) > 0 ? ((inv.top20_sum ?? 0) - (inv.current_supply ?? 0)).toLocaleString('en-US', { maximumFractionDigits: 3 }) : '0'}</span>
 }
 
-function ProvenanceStrip({ ledger, fetchedAt }: { ledger: Ledger; fetchedAt: number }) {
-  const ago = fetchedAt ? Math.max(0, Math.round((Date.now() - fetchedAt) / 1000)) : null
+function ProvenanceStrip({ ledger }: { ledger: Ledger }) {
+  /* A4: N = the REAL server cache age (payload), not the client fetch clock */
+  const age = Math.max(0, Math.round(ledger.cache_age_s ?? 0))
   return (
     <div className="lg-prov mono">
       SOURCES: {ledger.holders_prov.source || '—'} + {ledger.supply.supply_prov.source || '—'}
-      {ledger.cached ? ' · cached' : ''} · refresh {ago == null ? '—' : `${ago}s ago`} · TS {ledger.ts}
+      {ledger.cached ? ' · cached' : ''} · refreshed {age}s ago · TS {ledger.ts}
     </div>
   )
 }
 
+/* A1 — derived metrics render ONLY from proven inputs. burned % without a
+   proven baseline is null → an honest dash; the UI can never print a
+   negative burn percentage. */
 function SupplyBars({ s, bars }: { s: Ledger['supply']; bars: Ledger['bars'] }) {
-  const total = s.total_minted_fixed
-  const burnedPct = Math.min(100, ((total - (s.current_supply ?? total)) / total) * 100)
+  const burnedPct = bars.burned_upper_bound_pct == null
+    ? null
+    : Math.max(0, Math.min(100, bars.burned_upper_bound_pct))
   return (
     <div className="lg-supply">
-      <div className="lg-supply-bar" role="img" aria-label={`burned ${burnedPct.toFixed(2)}% of fixed supply`}>
-        <i style={{ width: `${burnedPct}%` }} />
+      <div className="lg-supply-bar" role="img"
+        aria-label={burnedPct == null ? 'burn share unproven — no bar by law' : `burned ${burnedPct.toFixed(2)}%`}>
+        {burnedPct != null && <i style={{ width: `${burnedPct}%` }} />}
       </div>
       <div className="lg-supply-cells">
-        <div><span>FIXED MINT</span><b>{total.toLocaleString('en-US')}</b></div>
-        <div><span>CURRENT SUPPLY</span><b>{s.current_supply?.toLocaleString('en-US') ?? '–'}</b></div>
-        <div><span>BURNED/ABSENT</span><b>{burnedPct.toFixed(4)}%<small className="lg-mono-note"> upper bound — see GAPS</small></b></div>
-        <div><span>MINT AUTHORITY</span><b className={s.mint_absent ? 'ok' : 'warn'}>
-          {s.mint_absent ? 'MINT ABSENT ✓ self-verifiable' : (s.mint_authority ?? '–')}</b></div>
+        {/* C4: rendered ONCE, exact uiAmountString (formatter law — no floats) */}
+        <div><span>TOTAL SUPPLY (on-chain)</span>
+          <b className="mono">{s.total_supply_exact ?? '–'}
+            <small className="lg-mono-note">{s.total_definitive ? ' definitive — mint renounced' : ''}</small></b></div>
+        <div><span>BURNED/ABSENT</span>
+          <b>{burnedPct == null ? '–' : `${burnedPct.toFixed(4)}%`}
+            <small className="lg-mono-note"> {bars.note}</small></b></div>
+        <div><span>MINT / FREEZE AUTHORITY</span>
+          <b className={s.mint_absent && s.freeze_absent ? 'ok' : 'warn'}>
+            {s.mint_absent ? 'MINT ABSENT ✓' : (s.mint_authority ?? '–')}
+            {' · '}
+            {s.freeze_absent ? 'FREEZE ABSENT ✓' : (s.freeze_authority ?? '–')}
+          </b></div>
+        {/* C4 slot #4: circulating is UNKNOWN until LP/lock proofs exist */}
+        <div><span>CIRCULATING</span>
+          <b className="mono">UNKNOWN<small className="lg-mono-note"> need LP/lock proof — GAPS</small></b></div>
       </div>
-      <div className="lg-mono-note">{bars.note}</div>
     </div>
   )
 }
@@ -127,7 +158,7 @@ function HoldersTable({ holders, delta }: { holders: Holder[]; delta: boolean })
               </td>
               <td><span className={`lg-label ${LABEL_CLASS[h.label] ?? 'lg-unk'}`}
                 title={h.evidence || 'no on-chain evidence — default label'}>{h.label}</span></td>
-              <td className="r mono">{h.amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}</td>
+              <td className="r mono">{h.amount_exact ?? h.amount.toLocaleString('en-US', { maximumFractionDigits: 0 })}</td>
               <td className="r mono">{h.pct_supply?.toFixed(4) ?? '–'}%</td>
               <td className={`r mono ${h.delta_24h == null ? 'dim' : h.delta_24h >= 0 ? 'up' : 'down'}`}>
                 {h.delta_24h == null ? '–' : `${h.delta_24h >= 0 ? '+' : ''}${h.delta_24h.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
@@ -169,8 +200,43 @@ function ByteProof({ ledger }: { ledger: Ledger }) {
   )
 }
 
+/* A2 — a broken docs claim appears as a structured correction row:
+   claim | on-chain | status. Never deleted, never rendered as a metric. */
+function ClaimCorrectionRow({ cc }: { cc: Ledger['claim_correction'] }) {
+  return (
+    <div className="lg-railcard lg-correction" data-testid="claim-correction">
+      <b>DATA CORRECTION — DOCS vs CHAIN</b>
+      <table className="lg-cc-table mono">
+        <thead><tr><th>{cc.claim_kind?.toUpperCase() ?? 'CLAIM'}</th><th>ON-CHAIN</th><th>STATUS</th></tr></thead>
+        <tbody><tr>
+          <td>{cc.claim.toLocaleString('en-US')}</td>
+          <td>{cc.on_chain_exact ?? cc.on_chain?.toLocaleString('en-US') ?? '–'}</td>
+          <td className="lg-cc-status">{cc.status}</td>
+        </tr></tbody>
+      </table>
+      <span className="lg-mono-note">A claim that loses to the chain stays published — that is the law, not an incident.</span>
+    </div>
+  )
+}
+
+/* A3 — top-2 concentration with no label on either wallet must announce
+   itself; the card links straight to the labels methodology. */
+function ConcentrationCard({ c }: { c: Ledger['concentration'] }) {
+  if (c.top2_pct == null) return null
+  const unlabelled = c.top2_labels.filter((l) => l === 'UNKNOWN').length
+  return (
+    <div className="lg-railcard lg-concentration" data-testid="holder-concentration">
+      <b>HOLDER CONCENTRATION</b>
+      <span className="lg-cc-line mono">top2 {c.top2_pct.toFixed(1)}%
+        {unlabelled > 0 && <> · {unlabelled === c.top2_labels.length ? 'both' : `${unlabelled}/${c.top2_labels.length}`} UNLABELLED</>}
+      </span>
+      <a className="lg-verify" href="#labels-methodology">LABELS METHODOLOGY ↗</a>
+    </div>
+  )
+}
+
 function LedgerPage() {
-  const { state, fetchedAt } = useLedger(null)
+  const { state } = useLedger(null)
   const [tab, setTab] = useState<TabId>('holders')
   const threadRef = useRef<HTMLDivElement>(null)
 
@@ -182,7 +248,7 @@ function LedgerPage() {
           <a href="/live">MEMECOIN LIVE</a>
           <span className="lg-seg-on">$VLM · LEDGER</span>
         </nav>
-        <span className="lg-badge mono">$JUP · PREVIEW — venue untuk $VLM nanti</span>
+        <span className="lg-badge mono">$RAY · PREVIEW — venue untuk $VLM nanti</span>
       </header>
       <main className="lg-main">
         {state.st === 'error' && (
@@ -200,10 +266,10 @@ function LedgerPage() {
               <span className="lg-mint mono" title={state.ledger.mint}>
                 {state.ledger.mint.slice(0, 6)}…{state.ledger.mint.slice(-4)}
               </span>
-              <InvariantChip inv={state.ledger.invariant} />
+              <InvariantChip inv={state.ledger.invariant} dataMode={state.ledger.data_mode} holders={state.ledger.holders} />
               {state.ledger.data_mode === 'partial' && <span className="lg-chip amber">PARTIAL — GAPS OPEN</span>}
             </div>
-            <ProvenanceStrip ledger={state.ledger} fetchedAt={fetchedAt} />
+            <ProvenanceStrip ledger={state.ledger} />
             <SupplyBars s={state.ledger.supply} bars={state.ledger.bars} />
             <div className="lg-grid">
               <section className="lg-left">
@@ -233,6 +299,8 @@ function LedgerPage() {
                 </div>
               </section>
               <aside className="lg-rail">
+                <ClaimCorrectionRow cc={state.ledger.claim_correction} />
+                <ConcentrationCard c={state.ledger.concentration} />
                 <div className="lg-railcard">
                   <b>GAPS — WHAT IS NOT KNOWN</b>
                   <ul className="lg-gaps">
@@ -242,7 +310,7 @@ function LedgerPage() {
                   </ul>
                   <span className="lg-mono-note">GAPS are the feature — a transparency page that hides nothing.</span>
                 </div>
-                <div className="lg-railcard">
+                <div className="lg-railcard" id="labels-methodology">
                   <b>LABELS METHODOLOGY</b>
                   <span>{state.ledger.labels_source}. Default UNKNOWN. Seeds require on-chain evidence — a label without proof violates the ledger law.</span>
                 </div>
@@ -256,7 +324,15 @@ function LedgerPage() {
   )
 }
 
-document.title = 'VILMEI Token Ledger — $JUP · Preview'
-createRoot(document.getElementById('root')!).render(
-  <StrictMode><LedgerPage /></StrictMode>,
-)
+document.title = 'VILMEI Token Ledger — $RAY · Preview'
+
+/* exported for vitest — importing the module must stay side-effect-free when
+   no #root exists (tests, tooling) */
+export { LedgerPage }
+
+const rootEl = document.getElementById('root')
+if (rootEl) {
+  createRoot(rootEl).render(
+    <StrictMode><LedgerPage /></StrictMode>,
+  )
+}

@@ -12,6 +12,7 @@ import type { Chain, ScanResult } from './api'
 import { ChainLogo } from './pages/chainLogos'
 import { BRAND_NAME, BRAND_LEGAL } from './lib/brand'
 import { AiHttpError, landingChatStream } from './lib/aiApi'
+import { ThinkingPill } from './components/ThinkingPill'
 
 /* ═══════════ helpers ═══════════ */
 
@@ -95,32 +96,11 @@ function Magnetic({ children, className = '', href }: { children: React.ReactNod
   )
 }
 
-/* kinetic decode — terminal scramble per character */
-const GLYPHS = '!<>-_\\/[]{}=+*^?#@$%&'
-
-function Decode({ text, delay = 0, className = '' }: { text: string; delay?: number; className?: string }) {
-  const [out, setOut] = useState(text)
-  useEffect(() => {
-    // initial state is already `text` — reduced motion just skips the animation
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    let raf = 0
-    const start = performance.now() + delay
-    const per = 30
-    const step = (now: number) => {
-      const k = Math.max(0, Math.min(1, (now - start) / (text.length * per)))
-      const settled = Math.floor(k * text.length)
-      let s = text.slice(0, settled)
-      for (let i = settled; i < text.length; i++) {
-        s += text[i] === ' ' ? ' ' : GLYPHS[(Math.random() * GLYPHS.length) | 0]
-      }
-      setOut(s)
-      if (k < 1) raf = requestAnimationFrame(step)
-      else setOut(text)
-    }
-    raf = requestAnimationFrame(step)
-    return () => cancelAnimationFrame(raf)
-  }, [text, delay])
-  return <span className={className}>{out}</span>
+/* PROMPT-W D1 — the hero renders its FINAL text instantly (static fade-in
+   ≤200ms). The glyph-scramble decode (mixed charset noise) is removed by
+   founder order: no glyph-shuffle, no cursor blink, no CJK in the hero. */
+function Decode({ text, className = '' }: { text: string; delay?: number; className?: string }) {
+  return <span className={`decode-static ${className}`}>{text}</span>
 }
 
 /* spotlight follows the cursor (desktop) */
@@ -296,7 +276,7 @@ function Tape() {
   }, [])
   return (
     <div className="lv-tapewrap" aria-label="Live trending pools, one per chain">
-      <div className="lv-tapehd">
+        <div className="lv-tapehd">
         <span className="live-dot" /> LIVE FEED · TOP TRENDING PER CHAIN
         <span className={`st${down ? ' down' : ''}`}>
           <span className="dot" />{down ? 'RECONNECTING' : `SYNCED ${sync}`}
@@ -313,7 +293,7 @@ function Tape() {
           </a>
         ))}
       <div className="lv-tapeft">
-        <span>GECKOTERMINAL KEYLESS FREE TIER</span>
+        <span>GECKOTERMINAL KEYLESS · PUBLIC BUDGET</span>
         <span>SERVER CACHE 180s</span>
         <a className="fill" href="/live">OPEN THE FULL BOARD →</a>
       </div>
@@ -344,8 +324,14 @@ function StatRow() {
 const NAV = [
   ['Try It', 'scan'], ['How It Works', 'how'], ['Product', 'product'], ['Multi-Chain', 'chains'], ['Security', 'security'],
 ]
-const NAV_BOXED = [
-  ['Memecoin Live', '/live'], ['Docs', '/docs'], ['Roadmap', '/roadmap'],
+/* founder order (PROMPT-B): $VLM LEDGER | MEMECOINLIVE | ROADMAP | DOCS.
+   The accent rides the element (not :nth-of-type) — plain section anchors
+   ahead of these used to shift the per-chain dot colors off-by-N. */
+const NAV_BOXED: [string, string, string][] = [
+  ['$VLM · Ledger', '/ledger', 'var(--emb-sol)'],
+  ['Memecoin Live', '/live', 'var(--emb-bnb)'],
+  ['Roadmap', '/roadmap', 'var(--emb-base)'],
+  ['Docs', '/docs', 'var(--emb-hype)'],
 ]
 
 function Nav() {
@@ -364,8 +350,8 @@ function Nav() {
             {NAV.map(([l, id]) => (
               <a key={id} href={`#${id}`} className={cur === id ? 'on' : ''}>{l}</a>
             ))}
-            {NAV_BOXED.map(([l, href]) => (
-              <a key={href} className="boxed" href={href}>{l}</a>
+            {NAV_BOXED.map(([l, href, acc]) => (
+              <a key={href} className="boxed" href={href} style={{ '--nav-accent': acc } as React.CSSProperties}>{l}</a>
             ))}
             <span className="lv-clock" title="UTC">◉ {clock} UTC</span>
             <a className="lv-cta boxed" href="/terminal"
@@ -380,8 +366,7 @@ function Nav() {
             {NAV_BOXED.map(([l, href]) => <a key={href} href={href} onClick={() => setOpen(false)}>{l}</a>)}
             {NAV.map(([l, id]) => <a key={id} href={`#${id}`} onClick={() => setOpen(false)}>{l}</a>)}
           </div>
-        )}
-      </nav>
+        )}      </nav>
     </>
   )
 }
@@ -957,7 +942,7 @@ function Chains() {
 
 /* S8 — AI demo (PROMPT-AI-V): LIVE answers via POST /api/v1/ai/ask on the
    landing pool. LABEL LAW — the chip always says what is actually true:
-   a live answer shows the model id from its own provenance; ANY failure
+   a live answer is attributed to VILMEI only; ANY failure
    falls back to the deterministic scripted trace labeled SIMULATED. */
 
 const AI_DEMO_QS: { label: string; persona: 'analyst' | 'guide'; question: string }[] = [
@@ -1005,7 +990,7 @@ function AiSection() {
       await landingChatStream({ message: question, history }, (e) => {
         if (e.type === 'provenance') {
           setState('live')
-          setLabel(`live · vilmei · ${e.mode} tier${e.cached ? ' · cached' : ''}`)
+          setLabel(`live · VILMEI${e.cached ? ' · cached' : ''}`)
         } else if (e.type === 'delta') {
           text += e.text
           if (!reduceMotion) push()  // PB-8: reduced motion gets the full text at once
@@ -1044,7 +1029,7 @@ function AiSection() {
               {state === 'live' && <span className="lv-status live" style={{ marginLeft: 'auto' }}><span className="dot" />{label}</span>}
               {state === 'simulated' && <span className="lv-status sim" style={{ marginLeft: 'auto' }}>{label}</span>}
               {state === 'connecting' && <span className="lv-status build" style={{ marginLeft: 'auto' }}>connecting…</span>}
-              {state === 'idle' && <span className="lv-status build" style={{ marginLeft: 'auto' }}>four questions · free tier</span>}
+              {state === 'idle' && <span className="lv-status build" style={{ marginLeft: 'auto' }}>LIVE · VILMEI</span>}
             </div>
             <div className="lv-thread" ref={chatRef}>
               {msgs.length === 0 && (
@@ -1059,10 +1044,7 @@ function AiSection() {
                   <div className="who">{m.who === 'user' ? 'YOU' : 'VILMEI'}</div>
                   <div className="lv-bub">
                     {m.who === 'ai' && m.text === '' && m.streaming ? (
-                      <span style={{ display: 'grid', gap: 8 }}>
-                        <span className="ta-skel" style={{ height: 11, width: '90%' }} />
-                        <span className="ta-skel" style={{ height: 11, width: '64%' }} />
-                      </span>
+                      <ThinkingPill />
                     ) : (
                       <span style={{ whiteSpace: 'pre-wrap' }}>{m.text}{m.streaming && state === 'live' && <span className="ai-caret" aria-hidden="true" />}</span>
                     )}
@@ -1100,16 +1082,16 @@ function AiSection() {
               ))}
             </div>
             {state === 'live' && (
-              <div className="note">ANSWER STREAMED FROM THE FREE TIER — THE MODEL ID ABOVE COMES FROM THE RESPONSE ITSELF. <a href="/terminal#/ai" style={{ color: 'var(--g)' }}>OPEN THE FULL PANEL →</a></div>
+              <div className="note">ANSWER STREAMED LIVE FROM VILMEI. <a href="/terminal#/ai" style={{ color: 'var(--g)' }}>OPEN THE FULL PANEL →</a></div>
             )}
             {state === 'simulated' && (
               <div className="note">DETERMINISTIC SCRIPTED TRACE{note ? ` — ${note.toUpperCase()}` : ''}. VILMEI — LIVE WHEN THE FOUNDER KEY IS CONFIGURED. <a href="/terminal#/ai" style={{ color: 'var(--g)' }}>OPEN THE PANEL →</a></div>
             )}
             {state === 'idle' && (
-              <div className="note">PICK A QUESTION — ANSWERS STREAM LIVE FROM THE FREE TIER (SHARED DAILY BUDGET). THE TOKEN QUESTION RUNS ON TODAY'S BONK EVIDENCE. <a href="/terminal#/ai" style={{ color: 'var(--g)' }}>FULL PANEL →</a></div>
+              <div className="note">PICK A QUESTION — ANSWERS STREAM LIVE FROM VILMEI. THE TOKEN QUESTION RUNS ON TODAY'S BONK EVIDENCE. <a href="/terminal#/ai" style={{ color: 'var(--g)' }}>FULL PANEL →</a></div>
             )}
             {state === 'connecting' && (
-              <div className="note">STREAMING — FREE-TIER MODELS CAN TAKE A WHILE; THE ANSWER ARRIVES TOKEN BY TOKEN.</div>
+              <div className="note">STREAMING — THE ANSWER ARRIVES TOKEN BY TOKEN.</div>
             )}
           </div>
         </div>

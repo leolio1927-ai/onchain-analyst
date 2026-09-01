@@ -151,7 +151,7 @@ describe('AiPage — V5-G2 fast lane', () => {
     render(<AiPage />)
     fireEvent.click(screen.getByRole('button', { name: 'Explain Score' }))
     d.push(PROV)
-    d.push('data: {"type":"error","kind":"cooldown","detail":"VILMEI AI is paused for a moment — the free tier is stalling right now, so the terminal skips the wait instead of loading. Try again in a minute; everything else stays live. (pause 57s)"}\n\n')
+    d.push('data: {"type":"error","kind":"cooldown","detail":"VILMEI AI is paused for a moment — the upstream is stalling right now, so the terminal skips the wait instead of loading. Try again in a minute; everything else stays live. (pause 57s)"}\n\n')
     d.push('data: [DONE]\n\n')
     d.close()
     await waitFor(() => expect(document.body.textContent).toContain('UPSTREAM'))

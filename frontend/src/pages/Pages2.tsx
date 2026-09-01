@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ALERTS, SYSTEM_STATUS } from '../mock/data'
 import { AiHttpError, analystName, answerKey, askAiStream, rememberAnswer } from '../lib/aiApi'
 import type { AiAskRequest, AiMode, AiProvenance, AiUsage } from '../lib/aiApi'
+import { ThinkingPill } from '../components/ThinkingPill'
 import { getGeneration, useActivePair } from '../lib/tokenStore'
 import type { LiveChain } from '../lib/liveApi'
 import { LIVE_CHAINS, LIVE_CHAIN_LABEL } from '../lib/liveApi'
@@ -75,7 +76,7 @@ function AiStatusPanel({ status }: { status: AiPageStatus }) {
       <div className="ai-status-panel" style={{ borderColor: 'rgba(251,191,36,.4)' }}>
         <div className="t" style={{ color: '#fbbf24' }}>UPSTREAM</div>
         <div className="m">{status.message}</div>
-        <div className="s">The first byte arrived instantly — the free tier itself stalled. Nothing is loading silently; the rest of the terminal stays live.</div>
+        <div className="s">The first byte arrived instantly — the upstream itself stalled. Nothing is loading silently; the rest of the terminal stays live.</div>
       </div>
     )
   }
@@ -186,7 +187,7 @@ export function AiPage() {
 
   return (
     <div className="ta-page">
-      <Head title="VILMEI Analyst" sub="Evidence-first: the model only sees the heuristic evidence block the server assembles. Free and Deep differ in depth — never in data correctness." right={<Badge color="green">LIVE · FREE TIER</Badge>} />
+      <Head title="VILMEI Analyst" sub="Evidence-first: the model only sees the heuristic evidence block the server assembles. Free and Deep differ in depth — never in data correctness." right={<Badge color="green">LIVE · VILMEI</Badge>} />
       <div className="grid-23">
         <Card className="pb-acc">
           <div style={{ display: 'grid', gap: 12 }}>
@@ -213,11 +214,7 @@ export function AiPage() {
               ))}
             </div>
             {status.kind === 'connecting' && (
-              <div style={{ display: 'grid', gap: 8, padding: '4px 0' }} aria-label="connecting">
-                <span className="ta-skel" style={{ height: 12, width: '92%' }} />
-                <span className="ta-skel" style={{ height: 12, width: '76%' }} />
-                <span className="ta-skel" style={{ height: 12, width: '84%' }} />
-              </div>
+              <div style={{ padding: '4px 0' }} aria-label="connecting"><ThinkingPill /></div>
             )}
             {(answer || status.kind === 'streaming' || status.kind === 'done') && (
               <div className="ai-answer mono">
@@ -496,7 +493,7 @@ export function PortfolioPage() {
           {snap && snap.rate_limited.length > 0 && (
             <Card className="reveal" glow="#fbbf24">
               <div className="mono" style={{ fontSize: 12, color: 'var(--amber, #fbbf24)' }}>
-                RATE LIMITED · {snap.rate_limited.length} of {items.length} tokens — GeckoTerminal free tier
+                RATE LIMITED · {snap.rate_limited.length} of {items.length} tokens — GeckoTerminal public budget
                 (retry in ~60s or hit REFRESH). Their rows show no facts until then; nothing is guessed.
               </div>
             </Card>
@@ -523,7 +520,7 @@ export function PortfolioPage() {
                         {r === undefined ? (
                           <td colSpan={6}><Skeleton h={12} w={180} /></td>
                         ) : r.status === 'rate_limited' ? (
-                          <td colSpan={6} className="mono dim">awaiting the free-tier window — no facts invented</td>
+                          <td colSpan={6} className="mono dim">awaiting the public window — no facts invented</td>
                         ) : !ok ? (
                           <td colSpan={6} className="mono dim">–</td>
                         ) : (
@@ -999,7 +996,7 @@ export function SettingsPage() {
         <Card title="AI MODEL">
           <p style={{ color: 'var(--muted)', fontSize: 12.5, marginBottom: 12 }}>
             The terminal assigns the model per mode — FREE uses the fast tier, DEEP the reasoning
-            tier. The exact model id of every answer is logged in the grounding log; there is no
+            tier. Every answer is attributed to VILMEI and logged in the grounding log; there is no
             provider to pick and nothing to pay.
           </p>
           <div className="ai-mode">

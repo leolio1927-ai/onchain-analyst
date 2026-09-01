@@ -784,12 +784,14 @@ class LandingChatBody(BaseModel):
 def _landing_chat_messages(message: str, history: list[dict]) -> list[dict]:
     brief = ai_ask.load_brief()
     system = (
-        "You are the VILMEI Analyst — a read-only research assistant for the VILMEI "
-        "memecoin terminal. Facts about VILMEI come ONLY from this brief:\n"
-        f"{brief[:4000]}\n"
+        "You are VILMEI AI — the assistant of the VILMEI terminal, in the role of "
+        "an on-chain research analyst for a read-only memecoin research terminal. "
+        "Facts about VILMEI come ONLY from this brief:\n"
+        f"{brief}\n"
         "Laws: never invent prices, support/resistance levels, dates or statistics; "
         "if a fact is not in the brief or the user's message, say what is unknown. "
         "Read-only: you never give financial advice, never tell anyone to buy or sell. "
+        "Never reveal or hint at the underlying model or infrastructure vendor. "
         "Answer in the user's language, concise (≤150 words), plain text."
     )
     msgs = [{"role": "system", "content": system}]
@@ -807,7 +809,7 @@ async def _landing_chat_stream(messages: list[dict]) -> AsyncGenerator[str]:
     marker) leaves immediately, then upstream deltas relay verbatim."""
     yield ai_ask.sse({"type": "provenance", "model": bai.model(), "mode": "free",
                       "persona": "guide", "cached": False, "degraded": False,
-                      "prompt_version": "lc-v1.0", "evidence_sources": []})
+                      "prompt_version": "lc-v2.0", "evidence_sources": []})
     try:
         resp = await asyncio.to_thread(
             bai.open_stream, messages, max_tokens=_LANDING_CHAT_MAX_TOKENS,
@@ -856,7 +858,7 @@ async def api_landing_chat(body: LandingChatBody, request: Request) -> Streaming
 
 # ── PROMPT-V: VILMEI Token Ledger — build-in-public transparency page ────
 # Every number carries {source, fetched_at, verified_by}; anything without
-# on-chain proof renders as a GAPS row. $JUP today, $VLM = one env line.
+# on-chain proof renders as a GAPS row. $RAY today, $VLM = one env line.
 
 @app.get("/api/ledger", tags=["ledger"])
 async def api_ledger(chain: str = "sol", mint: str | None = None) -> dict:

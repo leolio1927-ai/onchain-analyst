@@ -64,12 +64,14 @@ def test_framing_and_grounding_prompt(monkeypatch, client):
     ev = [json.loads(l[5:]) for l in r.text.splitlines()
           if l.startswith("data:") and l[5:].strip() != "[DONE]"]
     assert ev[0]["type"] == "provenance"
-    assert ev[0]["prompt_version"] == "lc-v1.0"
+    assert ev[0]["prompt_version"] == "lc-v2.0"
     deltas = [e for e in ev if e["type"] == "delta"]
     assert "".join(d["text"] for d in deltas) == "fast"
     assert r.text.rstrip().endswith("data: [DONE]")
     sys = seen["messages"][0]["content"]
     assert seen["messages"][0]["role"] == "system"
+    # brief v2.0.0 rides the system prompt verbatim; the identity is VILMEI AI
+    assert "VILMEI AI" in sys and "OPERATING BRIEF v2.0.0" in sys
     assert "never invent prices" in sys and "read-only" in sys.lower()
     assert seen["messages"][-1]["content"] == "What is VILMEI?"
     assert seen["messages"][1]["content"] == "earlier question"
