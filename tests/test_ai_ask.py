@@ -15,7 +15,7 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
-from providers import nvidia, rugcheck
+from providers import bai, nvidia, rugcheck
 from webapp import ai_ask, server
 
 BONK = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263"
@@ -65,22 +65,24 @@ def _ai_clean(monkeypatch, tmp_path):
                 "VILMEI_AI_REASONING_EFFORT", "VILMEI_AI_RPM_PER_IP",
                 "VILMEI_AI_DAILY_MAX_QUESTIONS"):
         monkeypatch.delenv(var, raising=False)
-    monkeypatch.setattr(nvidia, "api_key", lambda: "test-key")
+    monkeypatch.setattr(bai, "api_key", lambda: "test-key")
     monkeypatch.setattr(rugcheck, "summary", lambda mint: (None, "canned-offline"))
     yield
 
 
 def _install_stream(monkeypatch, lines: list[bytes], fail_after: int | None = None):
-    calls: dict = {"n": 0, "messages": None, "model": None}
+    """P1-A: the analyst plane opens on B.AI — tests stub bai.open_stream."""
+    calls: dict = {"n": 0, "messages": None, "model": None, "models": []}
 
-    def fake_open(messages, *, model, max_tokens=1024, temperature=0.2,
-                  extra=None, timeout=nvidia.TIMEOUT_S):
+    def fake_open(messages, *, model_id=None, max_tokens=1024, temperature=0.2,
+                  extra=None, timeout=bai.TIMEOUT_S):
         calls["n"] += 1
         calls["messages"] = messages
-        calls["model"] = model
+        calls["model"] = model_id or bai.DEFAULT_MODEL
+        calls["models"].append(calls["model"])
         return FakeStream(lines, fail_after)
 
-    monkeypatch.setattr(nvidia, "open_stream", fake_open)
+    monkeypatch.setattr(bai, "open_stream", fake_open)
     return calls
 
 
@@ -110,10 +112,10 @@ def _scan_fixture(monkeypatch):
 # ── degraded honesty ──────────────────────────────────────────────────────
 
 def test_no_key_is_honest_503(monkeypatch, client):
-    monkeypatch.setattr(nvidia, "api_key", lambda: None)
+    monkeypatch.setattr(bai, "api_key", lambda: None)
     r = client.post("/api/v1/ai/ask", json={"question": "What is VILMEI?"})
     assert r.status_code == 503
-    assert "NVIDIA_API_KEY not set" in r.json()["detail"]
+    assert "analyst key (BAI) not set" in r.json()["detail"]
 
 
 # ── validation ────────────────────────────────────────────────────────────
@@ -147,7 +149,7 @@ def test_guide_stream_framing(monkeypatch, client):
     assert r.headers["content-type"].startswith("text/event-stream")
     ev = _events(r.text)
     assert ev[0]["type"] == "provenance"
-    assert ev[0]["model"] == nvidia.DEFAULT_MODEL_FREE
+    assert ev[0]["model"] == bai.ANALYST_MODEL_FAST_DEFAULT
     assert ev[0]["persona"] == "guide"
     assert ev[0]["cached"] is False
     assert ev[0]["prompt_version"] == ai_ask.PROMPT_VERSION
@@ -166,7 +168,7 @@ def test_deep_mode_picks_deep_model(monkeypatch, client):
     calls = _install_stream(monkeypatch, _sse_lines(["deep answer"]))
     r = client.post("/api/v1/ai/ask", json={"question": "What is VILMEI?", "mode": "deep"})
     assert r.status_code == 200
-    assert calls["model"] == nvidia.DEFAULT_MODEL_DEEP
+    assert calls["model"] == bai.ANALYST_MODEL_DEEP_DEFAULT
 
 
 # ── analyst persona: evidence assembled server-side ──────────────────────
@@ -322,31 +324,32 @@ def test_provenance_flushes_before_the_open(monkeypatch, client):
 
     seen: dict = {"first_line": None, "open_at": None}
 
-    def slow_open(messages, *, model, **kw):
+    def slow_open(messages, *, model_id=None, **kw):
         seen["open_at"] = "called"
         time.sleep(0.4)                     # a plane that stalls
         return FakeStream(_sse_lines(["late"]))
-    monkeypatch.setattr(nvidia, "open_stream", slow_open)
+    monkeypatch.setattr(bai, "open_stream", slow_open)
     with client.stream("POST", "/api/v1/ai/ask",
                        json={"question": "What is VILMEI?"}) as r:
         first = next(line for line in r.iter_lines() if line.startswith("data:"))
     seen["first_line"] = first
     ev = json.loads(first[5:])
-    assert ev["type"] == "provenance" and ev["model"] == nvidia.DEFAULT_MODEL_FREE
+    assert ev["type"] == "provenance" and ev["model"] == bai.ANALYST_MODEL_FAST_DEFAULT
     assert seen["open_at"] == "called"      # the open ran, but only AFTER the flush
 
 
-def test_free_failure_falls_back_then_errors_honestly(monkeypatch, client):
-    """flash stalls → fallback model gets one 10s shot → both dead = honest
-    in-stream error + [DONE], never a hang; the circuit counts the loss."""
+def test_free_failure_errors_honestly_no_silent_fallback(monkeypatch, client):
+    """P1-A contract: ONE B.AI open per ask — a dead stream is an honest
+    in-stream error + [DONE]; the provider is NEVER silently switched and the
+    NVIDIA plane is not consulted. The circuit counts the loss."""
     ai_ask._reset_circuit_for_tests()
     models: list[str] = []
 
-    def dead_open(messages, *, model, **kw):
-        models.append(model)
-        raise nvidia.NvidiaError("timeout", "upstream stream-open timeout after 10s")
+    def dead_open(messages, *, model_id=None, **kw):
+        models.append(model_id or bai.DEFAULT_MODEL)
+        raise bai.BaiError("timeout", "upstream stream-open timeout after 10s")
 
-    monkeypatch.setattr(nvidia, "open_stream", dead_open)
+    monkeypatch.setattr(bai, "open_stream", dead_open)
     r = client.post("/api/v1/ai/ask", json={"question": "What is VILMEI?"})
     assert r.status_code == 200
     ev = _events(r.text)
@@ -354,7 +357,7 @@ def test_free_failure_falls_back_then_errors_honestly(monkeypatch, client):
     err = next(e for e in ev if isinstance(e, dict) and e.get("type") == "error")
     assert err["kind"] == "timeout" and "timed out" in err["detail"]
     assert ev[-1] == "DONE"
-    assert models == [nvidia.DEFAULT_MODEL_FREE, nvidia.model_fallback()]
+    assert models == [bai.ANALYST_MODEL_FAST_DEFAULT]   # single open, no chain
     assert ai_ask.circuit_blocked_s() == 0.0   # one loss ≠ cooldown yet
 
 
@@ -364,18 +367,18 @@ def test_two_losses_trip_the_cooldown_and_short_circuit(monkeypatch, client):
     ai_ask._reset_circuit_for_tests()
     calls = {"n": 0}
 
-    def dead_open(messages, *, model, **kw):
+    def dead_open(messages, *, model_id=None, **kw):
         calls["n"] += 1
-        raise nvidia.NvidiaError("timeout", "stalled")
+        raise bai.BaiError("timeout", "stalled")
 
-    monkeypatch.setattr(nvidia, "open_stream", dead_open)
+    monkeypatch.setattr(bai, "open_stream", dead_open)
     for _ in range(2):
         client.post("/api/v1/ai/ask", json={"question": f"What is VILMEI? {_}"})
-    assert calls["n"] == 4                    # 2 asks × (primary + fallback)
+    assert calls["n"] == 2                    # 2 asks × 1 open (no fallback chain)
     assert ai_ask.circuit_blocked_s() > 0
     r = client.post("/api/v1/ai/ask", json={"question": "still there?"})
     ev = _events(r.text)
-    assert calls["n"] == 4                     # short-circuit: zero new opens
+    assert calls["n"] == 2                     # short-circuit: zero new opens
     assert ev[0]["degraded"] is True
     err = next(e for e in ev if isinstance(e, dict) and e.get("type") == "error")
     assert err["kind"] == "cooldown" and "paused" in err["detail"]
@@ -394,36 +397,51 @@ def test_success_resets_the_circuit(monkeypatch, client):
 def test_deep_gets_no_fallback(monkeypatch, client):
     models: list[str] = []
 
-    def dead_open(messages, *, model, **kw):
-        models.append(model)
-        raise nvidia.NvidiaError("timeout", "stalled")
+    def dead_open(messages, *, model_id=None, **kw):
+        models.append(model_id or bai.DEFAULT_MODEL)
+        raise bai.BaiError("timeout", "stalled")
 
-    monkeypatch.setattr(nvidia, "open_stream", dead_open)
+    monkeypatch.setattr(bai, "open_stream", dead_open)
     r = client.post("/api/v1/ai/ask",
                     json={"question": "What is VILMEI?", "mode": "deep"})
     ev = _events(r.text)
     err = next(e for e in ev if isinstance(e, dict) and e.get("type") == "error")
     assert err["kind"] == "timeout"
-    assert models == [nvidia.DEFAULT_MODEL_DEEP]   # one 25s shot, no chain
+    assert models == [bai.ANALYST_MODEL_DEEP_DEFAULT]   # one 25s shot, no chain
 
 
-def test_fallback_answer_relabels_provenance(monkeypatch, client):
-    """Label law: if the fallback model answers, the chip must say so."""
+def test_forbidden_maps_to_config_error(monkeypatch, client):
+    """P1-A error-kind matrix: 403 from B.AI surfaces as an honest config
+    error event — never hidden, never retried against another provider."""
     ai_ask._reset_circuit_for_tests()
 
-    def open_picking(messages, *, model, **kw):
-        if model == nvidia.DEFAULT_MODEL_FREE:
-            raise nvidia.NvidiaError("timeout", "stalled")
-        return FakeStream(_sse_lines(["from fallback"]))
+    def forbidden_open(messages, *, model_id=None, **kw):
+        raise bai.BaiError("forbidden", "upstream 403", status=403)
 
-    monkeypatch.setattr(nvidia, "open_stream", open_picking)
+    monkeypatch.setattr(bai, "open_stream", forbidden_open)
     r = client.post("/api/v1/ai/ask", json={"question": "What is VILMEI?"})
     ev = _events(r.text)
-    provs = [e for e in ev if isinstance(e, dict) and e.get("type") == "provenance"]
-    assert provs[0]["model"] == nvidia.DEFAULT_MODEL_FREE
-    assert provs[-1]["model"] == nvidia.model_fallback()
-    deltas = [e for e in ev if isinstance(e, dict) and e.get("type") == "delta"]
-    assert "".join(d["text"] for d in deltas) == "from fallback"
+    err = next(e for e in ev if isinstance(e, dict) and e.get("type") == "error")
+    assert err["kind"] == "forbidden" and "key" in err["detail"].lower()
+    assert ev[-1] == "DONE"
+
+
+def test_no_silent_provider_switch(monkeypatch, client):
+    """AC7: when B.AI fails, the NVIDIA plane must NOT be consulted."""
+    ai_ask._reset_circuit_for_tests()
+    nvidia_calls = {"n": 0}
+
+    def dead_bai(messages, *, model_id=None, **kw):
+        raise bai.BaiError("timeout", "stalled")
+
+    def dead_nvidia(messages, *, model, **kw):
+        nvidia_calls["n"] += 1
+        raise nvidia.NvidiaError("timeout", "should never be reached")
+
+    monkeypatch.setattr(bai, "open_stream", dead_bai)
+    monkeypatch.setattr(nvidia, "open_stream", dead_nvidia)
+    client.post("/api/v1/ai/ask", json={"question": "What is VILMEI?"})
+    assert nvidia_calls["n"] == 0
 
 
 # ── PROMPT-B PART C — brief v2.0.0 wiring guard ───────────────────────────

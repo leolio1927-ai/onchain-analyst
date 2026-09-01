@@ -514,12 +514,20 @@ _AI_FREE_MAX_TOKENS = 900          # routing spec: flash answers fast and short
 _AI_DEEP_EVIDENCE_CHARS = 12000    # deep may carry a richer evidence block
 
 
-def _ai_upstream_error_text(e: nvidia.NvidiaError) -> str:
-    if e.kind == "rate_limited":
+def _ai_upstream_error_text(e) -> str:
+    kind = getattr(e, "kind", "upstream_error")
+    detail = getattr(e, "detail", "")
+    if kind == "rate_limited":
         return "VILMEI AI upstream is rate-limiting the free tier — try again in a minute"
-    if e.kind == "timeout":
-        return "VILMEI AI upstream timed out — the free tier runs slow right now; try again"
-    return f"VILMEI AI upstream error — {e.detail[:160] or 'unknown'}"
+    if kind == "timeout":
+        return "VILMEI AI upstream timed out — the analyst runs slow right now; try again"
+    if kind == "no_key":
+        return "VILMEI AI offline — analyst key not configured (founder config)"
+    if kind in ("unauthorized", "forbidden"):
+        return "VILMEI AI upstream rejected the analyst key — founder config needs attention"
+    if kind == "not_found":
+        return "VILMEI AI upstream does not know the configured model — founder config needs attention"
+    return f"VILMEI AI upstream error — {detail[:160] or 'unknown'}"
 
 
 async def _ai_collect(resp) -> tuple[str, dict | None, bool]:
@@ -592,27 +600,20 @@ async def _ai_evidence(chain: str, token: str) -> tuple[dict, list[str]]:
 async def _ai_open_with_fallback(messages: list[dict], *, model: str, mode: str,
                                  max_tokens: int, temperature: float,
                                  extra: dict | None):
-    """V5-G2: open the SSE stream with per-mode fast budgets and a FREE-tier
-    fallback chain (primary 10 s → fallback 10 s → None). DEEP gets one 25 s
-    shot — deep may be slow, free may not. Returns (resp | None, model_used,
-    NvidiaError of the LAST attempt | None); never raises."""
+    """P1-A (founder directive): the analyst plane opens on B.AI. There is NO
+    silent provider fallback — a B.AI failure (no key, forbidden, rate limit,
+    timeout, upstream) is returned as an honest error; the NVIDIA plane is no
+    longer called from this surface. Returns (resp | None, model_used,
+    BaiError | None); never raises. DEEP gets one long shot, FREE a short one
+    (same budgets as before — latency law unchanged)."""
     timeout = _AI_DEEP_OPEN_TIMEOUT_S if mode == "deep" else _AI_FREE_OPEN_TIMEOUT_S
     try:
-        resp = await asyncio.to_thread(nvidia.open_stream, messages, model=model,
+        resp = await asyncio.to_thread(bai.open_stream, messages, model_id=model,
                                        max_tokens=max_tokens, temperature=temperature,
                                        extra=extra, timeout=timeout)
         return resp, model, None
-    except nvidia.NvidiaError as primary_err:
-        if mode == "deep":
-            return None, model, primary_err
-        fallback = nvidia.model_fallback()
-        try:
-            resp = await asyncio.to_thread(nvidia.open_stream, messages, model=fallback,
-                                           max_tokens=max_tokens, temperature=temperature,
-                                           extra=extra, timeout=_AI_FREE_OPEN_TIMEOUT_S)
-            return resp, fallback, None
-        except nvidia.NvidiaError:
-            return None, model, primary_err
+    except bai.BaiError as err:
+        return None, model, err
 
 
 async def _ai_relay(resp, cache_key_: str):
@@ -735,15 +736,15 @@ async def api_ai_ask(body: AiAskBody, request: Request):
     token = (body.token or "").strip()
     if persona == "analyst" and (chain not in geckoterminal.NETWORKS or not token):
         raise HTTPException(400, f"analyst persona needs chain ({'|'.join(sorted(geckoterminal.NETWORKS))}) + token — or ask the guide")
-    if not nvidia.api_key():
-        raise HTTPException(503, "VILMEI AI offline — NVIDIA_API_KEY not set (founder config)")
+    if not bai.api_key():
+        raise HTTPException(503, "VILMEI AI offline — analyst key (BAI) not set (founder config)")
     # V5-G2 short-circuit BEFORE the charge: a skipped upstream burns none of
     # the founder's budget — speed wins over insisting on a stalled plane.
     if (left := ai_ask.circuit_blocked_s()) > 0:
         return StreamingResponse(
             _ai_degraded_stream(f"{ai_ask.BUSY_COPY} (pause {left:.0f}s)",
-                                model=nvidia.model_free() if body.mode == "free"
-                                else nvidia.model_deep(),
+                                model=bai.analyst_model_fast() if body.mode == "free"
+                                else bai.analyst_model_deep(),
                                 mode=body.mode, persona=persona),
             media_type="text/event-stream", headers=_AI_SSE_HEADERS)
     ip = request.client.host if request.client else "unknown"
@@ -751,7 +752,7 @@ async def api_ai_ask(body: AiAskBody, request: Request):
     if not ok:
         raise HTTPException(429, ai_ask.DAILY_SPENT_COPY if reason == "daily"
                             else ai_ask.BUDGET_BUSY_COPY)
-    model = nvidia.model_deep() if body.mode == "deep" else nvidia.model_free()
+    model = bai.analyst_model_deep() if body.mode == "deep" else bai.analyst_model_fast()
     # V5-G2: evidence + cache + the open all ride INSIDE the stream, after
     # chunk-0 provenance — no path keeps the first byte waiting on upstream.
     return StreamingResponse(
@@ -1487,8 +1488,8 @@ async def _mcp_ai_ask(a: dict) -> dict:
     persona = "analyst" if chain and token else "guide"
     if persona == "analyst" and chain not in geckoterminal.NETWORKS:
         raise ValueError(f"ai_ask: analyst needs chain ({'|'.join(sorted(geckoterminal.NETWORKS))}) + token — or drop them and ask the guide")
-    if not nvidia.api_key():
-        raise ValueError("VILMEI AI offline — NVIDIA_API_KEY not set (founder config)")
+    if not bai.api_key():
+        raise ValueError("VILMEI AI offline — analyst key (BAI) not set (founder config)")
     # V5-G2: same short-circuit + fast budgets as the REST door — one lane,
     # one law. A cooldown skip burns no MCP budget either.
     if (left := ai_ask.circuit_blocked_s()) > 0:
@@ -1497,7 +1498,7 @@ async def _mcp_ai_ask(a: dict) -> dict:
     if not ok:
         raise ValueError(ai_ask.DAILY_SPENT_COPY if reason == "daily"
                          else ai_ask.BUDGET_BUSY_COPY)
-    model = nvidia.model_deep() if mode == "deep" else nvidia.model_free()
+    model = bai.analyst_model_deep() if mode == "deep" else bai.analyst_model_fast()
     evidence: dict | None = None
     sources: list[str] = []
     if persona == "analyst":

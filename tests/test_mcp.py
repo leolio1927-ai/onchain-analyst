@@ -124,6 +124,10 @@ def ai_clean(monkeypatch, tmp_path):
     ai_ask._reset_cache_for_tests()
     monkeypatch.setenv("VILMEI_AI_BUDGET_FILE", str(tmp_path / "ai-budget.json"))
     monkeypatch.delenv("NVIDIA_API_KEY", raising=False)
+    # P1-A: the analyst plane reads the B.AI key (env, then .env fallback) —
+    # tests must never reach the real upstream, so the accessor itself is off.
+    from providers import bai
+    monkeypatch.setattr(bai, "api_key", lambda: None)
     yield
     ai_ask._reset_budget_state_for_tests()
     ai_ask._reset_cache_for_tests()
@@ -134,21 +138,21 @@ def test_tools_call_ai_ask_no_key_is_honest_content(client, ai_clean):
             {"name": "ai_ask", "arguments": {"question": "What is VILMEI?"}}).json()
     assert b["result"]["isError"] is True
     text = b["result"]["content"][0]["text"]
-    assert "NVIDIA_API_KEY not set" in text
+    assert "analyst key (BAI) not set" in text
     assert "founder config" in text
 
 
 def test_tools_call_ai_ask_collects_stream_and_caches(client, ai_clean, monkeypatch):
-    from providers import nvidia
-    monkeypatch.setattr(nvidia, "api_key", lambda: "nv-test-key")
+    from providers import bai
+    monkeypatch.setattr(bai, "api_key", lambda: "test-key")
     calls: list[str] = []
 
-    def fake_open(messages, *, model, max_tokens=1024, temperature=0.2,
+    def fake_open(messages, *, model_id=None, max_tokens=1024, temperature=0.2,
                   extra=None, timeout=60.0):
-        calls.append(model)
+        calls.append(model_id or bai.DEFAULT_MODEL)
         return FakeStream(SSE_LINES)
 
-    monkeypatch.setattr(nvidia, "open_stream", fake_open)
+    monkeypatch.setattr(bai, "open_stream", fake_open)
     args = {"question": "What is VILMEI?"}
     b = rpc(client, "tools/call", {"name": "ai_ask", "arguments": args}).json()
     assert b["result"]["isError"] is False
@@ -156,7 +160,7 @@ def test_tools_call_ai_ask_collects_stream_and_caches(client, ai_clean, monkeypa
     assert payload["text"] == "VILMEI is read-only."
     assert payload["persona"] == "guide" and payload["cached"] is False
     assert payload["usage"]["total_tokens"] == 16
-    assert payload["model"] == nvidia.model_free()
+    assert payload["model"] == bai.analyst_model_fast()
     assert payload["prompt_version"] == ai_ask.PROMPT_VERSION
     # identical second question is served from the answer cache — no second burn
     b2 = rpc(client, "tools/call", {"name": "ai_ask", "arguments": args}).json()

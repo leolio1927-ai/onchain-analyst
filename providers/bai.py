@@ -16,6 +16,22 @@ import urllib.request
 
 BASE_URL = "https://api.b.ai/v1"
 DEFAULT_MODEL = "glm-5.3-flash"
+# P1-A (founder directive): the TERMINAL AI Analyst rides this provider too.
+# Model IDs verified by an actual chat-stream probe on 2026-09-01:
+#   "deepseek-v4-flash" -> 200 + SSE deltas + usage event  (VERIFIED)
+#   "qwen-3.8-flash"    -> 404 model_not_found             (NOT verified)
+# /v1/models is 403 on this plan, so env overrides are the sanctioned way to
+# switch IDs once the founder confirms alternates. No invented IDs.
+ANALYST_MODEL_FAST_DEFAULT = "deepseek-v4-flash"
+ANALYST_MODEL_DEEP_DEFAULT = "deepseek-v4-flash"
+
+
+def analyst_model_fast() -> str:
+    return (os.environ.get("VILMEI_ANALYST_MODEL_FAST") or "").strip() or ANALYST_MODEL_FAST_DEFAULT
+
+
+def analyst_model_deep() -> str:
+    return (os.environ.get("VILMEI_ANALYST_MODEL_DEEP") or "").strip() or ANALYST_MODEL_DEEP_DEFAULT
 TIMEOUT_S = 30.0
 CONNECT_TIMEOUT_S = 15.0
 USER_AGENT = "vilmei-analyst-chat/1.0 (read-only research terminal)"
@@ -59,15 +75,18 @@ def model() -> str:
 
 def open_stream(messages: list[dict], *, model_id: str | None = None,
                 max_tokens: int = 1000, temperature: float = 0.7,
-                timeout: float = TIMEOUT_S):
+                timeout: float = TIMEOUT_S, extra: dict | None = None):
     """Open an SSE chat stream. Returns the open response; the caller
     iterates raw lines and MUST close it. No retry loop: the landing chat
-    values a fast first byte over insisting on a busy endpoint."""
+    values a fast first byte over insisting on a busy endpoint. `extra`
+    carries optional provider params (e.g. reasoning_effort for deep mode)."""
     key = api_key()
     if not key:
         raise BaiError("no_key", "BAI_API_KEY not set")
     payload = {"model": model_id or model(), "messages": messages,
                "stream": True, "temperature": temperature, "max_tokens": max_tokens}
+    if extra:
+        payload.update(extra)
     req = urllib.request.Request(
         f"{BASE_URL}/chat/completions",
         data=json.dumps(payload).encode("utf-8"),
@@ -77,7 +96,8 @@ def open_stream(messages: list[dict], *, model_id: str | None = None,
     try:
         return urllib.request.urlopen(req, timeout=timeout)
     except urllib.error.HTTPError as e:
-        kind = "rate_limited" if e.code == 429 else "upstream_error"
+        kind = {401: "unauthorized", 403: "forbidden", 404: "not_found",
+                429: "rate_limited"}.get(e.code, "upstream_error")
         raise BaiError(kind, f"upstream {e.code}", status=e.code) from None
     except TimeoutError as e:
         raise BaiError("timeout", f"upstream timeout after {timeout:.0f}s") from e
