@@ -2,7 +2,7 @@
    and is restored on load; a legacy (kind-less) session reads back as 'mock';
    a live connect stores kind:'live' with the extension's real address. */
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { WalletProvider } from './WalletContext'
 import { WalletButton } from './WalletButton'
 
@@ -61,6 +61,22 @@ describe('M2 — wallet session persistence + live connect', () => {
     expect(stored.balances).toEqual({})    // holdings arrive in M5 — never demo numbers on a live address
   })
 
+  it('external account change updates the live session address', async () => {
+    const provider = {
+      request: vi.fn(async () => ['0x1111111111111111111111111111111111111111']),
+      on: vi.fn(),
+      removeListener: vi.fn(),
+    }
+    const view = picker()
+    window.dispatchEvent(new CustomEvent('eip6963:announceProvider', {
+      detail: { info: { uuid: 'uuid:watch', name: 'Watch Wallet', icon: 'i', rdns: 'com.watch' }, provider },
+    }))
+    fireEvent.click(await view.findByTestId('wallet-live-uuid:watch'))
+    await waitFor(() => expect(view.getByText('WATCH WALLET')).toBeTruthy())
+    const listener = provider.on.mock.calls.find((call: unknown[]) => call[0] === 'accountsChanged')?.[1] as ((accounts: string[]) => void) | undefined
+    listener?.(['0x2222222222222222222222222222222222222222'])
+    await waitFor(() => expect(JSON.parse(localStorage.getItem('vilmei.wallet-session') ?? 'null').address).toBe('0x2222222222222222222222222222222222222222'))
+  })
   it('the DEMO path persists kind:mock and disconnect clears the key', async () => {
     const view = picker()
     fireEvent.click(view.getByTestId('wallet-demo'))

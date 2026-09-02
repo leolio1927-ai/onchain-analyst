@@ -110,6 +110,8 @@ export interface WalletSession {
      Pre-M2 persisted sessions carry no kind and read back as 'mock'. */
   kind: 'mock' | 'live'
   rdns?: string
+  /** EVM chain id observed from the provider; never inferred or fabricated. */
+  chainId?: string
 }
 
 export function connectMock(provider: WalletProvider): WalletSession {

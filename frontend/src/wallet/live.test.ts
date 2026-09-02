@@ -77,6 +77,32 @@ describe('M2 — zero-dep live discovery, address-only', () => {
     expect(await wallets[0].connect()).toBe('So1flareAddr111111111111111111111111111111111')
   })
 
+  it('EIP-6963: account and disconnect events are exposed without signing', async () => {
+    const wallets = collect()
+    let accountsChanged: ((accounts: string[]) => void) | undefined
+    let disconnected: (() => void) | undefined
+    const provider = {
+      request: async () => ['0x1111111111111111111111111111111111111111'],
+      on: (event: string, listener: (...args: unknown[]) => void) => {
+        if (event === 'accountsChanged') accountsChanged = listener as (accounts: string[]) => void
+        if (event === 'disconnect') disconnected = listener as () => void
+      },
+      removeListener: () => {},
+    }
+    window.dispatchEvent(new CustomEvent('eip6963:announceProvider', {
+      detail: { info: { uuid: 'uuid:event-wallet', name: 'Event Wallet', icon: 'i', rdns: 'com.event' }, provider },
+    }))
+    const changes: string[] = []
+    const stopEvents = wallets[0].subscribe?.((change) => {
+      if (change.type === 'account') changes.push(change.address ?? 'null')
+      if (change.type === 'disconnect') changes.push('disconnect')
+    })
+    await wallets[0].connect()
+    accountsChanged?.(['0x2222222222222222222222222222222222222222'])
+    disconnected?.()
+    expect(changes).toEqual(['0x2222222222222222222222222222222222222222', 'disconnect'])
+    stopEvents?.()
+  })
   it('a silent extension is an honest error, never a crash', async () => {
     const wallets = collect()
     announceEvm('EmptyWallet', 'com.empty', [])

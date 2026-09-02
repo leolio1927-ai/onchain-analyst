@@ -46,6 +46,34 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => discoverWallets(setLive), [])
 
+  useEffect(() => {
+    if (!session || session.kind !== 'live') return
+    const wallet = live.find((w) => w.id === session.providerId)
+    if (!wallet?.subscribe) return
+    return wallet.subscribe((change) => {
+      if (change.type === 'account') {
+        if (!change.address) {
+          setSession(null)
+          setWalletSession(null)
+          setError(`${wallet.name}: disconnected — no public address available`)
+          return
+        }
+        const address = change.address
+        setSession((current) => current ? { ...current, address, balances: {} as WalletSession['balances'] } : current)
+        setWalletSession({ ...session, address, balances: {} as WalletSession['balances'] })
+      }
+      if (change.type === 'chain') {
+        setSession((current) => current ? { ...current, chainId: change.chainId, balances: {} as WalletSession['balances'] } : current)
+        setWalletSession({ ...session, chainId: change.chainId, balances: {} as WalletSession['balances'] })
+      }
+      if (change.type === 'disconnect') {
+        setSession(null)
+        setWalletSession(null)
+        setError(`${wallet.name}: disconnected`)
+      }
+    })
+  }, [live, session])
+
   const connect = useCallback((id: string) => {
     const wallet = live.find((w) => w.id === id)
     if (!wallet || session || connecting) return

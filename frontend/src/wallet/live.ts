@@ -16,9 +16,15 @@ export interface LiveWallet {
   name: string
   icon?: string
   fam: ChainFam
-  rdns?: string         // reverse-DNS of the extension (EIP-6963 provenance)
+  rdns?: string         // reverse-DNS of the provider (EIP-6963 provenance)
   connect(): Promise<string>   // resolves the PUBLIC address only
+  subscribe?(onChange: (change: WalletChange) => void): () => void
 }
+
+export type WalletChange =
+  | { type: 'account'; address: string | null }
+  | { type: 'chain'; chainId: string }
+  | { type: 'disconnect' }
 
 /* ── base58 (hand-rolled, Solana address bytes → string) ───────────────── */
 const B58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
@@ -48,6 +54,7 @@ interface EIP6963Detail {
 }
 
 function evmWallet(detail: EIP6963Detail): LiveWallet {
+  const provider = detail.provider as EIP1193 & { on?: (event: string, listener: (...args: unknown[]) => void) => void; removeListener?: (event: string, listener: (...args: unknown[]) => void) => void }
   return {
     id: detail.info.uuid,
     name: detail.info.name,
@@ -62,6 +69,25 @@ function evmWallet(detail: EIP6963Detail): LiveWallet {
         throw new Error(`${detail.info.name}: no public address returned`)
       }
       return first
+    },
+    subscribe(onChange) {
+      if (!provider.on) return () => {}
+      const onAccounts = (...args: unknown[]) => {
+        const accounts = Array.isArray(args[0]) ? args[0] : []
+        onChange({ type: 'account', address: typeof accounts[0] === 'string' ? accounts[0] : null })
+      }
+      const onChain = (...args: unknown[]) => {
+        if (typeof args[0] === 'string') onChange({ type: 'chain', chainId: args[0] })
+      }
+      const onDisconnect = () => onChange({ type: 'disconnect' })
+      provider.on('accountsChanged', onAccounts)
+      provider.on('chainChanged', onChain)
+      provider.on('disconnect', onDisconnect)
+      return () => {
+        provider.removeListener?.('accountsChanged', onAccounts)
+        provider.removeListener?.('chainChanged', onChain)
+        provider.removeListener?.('disconnect', onDisconnect)
+      }
     },
   }
 }
@@ -88,6 +114,14 @@ function solWallet(w: WsWallet): LiveWallet | null {
     name: w.name,
     icon: w.icon,
     fam: 'solana',
+    subscribe(onChange) {
+      const accountFeature = w.features['standard:events'] as { version: string; on?: (callback: (event: { accounts?: WsAccount[] }) => void) => () => void } | undefined
+      if (!accountFeature?.on) return () => {}
+      return accountFeature.on((event) => {
+        const acc = event.accounts?.[0]
+        onChange({ type: 'account', address: acc ? (typeof acc.address === 'string' ? acc.address : b58encode(acc.address)) : null })
+      })
+    },
     async connect() {
       // the ONLY feature this build ever calls on a Solana wallet
       const { accounts } = await feat.connect()
