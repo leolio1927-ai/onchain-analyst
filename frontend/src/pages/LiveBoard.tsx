@@ -151,7 +151,7 @@ export function LiveBoard() {
             <a className="boxed lg-nav-ledger" href="/ledger">$VLM · LEDGER</a>
             <a className="boxed" href="/docs">DOCS</a>
             <a className="boxed" href="/roadmap">ROADMAP</a>
-            <a href="/terminal">TERMINAL →</a>
+            <a href="/roadmap">TERMINAL · LOCKED</a>
           </nav>
         </div>
       </header>

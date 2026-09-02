@@ -1,0 +1,6 @@
+# VILMEI — read-only memecoin research terminal
+User-agent: *
+Allow: /
+Disallow: /terminal
+
+# sitemap: ditambahkan saat domain produksi aktif (D6 runbook)

@@ -201,7 +201,7 @@ export function RoadmapPage() {
           <a className="rr-a" href="/">← LANDING</a>
           <a className="rr-a boxed" href="/live">MEMECOIN LIVE</a>
           <a className="rr-a boxed" href="/docs">DOCS</a>
-          <a className="rr-a boxed" href="/terminal">TERMINAL (BETA)</a>
+          <span className="rr-a boxed locked">TERMINAL · LOCKED</span>
         </div>
 
         {/* ── HERO ─────────────────────────────────────────── */}

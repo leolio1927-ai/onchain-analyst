@@ -35,9 +35,9 @@ def client(monkeypatch, tmp_path):
 
 def _wire(monkeypatch, *, supply=6862431145.753392, authority=None, freeze=None,
           accounts=20, fail_holders=False, labels=None, holder_frac=0.01):
-    raw = str(int(round(supply * 1e6)))
+    raw = str(round(supply * 1e6))
     exact = L.scale_raw_amount(raw, 6)
-    hraw = str(int(round(supply * holder_frac * 1e6)))
+    hraw = str(round(supply * holder_frac * 1e6))
     hexact = L.scale_raw_amount(hraw, 6)
 
     def fake_call(calls):

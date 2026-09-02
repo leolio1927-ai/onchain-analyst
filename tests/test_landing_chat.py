@@ -71,7 +71,7 @@ def test_framing_and_grounding_prompt(monkeypatch, client):
     sys = seen["messages"][0]["content"]
     assert seen["messages"][0]["role"] == "system"
     # brief v2.0.0 rides the system prompt verbatim; the identity is VILMEI AI
-    assert "VILMEI AI" in sys and "OPERATING BRIEF v2.0.0" in sys
+    assert "VILMEI AI" in sys and "OPERATING BRIEF v2.1.0" in sys
     assert "never invent prices" in sys and "read-only" in sys.lower()
     assert seen["messages"][-1]["content"] == "What is VILMEI?"
     assert seen["messages"][1]["content"] == "earlier question"

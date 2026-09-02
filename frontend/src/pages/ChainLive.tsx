@@ -76,7 +76,7 @@ function TopBar({ active }: { active: string }) {
           <a className={active !== 'board' ? 'on' : ''} href={`/live/${active}`}>{active.toUpperCase()}</a>
           <a className="boxed" href="/docs">DOCS</a>
           <a className="boxed" href="/roadmap">ROADMAP</a>
-          <a href="/terminal">TERMINAL →</a>
+          <a href="/roadmap">TERMINAL · LOCKED</a>
         </nav>
       </div>
     </header>

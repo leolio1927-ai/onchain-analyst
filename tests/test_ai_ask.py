@@ -450,11 +450,11 @@ def test_brief_v2_is_the_injected_source():
     """C1: FAST+DEEP both inject the v2.0.0 living contract — the same
     load_brief feeds guide (both modes) and the landing chat."""
     brief = ai_ask.load_brief()
-    assert "OPERATING BRIEF v2.0.0" in brief
+    assert "OPERATING BRIEF v2.1.0" in brief
     assert "VILMEI AI" in brief
     sys_prompt = ai_ask.guide_system(brief)
     assert "VILMEI AI" in sys_prompt
-    assert "OPERATING BRIEF v2.0.0" in sys_prompt
+    assert "OPERATING BRIEF v2.1.0" in sys_prompt
 
 
 def test_system_prompt_identity_and_free_of_forbidden_strings():

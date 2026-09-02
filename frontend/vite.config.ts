@@ -17,6 +17,9 @@ export default defineConfig({
     // fetch stubs; 5s flaked under parallel builds — 20s keeps the law, drops
     // the load-sensitivity (PROMPT-W+).
     testTimeout: 20000,
+    // full-page renders are heavy; on a loaded box parallel workers cause
+    // timing-window races — 2 workers keep runs deterministic
+    maxWorkers: 2,
   },
   server: {
     proxy: {

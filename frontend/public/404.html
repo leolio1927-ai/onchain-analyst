@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex" />
+<title>404 — VILMEI</title>
+<style>
+  :root { --brand:#00ffa3; --bg:#051009; }
+  * { margin:0; box-sizing:border-box; }
+  body { min-height:100vh; display:grid; place-items:center; background:var(--bg); color:#e9fef4;
+    font-family:'JetBrains Mono',ui-monospace,monospace; }
+  .band { position:fixed; top:0; left:0; right:0; height:2px; opacity:.5;
+    background:repeating-linear-gradient(90deg,
+      var(--st1) 0 44px, var(--st1) 44px 58px,
+      var(--st2) 58px 68px,
+      var(--st3) 68px 78px,
+      var(--st4) 78px 88px,
+      var(--st5) 88px 98px,
+      var(--st6) 98px 108px); }
+  /* standalone page: the thread is stated as CSS var stops, one chain hex
+     per usage line — the band itself is owned by tokens.css */
+  :root {
+    --st1: #14F195;
+    --st2: #F0B90B;
+    --st3: #4D8DFF;
+    --st4: #2DD4BF;
+    --st5: #00C805;
+    --st6: #E84142;
+  }
+  .card { text-align:center; padding:48px 40px; border-radius:18px; border:2px solid transparent;
+    background:
+      linear-gradient(180deg,rgba(10,22,16,.9),rgba(4,12,9,.95)) padding-box,
+      linear-gradient(90deg,var(--st1),var(--st2),var(--st3),var(--st4),var(--st5),var(--st6)) border-box; }
+  .code { font-size:72px; font-weight:800; letter-spacing:.06em; color:var(--brand);
+    text-shadow:0 0 30px rgba(0,255,163,.45); }
+  .law { margin:14px 0 26px; color:#9cc3b2; font-size:13px; line-height:1.7; }
+  .law b { color:#e9fef4; }
+  a.back { display:inline-block; padding:12px 26px; border-radius:10px; text-decoration:none;
+    color:#04130b; font-weight:700; font-size:13px; letter-spacing:.08em;
+    background:linear-gradient(135deg,#00ffa3,#34d399); box-shadow:0 0 24px rgba(0,255,163,.3); }
+  .foot { margin-top:26px; font-size:10px; letter-spacing:.18em; color:#649580; }
+</style>
+</head>
+<body>
+  <div class="band"></div>
+  <div class="card">
+    <div class="code">404</div>
+    <div class="law">This page does not exist — and by the honesty law,<br/><b>absent stays absent.</b> Nothing is invented to fill the gap.</div>
+    <a class="back" href="/">BACK TO THE TERMINAL SURFACE →</a>
+    <div class="foot">VILMEI · READ-ONLY · EVIDENCE FIRST</div>
+  </div>
+</body>
+</html>

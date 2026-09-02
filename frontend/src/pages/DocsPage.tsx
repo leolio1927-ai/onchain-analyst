@@ -260,7 +260,7 @@ export function DocsPage() {
             <a className="dd-a" href="/">← LANDING</a>
             <a className="dd-a boxed" href="/live">MEMECOIN LIVE</a>
             <a className="dd-a boxed" href="/roadmap">ROADMAP</a>
-            <a className="dd-a boxed" href="/terminal">TERMINAL (BETA)</a>
+            <a className="dd-a boxed" href="/roadmap">TERMINAL · LOCKED</a>
           </div>
 
           {/* ── HERO ─────────────────────────────────────────── */}
@@ -682,7 +682,7 @@ export function DocsPage() {
                 <span className="s">Three columns per chain — NEW | TRENDING | VOLUME·ALPHA with α-rank numbers.</span>
                 <span className="u">/live/{'{chain}'}</span>
               </a>
-              <a className="dd-surf" href="/terminal">
+              <a className="dd-surf" href="/roadmap">
                 <span className="chiprow"><Chip kind="build">in build</Chip><Chip kind="sim">simulated</Chip></span>
                 <span className="t">Terminal + Swap Desk</span>
                 <span className="s">The product ships in phases: the landing entry stays disabled until the Locked deploy, while this surface stays reachable and honestly labeled — no session, no wallet, no chain calls.</span>

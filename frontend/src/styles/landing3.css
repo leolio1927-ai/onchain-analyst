@@ -980,3 +980,10 @@ a { color: inherit; text-decoration: none; }
   box-shadow: 0 0 18px rgba(20, 241, 149, .12); }
 .lv-logo-img { display: block; }
 @media (prefers-reduced-motion: reduce) { .logo-unit::after { animation: none; } }
+
+/* ── launch v1: terminal CTAs locked (phased launch) ── */
+.lv-cta.locked { pointer-events: none; cursor: default; opacity: .55;
+  filter: grayscale(.35); position: relative; }
+.lv-cta.locked::after { content: '🔒'; position: absolute; top: -7px; right: -6px;
+  font-size: 11px; filter: none; }
+.rr-a.locked, .dd-a.locked { opacity: .55; cursor: default; }

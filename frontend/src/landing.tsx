@@ -12,6 +12,7 @@ import type { Chain, ScanResult } from './api'
 import { ChainLogo } from './pages/chainLogos'
 import { BRAND_NAME, BRAND_LEGAL } from './lib/brand'
 import { AiHttpError, landingChatStream } from './lib/aiApi'
+import { COMMUNITY } from './lib/community'
 import { ThinkingPill } from './components/ThinkingPill'
 
 /* ═══════════ helpers ═══════════ */
@@ -371,9 +372,9 @@ function Nav() {
               <a key={href} className="boxed" href={href} style={{ '--nav-accent': acc } as React.CSSProperties}>{l}</a>
             ))}
             <span className="lv-clock" title="UTC">◉ {clock} UTC</span>
-            <a className="lv-cta boxed" href="/terminal"
-              title="The terminal ships in phases — watch the roadmap ledger">
-              Terminal · In Build
+            <a className="lv-cta boxed locked" role="link" aria-disabled="true"
+              title="The terminal launches in phases — watch the roadmap ledger">
+              Terminal · LOCKED
             </a>
           </div>
           <button className="lv-burger" aria-label="Menu" onClick={() => setOpen(!open)}><i /><i /><i /></button>
@@ -436,9 +437,9 @@ function Hero() {
         <div className="lv-hero-cta">
           <Magnetic href="/live" className="lv-cta neon mag boxed">Open Live Board →</Magnetic>
           <a className="lv-cta ghost" href="/docs">Read the Docs →</a>
-          <a className="lv-cta boxed" href="/terminal"
-            title="The terminal ships in phases — watch the roadmap ledger">
-            Launch Terminal · In Build
+          <a className="lv-cta boxed locked" role="link" aria-disabled="true"
+            title="The terminal launches in phases — watch the roadmap ledger">
+            Launch Terminal · LOCKED
           </a>
         </div>
         <p style={{ margin: '10px 0 0', fontFamily: 'var(--fm)', fontSize: 9.5, letterSpacing: '.18em', color: 'var(--dim)' }}>
@@ -851,24 +852,24 @@ const BP: { g: string; items: { t: string; d: string; chip: 'live' | 'sim' | 'bu
     ],
   },
   {
-    g: 'IN BUILD — WIRED NEXT',
+    g: 'LIVE IN THE TERMINAL — PHASED LAUNCH (v1.5)',
     items: [
-      { t: 'Dashboard', chip: 'build', d: 'Mission control: market pulse, watchlist and risk at a glance.' },
-      { t: 'Swap Desk', chip: 'sim', d: 'The full trading surface on a labeled deterministic data set — session + quotes are next (VM-101).' },
-      { t: 'Rug Check', chip: 'build', d: 'Heuristic checklist over liquidity, ownership and mint authority.' },
-      { t: 'Wallet Clustering', chip: 'build', d: 'Coordinated-wallet detection over the real GeckoTerminal trade feed.' },
-      { t: 'Whale Tracker', chip: 'build', d: 'Wallet balances and flows via Helius — framework in place.' },
+      { t: 'Dashboard', chip: 'live', d: 'Mission control: market pulse, watchlist and risk at a glance.' },
+      { t: 'Swap Desk', chip: 'sim', d: 'Quote + market intelligence live (DexScreener); execution stays out — read-only law.' },
+      { t: 'Rug Check', chip: 'live', d: 'Heuristic checks over liquidity, ownership and mint authority — sol via RugCheck+Helius, EVM via GoPlus.' },
+      { t: 'Wallet Clustering', chip: 'live', d: 'Coordinated-wallet detection over the real GeckoTerminal trade feed.' },
+      { t: 'Whale Tracker', chip: 'live', d: 'Window flows (1h/6h/24h) from the live tape — a labeled heuristic, never an on-chain fact.' },
     ],
   },
   {
-    g: 'DESIGN — SCOPED, QUEUED',
+    g: 'PLANNED — SCOPED, QUEUED',
     items: [
-      { t: 'VILMEI AI', chip: 'design', d: 'Evidence-first narratives over live data — provider-agnostic, never trades (VM-104).' },
-      { t: 'Watchlist', chip: 'design', d: 'Track tokens across the five chains — account-less, local storage (VM-102).' },
-      { t: 'Portfolio Watch', chip: 'design', d: 'Read-only positions from public market data — no wallet connection.' },
-      { t: 'Alerts', chip: 'design', d: 'Signal alerts when a tracked token\'s risk posture changes.' },
-      { t: 'Holdings Check', chip: 'design', d: 'Wallet holdings without connecting anything — read-only by contract.' },
-      { t: 'Token Gate', chip: 'design', d: 'Access depth tiers — data correctness is identical on every tier, forever.' },
+      { t: 'VILMEI AI', chip: 'live', d: 'Evidence-first narratives over live data — grounded server-side, never trades (VM-104).' },
+      { t: 'Watchlist', chip: 'live', d: 'Track tokens across the five chains — account-less, local storage (VM-102).' },
+      { t: 'Portfolio Watch', chip: 'live', d: 'Read-only positions from public market data — no wallet connection.' },
+      { t: 'Alerts', chip: 'live', d: 'Your rules evaluated against live provider data — in-app events, dedup + cooldown.' },
+      { t: 'Holdings Check', chip: 'live', d: 'Wallet holdings without connecting anything — read-only by contract.' },
+      { t: 'Token Gate', chip: 'design', d: 'Access depth tiers — backend is planned, not built; the page says exactly that.' },
     ],
   },
 ]
@@ -919,7 +920,7 @@ function Surfaces() {
         {[
           { t: 'Memecoin Live Board', s: 'Five chain cards, four feed modes, honest flags and auto-refresh.', u: '/live', chip: ['live'] },
           { t: 'Chain Pages ×6', s: 'Three staggered columns per chain with α-ranks and copy-address.', u: '/live/sol', chip: ['live'] },
-          { t: 'Terminal', s: 'The product — ships in phases. The button unlocks with the Locked deploy.', u: '/terminal', chip: ['build'] },
+          { t: 'Terminal', s: 'The product — launches in phases. LOCKED at v1: the button unlocks with the phased deploy (watch the roadmap).', u: '/roadmap', chip: ['build'] },
           { t: 'Documentation', s: 'The honesty law, the pipeline, the API contract, the security posture.', u: '/docs', chip: ['live'] },
           { t: 'Roadmap', s: 'The weekly hub of proof — shipped ledger with git-verifiable dates.', u: '/roadmap', chip: ['live'] },
         ].map((c, i) => (
@@ -1130,10 +1131,10 @@ function AiSection() {
               ))}
             </div>
             {state === 'live' && (
-              <div className="note">ANSWER STREAMED LIVE FROM VILMEI. <a href="/terminal#/ai" style={{ color: 'var(--g)' }}>OPEN THE FULL PANEL →</a></div>
+              <div className="note">ANSWER STREAMED LIVE FROM VILMEI. <span className="mono dim2">FULL PANEL — TERMINAL LOCKED AT v1</span></div>
             )}
             {state === 'simulated' && (
-              <div className="note">DETERMINISTIC SCRIPTED TRACE{note ? ` — ${note.toUpperCase()}` : ''}. VILMEI — LIVE WHEN THE FOUNDER KEY IS CONFIGURED. <a href="/terminal#/ai" style={{ color: 'var(--g)' }}>OPEN THE PANEL →</a></div>
+              <div className="note">DETERMINISTIC SCRIPTED TRACE{note ? ` — ${note.toUpperCase()}` : ''}. VILMEI — LIVE WHEN THE FOUNDER KEY IS CONFIGURED. <span className="mono dim2">PANEL — TERMINAL LOCKED AT v1</span></div>
             )}
             {state === 'idle' && (
               <div className="note">PICK A QUESTION — ANSWERS STREAM LIVE FROM VILMEI. THE TOKEN QUESTION RUNS ON TODAY'S BONK EVIDENCE. <a href="/terminal#/ai" style={{ color: 'var(--g)' }}>FULL PANEL →</a></div>
@@ -1336,9 +1337,9 @@ function Final() {
           <Magnetic href="/live" className="lv-cta neon mag boxed">
             <span className="lv-final-cta">Open Live Board →</span>
           </Magnetic>
-          <a className="lv-cta boxed" href="/terminal"
-            title="The terminal ships in phases — watch the roadmap ledger">
-            Launch Terminal · In Build
+          <a className="lv-cta boxed locked" role="link" aria-disabled="true"
+            title="The terminal launches in phases — watch the roadmap ledger">
+            Launch Terminal · LOCKED
           </a>
         </div>
         <p style={{ marginTop: 30, fontSize: 12.5, fontFamily: 'var(--fm)', color: 'var(--dim)' }}>
@@ -1367,6 +1368,7 @@ function Foot() {
         <div className="lv-foot-col">
           <b>REGISTER</b>
           <a href="/docs#honesty">The Honesty Law</a><a href="/docs#status">Status Legend</a><a href="/roadmap#non-goals">Non-Goals</a><a href="/assets/llms.txt">Machine Index</a>
+          {COMMUNITY.length > 0 && <><b style={{ marginTop: 8 }}>COMMUNITY</b>{COMMUNITY.map((c) => <a key={c.label} href={c.url} target="_blank" rel="noopener noreferrer">{c.label} ↗</a>)}</>}
         </div>
         <div className="lv-foot-col">
           <b>PRODUCT FACTS</b>

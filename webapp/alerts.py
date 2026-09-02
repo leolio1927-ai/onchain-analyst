@@ -99,10 +99,9 @@ def mark_read(all_ids: bool = False, ids: list[str] | None = None) -> int:
         s = _load()
         n = 0
         for e in s["events"]:
-            if all_ids or (ids and e["id"] in ids):
-                if not e.get("read"):
-                    e["read"] = True
-                    n += 1
+            if (all_ids or (ids and e["id"] in ids)) and not e.get("read"):
+                e["read"] = True
+                n += 1
         if n:
             _save(s)
         return n

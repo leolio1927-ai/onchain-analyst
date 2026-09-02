@@ -62,7 +62,8 @@ from providers import (
     whale_windows,
     whales,
 )
-from webapp import ai_ask, ai_runs, alerts as alerts_engine, chains, db, mcp, schemas
+from webapp import ai_ask, ai_runs, chains, db, mcp, schemas
+from webapp import alerts as alerts_engine
 from webapp import lineage as lineage_mod
 
 CACHE_TTL_S = 30.0
@@ -1910,6 +1911,19 @@ async def ws_tape(ws: WebSocket, chain: str | None = None, pool: str | None = No
         pass
     finally:
         _WS_CLIENTS.discard(ws)
+
+# ── branded 404 — the honesty law applies to missing pages too ──────────
+@app.get("/{full_path:path}", include_in_schema=False)
+async def branded_404(full_path: str):
+    """Last-resort catch-all (declared after every real route). API/WS paths
+    keep FastAPI's JSON 404; page paths get the branded 404."""
+    if full_path.startswith(("api/", "ws/", "mcp", "assets/")) or full_path in ("api", "ws", "mcp"):
+        raise HTTPException(404, "Not Found")
+    page = _dist_dir() / "404.html"
+    if page.exists():
+        return HTMLResponse(page.read_text(encoding="utf-8"), status_code=404)
+    raise HTTPException(404, "Not Found")
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(prog="webapp", description="VILMEI web server")

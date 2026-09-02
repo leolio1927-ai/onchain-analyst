@@ -44,18 +44,18 @@ describe('PROMPT-W B2 — THINKING pill lifecycle (landing §06)', () => {
   })
 
   it('the pill never carries vendor/model vocabulary', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => delayedStreamResponse(50)))
+    /* deterministic: a 400ms stall leaves a wide window to inspect the pill */
+    vi.stubGlobal('fetch', vi.fn(async () => delayedStreamResponse(400)))
     render(<Landing />)
-    fireEvent.click(screen.getByText('Is your AI safe?'))
-    await waitFor(() => expect(screen.queryByTestId('thinking-pill')).toBeNull())
-    /* re-trigger and inspect the pill while visible (50ms window, poll fast) */
     fireEvent.click(screen.getByText('What is VILMEI?'))
     const pill = await waitFor(() => {
       const el = screen.queryByTestId('thinking-pill')
       expect(el).toBeTruthy()
       return el as HTMLElement
-    }, { timeout: 200, interval: 10 })
+    }, { timeout: 5000, interval: 20 })
     const low = pill.textContent!.toLowerCase()
     for (const s of ['glm', 'gpt', 'nvidia', 'model']) expect(low.includes(s)).toBe(false)
+    await waitFor(() => expect(screen.queryByTestId('thinking-pill')).toBeNull(),
+      { timeout: 5000 })
   })
 })
