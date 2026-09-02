@@ -12,6 +12,7 @@ export interface NavItem {
 export const NAV: NavItem[] = [
   { id: 'dashboard', icon: '▦', label: 'Dashboard' },
   { id: 'swap', icon: '⇅', label: 'VILMEI SWAP', pill: 'NEW' },
+  { id: 'settlement', icon: '⚡', label: 'Settlement Cockpit', pill: 'LIVE' },
   { id: 'scanner', icon: '⌕', label: 'Token Scanner' },
   { id: 'rugcheck', icon: '⛨', label: 'Rug Check', pill: 'LIVE' },
   { id: 'whale', icon: '◍', label: 'Whale Tracker', pill: 'LIVE' },

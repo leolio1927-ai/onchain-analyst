@@ -4,6 +4,7 @@ import { Shell } from './layout/Shell'
 import { WalletProvider } from './wallet/WalletContext'
 import Dashboard from './pages/Dashboard'
 import { TokenPage } from './pages/TokenPage'
+import { SettlementCockpitPage } from './pages/SettlementCockpitPage'
 import { ClusterPage, RugCheckPage, ScannerPage, WhalePage } from './pages/AnalysisPages'
 import { AiPage, AlertsPage, DocsPage, FeedbackPage, GatePage, HoldingsPage, PortfolioPage, SettingsPage } from './pages/Pages2'
 import './styles/app.css'
@@ -17,6 +18,7 @@ if (rootEl) {
       pages={{
         dashboard: <Dashboard />,
         swap: <TokenPage />,
+        settlement: <SettlementCockpitPage />,
         scanner: <ScannerPage />,
         rugcheck: <RugCheckPage />,
         whale: <WhalePage />,

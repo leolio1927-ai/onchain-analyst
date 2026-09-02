@@ -391,3 +391,73 @@ def transition(
 
     updated = conn.execute("SELECT * FROM settlement_state WHERE quote_id = ?", (quote_id,)).fetchone()
     return dict(updated)
+
+
+def list_settlements(
+    conn: sqlite3.Connection,
+    *,
+    quote_id: str | None = None,
+    wallet: str | None = None,
+    chain: str | None = None,
+    state: str | None = None,
+    provider: str | None = None,
+    stuck_only: bool = False,
+    limit: int = 100,
+) -> list[dict[str, Any]]:
+    """List settlements with filtering, clamped limit (max 250), ordered by updated_at DESC."""
+    clamped_limit = max(1, min(int(limit), 250))
+    query = """
+        SELECT quote_id, wallet, provider, src_chain, dest_chain, state, reason,
+               source_tx_hash, dest_tx_hash, amount_in, amount_out_expected,
+               amount_out_min, fee_expected_bps, created_at, updated_at
+        FROM settlement_state
+        WHERE 1=1
+    """
+    params: list[Any] = []
+
+    if quote_id:
+        query += " AND quote_id = ?"
+        params.append(quote_id)
+
+    if wallet:
+        query += " AND LOWER(wallet) = LOWER(?)"
+        params.append(wallet)
+
+    if chain:
+        query += " AND (LOWER(src_chain) = LOWER(?) OR LOWER(dest_chain) = LOWER(?))"
+        params.extend([chain, chain])
+
+    if state:
+        query += " AND state = ?"
+        params.append(state)
+
+    if provider:
+        query += " AND LOWER(provider) = LOWER(?)"
+        params.append(provider)
+
+    if stuck_only:
+        query += " AND state IN ('STUCK_UNKNOWN', 'FAILED', 'REFUND_AVAILABLE', 'EXPIRED')"
+
+    query += " ORDER BY updated_at DESC LIMIT ?"
+    params.append(clamped_limit)
+
+    cursor = conn.execute(query, tuple(params))
+    return [dict(r) for r in cursor.fetchall()]
+
+
+def get_event_summary(conn: sqlite3.Connection, quote_id: str) -> dict[str, Any]:
+    """Return event count and last transition summary for a quote_id."""
+    events = conn.execute(
+        "SELECT state_from, state_to, reason, created_at FROM settlement_events WHERE quote_id = ? ORDER BY id ASC",
+        (quote_id,),
+    ).fetchall()
+    count = len(events)
+    last_event = dict(events[-1]) if count > 0 else None
+    return {
+        "quote_id": quote_id,
+        "event_count": count,
+        "last_state_from": last_event["state_from"] if last_event else None,
+        "last_state_to": last_event["state_to"] if last_event else None,
+        "last_reason": last_event["reason"] if last_event else None,
+        "last_updated_at": last_event["created_at"] if last_event else None,
+    }

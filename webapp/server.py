@@ -1658,6 +1658,92 @@ async def api_swap_settlement(quote_id: str) -> schemas.SettlementStatusResponse
     )
 
 
+@app.get(
+    "/api/v1/swap/settlements",
+    response_model=schemas.SettlementListResponse,
+    tags=["market"],
+)
+async def api_swap_settlements(
+    quote_id: str | None = None,
+    wallet: str | None = None,
+    chain: str | None = None,
+    state: str | None = None,
+    provider: str | None = None,
+    stuck: bool = False,
+    limit: int = 50,
+) -> schemas.SettlementListResponse:
+    """Read-only list of settlements for cockpit (Slot D.4).
+
+    Reads directly from SQLite settlement tables; never polls network/RPC.
+    Limit is clamped to max 250 (raises 422 if limit > 250 or < 1).
+    """
+    if limit > 250:
+        raise HTTPException(422, "limit must not exceed 250")
+    if limit < 1:
+        raise HTTPException(422, "limit must be at least 1")
+
+    if state is not None and state not in settlement_repository.SETTLEMENT_STATES:
+        raise HTTPException(422, f"invalid state {state!r}; allowed: {sorted(settlement_repository.SETTLEMENT_STATES)}")
+
+    db_path = db.resolve_path()
+    if db_path is None:
+        raise HTTPException(503, "settlement unavailable — ALPHA_DB_PATH unset")
+
+    try:
+        conn = db.connect(db_path)
+    except sqlite3.Error as err:
+        raise HTTPException(503, f"settlement unavailable — {err}")
+
+    try:
+        rows = settlement_repository.list_settlements(
+            conn,
+            quote_id=quote_id,
+            wallet=wallet,
+            chain=chain,
+            state=state,
+            provider=provider,
+            stuck_only=stuck,
+            limit=limit,
+        )
+    except sqlite3.Error as err:
+        raise HTTPException(503, f"settlement unavailable — {err}")
+    finally:
+        conn.close()
+
+    items = [
+        schemas.SettlementListRow(
+            quote_id=r["quote_id"],
+            wallet=r.get("wallet"),
+            provider=r.get("provider"),
+            src_chain=r.get("src_chain") or "",
+            dest_chain=r.get("dest_chain") or "",
+            state=r["state"],
+            reason=r.get("reason"),
+            source_tx_hash=r.get("source_tx_hash"),
+            dest_tx_hash=r.get("dest_tx_hash"),
+            source_explorer_link=settlement_repository.explorer_tx_link(r.get("src_chain") or "", r.get("source_tx_hash")),
+            dest_explorer_link=settlement_repository.explorer_tx_link(r.get("dest_chain") or "", r.get("dest_tx_hash")),
+            amount_in=r.get("amount_in"),
+            amount_out_expected=r.get("amount_out_expected"),
+            amount_out_min=r.get("amount_out_min"),
+            fee_expected_bps=r.get("fee_expected_bps"),
+            created_at=r.get("created_at"),
+            updated_at=r.get("updated_at"),
+        )
+        for r in rows
+    ]
+
+    now_iso = datetime.now(UTC).isoformat()
+    return schemas.SettlementListResponse(
+        items=items,
+        count=len(items),
+        db_enabled=True,
+        generated_at=now_iso,
+        sources=["settlement_db"],
+    )
+
+
+
 # ── PROMPT-V4 M4: portfolio watch — market facts for a watchlist ──────────
 # Positions live client-side (vilmei.watchlist); the server answers only
 # public market facts from the deepest GT pool per token.

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { NAV } from './navModel'
 
 /* the routes terminal.tsx wires as real pages today */
-const LIVE_PAGES = new Set(['dashboard', 'swap', 'scanner', 'rugcheck', 'whale', 'ai', 'portfolio', 'holdings'])
+const LIVE_PAGES = new Set(['dashboard', 'swap', 'settlement', 'scanner', 'rugcheck', 'whale', 'ai', 'portfolio', 'holdings'])
 /* pages that carry no pill by design (they are the frame, not a feature) */
 const UNPILLED = new Set(['dashboard', 'scanner'])
 

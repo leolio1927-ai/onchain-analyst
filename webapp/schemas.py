@@ -1092,3 +1092,37 @@ class SettlementStatusResponse(Envelope):
     fee_expected_bps: int | None = None
     events: list[SettlementEventItem] = Field(default_factory=list)
 
+
+# ── Slot D.4: Settlement Cockpit List Schemas ─────────────────────────────
+
+class SettlementListRow(BaseModel):
+    """Summary row for a settlement in cockpit list."""
+
+    quote_id: str
+    wallet: str | None = None
+    provider: str | None = None
+    src_chain: str
+    dest_chain: str
+    state: str
+    reason: str | None = None
+    source_tx_hash: str | None = None
+    dest_tx_hash: str | None = None
+    source_explorer_link: str | None = None
+    dest_explorer_link: str | None = None
+    amount_in: str | None = None
+    amount_out_expected: str | None = None
+    amount_out_min: str | None = None
+    fee_expected_bps: int | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class SettlementListResponse(Envelope):
+    """Database-backed settlement list response for cockpit (Slot D.4)."""
+
+    items: list[SettlementListRow] = Field(default_factory=list)
+    count: int = 0
+    db_enabled: bool = True
+    generated_at: str
+
+
