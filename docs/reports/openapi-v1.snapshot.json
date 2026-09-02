@@ -1804,6 +1804,221 @@
     }
    }
   },
+  "/api/v1/swap/capabilities": {
+   "get": {
+    "tags": [
+     "market"
+    ],
+    "summary": "Api Swap Capabilities",
+    "description": "Chain-aware swap capability registry.\n\nThis is configuration, not a claim that all five networks are\nexecutable. The response stays explicit until a provider adapter and\nsimulation implementation are independently verified.",
+    "operationId": "api_swap_capabilities_api_v1_swap_capabilities_get",
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SwapCapabilitiesResponse"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/swap/quote": {
+   "get": {
+    "tags": [
+     "market"
+    ],
+    "summary": "Api Swap Quote",
+    "description": "Chain-aware quote: policy-validated, then a REAL keyless provider\nquote when one is reachable (Jupiter sol, LI.FI bnb/base \u2014 verified\nkeyless 2026-09-02), else the honest unwired contract with the\nper-attempt reasons verbatim.\n\nExecution is ALWAYS refused on this surface (quote_only terminal): no\ntransaction_request is ever built, execution_allowed stays false even\nwhen the quote is live. The circuit breaker auto-disables failing\nproviders; the global kill switch (VILMEI_SWAP_KILL=1) stops live\nquoting entirely. T2-E hardening: per-IP and per-wallet throttle (429 +\nRetry-After) and a 10\u201315s provider-quote cache \u2014 the cache damps the\nfan-out only; policy and simulation gates run fresh on every request.\n``wallet`` is used ONLY as an in-memory throttle key: never logged,\nnever persisted.",
+    "operationId": "api_swap_quote_api_v1_swap_quote_get",
+    "parameters": [
+     {
+      "name": "source_chain",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Source Chain"
+      }
+     },
+     {
+      "name": "destination_chain",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Destination Chain"
+      }
+     },
+     {
+      "name": "token_in",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Token In"
+      }
+     },
+     {
+      "name": "token_out",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Token Out"
+      }
+     },
+     {
+      "name": "amount_in",
+      "in": "query",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Amount In"
+      }
+     },
+     {
+      "name": "slippage_bps",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "integer",
+       "default": 50,
+       "title": "Slippage Bps"
+      }
+     },
+     {
+      "name": "provider",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Provider"
+      }
+     },
+     {
+      "name": "wallet",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "null"
+        }
+       ],
+       "title": "Wallet"
+      }
+     },
+     {
+      "name": "live",
+      "in": "query",
+      "required": false,
+      "schema": {
+       "type": "boolean",
+       "default": true,
+       "title": "Live"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/QuoteResponse"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
+  "/api/v1/swap/execute": {
+   "post": {
+    "tags": [
+     "market"
+    ],
+    "summary": "Api Swap Execute",
+    "description": "The one execution door \u2014 and today it always REFUSES (quote_only\nterminal). T2-E idempotency, enforced in one atomic SQLite transaction:\na quote_id already CONSUMED answers 409 with the previous decision\nreplayed (a retry can never produce a second transaction); an expired\nquote answers 410 and must be re-quoted. Without ALPHA_DB_PATH the\nJSONL refusal ledger remains the fail-closed backing.",
+    "operationId": "api_swap_execute_api_v1_swap_execute_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SwapExecuteRequest"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SwapExecuteResponse"
+        }
+       }
+      }
+     },
+     "409": {
+      "description": "quote_id already CONSUMED \u2014 the previous decision is replayed",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SwapExecuteConflict"
+        }
+       }
+      }
+     },
+     "410": {
+      "description": "quote expired \u2014 request a fresh quote",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SwapExecuteConflict"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/portfolio/snapshot": {
    "get": {
     "tags": [
@@ -2061,6 +2276,73 @@
     "type": "object",
     "title": "CapabilityRow",
     "description": "One capability\u00d7chain wiring row: either a source (a fn is wired) or\nan explicit reason why nobody computes it at $0."
+   },
+   "ChainCapability": {
+    "properties": {
+     "chain": {
+      "type": "string",
+      "title": "Chain"
+     },
+     "name": {
+      "type": "string",
+      "title": "Name"
+     },
+     "namespace": {
+      "type": "string",
+      "title": "Namespace"
+     },
+     "caip2": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Caip2"
+     },
+     "native_symbol": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Native Symbol"
+     },
+     "execution_status": {
+      "type": "string",
+      "title": "Execution Status"
+     },
+     "reason": {
+      "type": "string",
+      "title": "Reason"
+     },
+     "provider_candidates": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Provider Candidates"
+     },
+     "simulation_rpc_configured": {
+      "type": "boolean",
+      "title": "Simulation Rpc Configured",
+      "default": false
+     }
+    },
+    "type": "object",
+    "required": [
+     "chain",
+     "name",
+     "namespace",
+     "execution_status",
+     "reason"
+    ],
+    "title": "ChainCapability"
    },
    "ChainInfo": {
     "properties": {
@@ -4510,6 +4792,272 @@
     "title": "Provenance",
     "description": "The FAKTA envelope law (2026-08-30): every new route carries WHERE a\npayload came from and HOW fresh it is. `degraded` is None on a healthy\npayload and a reason sentence otherwise \u2014 a degraded payload still ships\nreal data (or honest empties), never fabricated values."
    },
+   "QuotePolicy": {
+    "properties": {
+     "quote_allowed": {
+      "type": "boolean",
+      "title": "Quote Allowed",
+      "default": false
+     },
+     "execution_allowed": {
+      "type": "boolean",
+      "title": "Execution Allowed",
+      "default": false
+     },
+     "reasons": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Reasons"
+     }
+    },
+    "type": "object",
+    "title": "QuotePolicy"
+   },
+   "QuoteResponse": {
+    "properties": {
+     "data_mode": {
+      "type": "string",
+      "enum": [
+       "live",
+       "fixture",
+       "unwired",
+       "static",
+       "partial"
+      ],
+      "title": "Data Mode",
+      "default": "unwired"
+     },
+     "schema_version": {
+      "type": "string",
+      "const": "1.0",
+      "title": "Schema Version",
+      "default": "1.0"
+     },
+     "sources": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Sources"
+     },
+     "ts": {
+      "type": "string",
+      "title": "Ts"
+     },
+     "source_chain": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Chain"
+     },
+     "destination_chain": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Destination Chain"
+     },
+     "source_chain_caip2": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Chain Caip2"
+     },
+     "destination_chain_caip2": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Destination Chain Caip2"
+     },
+     "token_in": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Token In"
+     },
+     "token_out": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Token Out"
+     },
+     "amount_in": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Amount In"
+     },
+     "amount_out": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Amount Out"
+     },
+     "minimum_received": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Minimum Received"
+     },
+     "slippage_bps": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Slippage Bps"
+     },
+     "quote_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Quote Id"
+     },
+     "provider_requested": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Provider Requested"
+     },
+     "provider_quoted": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Provider Quoted"
+     },
+     "provider_candidates": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Provider Candidates"
+     },
+     "execution_status": {
+      "type": "string",
+      "title": "Execution Status",
+      "default": "unwired"
+     },
+     "policy": {
+      "$ref": "#/components/schemas/QuotePolicy"
+     },
+     "simulation": {
+      "$ref": "#/components/schemas/SimulationGate"
+     },
+     "route": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Route"
+     },
+     "degraded": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Degraded"
+     },
+     "provenance": {
+      "additionalProperties": true,
+      "type": "object",
+      "title": "Provenance"
+     },
+     "transaction_request": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Transaction Request"
+     },
+     "quote_cache": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Quote Cache"
+     }
+    },
+    "type": "object",
+    "title": "QuoteResponse",
+    "description": "Chain-aware quote contract (T2).\n\nTwo honest modes:\n- live: a REAL keyless provider quote (Jupiter/LI.FI, verified 2026-09-02)\n  with amount_out/minimum_received/route filled \u2014 execution is STILL\n  refused (quote_only terminal), and raw scaling/decimals are surfaced.\n- unwired: request validated but no provider answered (or live quoting is\n  disabled) \u2014 output fields stay absent and `degraded` carries the\n  per-attempt reasons verbatim.\nEvery response carries the deterministic policy + simulation decision and\nthe request-derived quote_id (idempotency key for any future execution)."
+   },
    "RugAssessment": {
     "properties": {
      "level": {
@@ -5207,6 +5755,27 @@
     "title": "SignalRow",
     "description": "One rug_check signal. `computed` (added by BE-F1) separates \"attempted\nbut not scored\" (severity None \u2014 honest) from scored; `detail` is the\nplanned richer explanation slot and stays None until that engine exists."
    },
+   "SimulationGate": {
+    "properties": {
+     "state": {
+      "type": "string",
+      "title": "State",
+      "default": "not_run"
+     },
+     "allowed": {
+      "type": "boolean",
+      "title": "Allowed",
+      "default": false
+     },
+     "reason": {
+      "type": "string",
+      "title": "Reason",
+      "default": "simulation is required before execution"
+     }
+    },
+    "type": "object",
+    "title": "SimulationGate"
+   },
    "SocialLink": {
     "properties": {
      "url": {
@@ -5388,6 +5957,233 @@
     "type": "object",
     "title": "SocialsResponse",
     "description": "DS token-pairs info for a TOKEN address. Empty websites+links is the\nhonest 'no official links in feed' state \u2014 links are never invented."
+   },
+   "SwapCapabilitiesResponse": {
+    "properties": {
+     "data_mode": {
+      "type": "string",
+      "enum": [
+       "live",
+       "fixture",
+       "unwired",
+       "static",
+       "partial"
+      ],
+      "title": "Data Mode",
+      "default": "static"
+     },
+     "schema_version": {
+      "type": "string",
+      "const": "1.0",
+      "title": "Schema Version",
+      "default": "1.0"
+     },
+     "sources": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Sources"
+     },
+     "ts": {
+      "type": "string",
+      "title": "Ts"
+     },
+     "chains": {
+      "items": {
+       "$ref": "#/components/schemas/ChainCapability"
+      },
+      "type": "array",
+      "title": "Chains"
+     },
+     "provider_allowlist": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Provider Allowlist"
+     },
+     "max_slippage_bps": {
+      "type": "integer",
+      "title": "Max Slippage Bps",
+      "default": 500
+     },
+     "execution_enabled": {
+      "type": "boolean",
+      "title": "Execution Enabled",
+      "default": false
+     },
+     "honest_note": {
+      "type": "string",
+      "title": "Honest Note",
+      "default": "execution is disabled until provider and simulation gates are configured"
+     }
+    },
+    "type": "object",
+    "title": "SwapCapabilitiesResponse",
+    "description": "The chain-aware execution capability registry.\n\nQuote-only/unwired is a real state; it must never render as executable."
+   },
+   "SwapExecuteConflict": {
+    "properties": {
+     "data_mode": {
+      "type": "string",
+      "enum": [
+       "live",
+       "fixture",
+       "unwired",
+       "static",
+       "partial"
+      ],
+      "title": "Data Mode",
+      "default": "static"
+     },
+     "schema_version": {
+      "type": "string",
+      "const": "1.0",
+      "title": "Schema Version",
+      "default": "1.0"
+     },
+     "sources": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Sources"
+     },
+     "ts": {
+      "type": "string",
+      "title": "Ts"
+     },
+     "quote_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Quote Id"
+     },
+     "state": {
+      "type": "string",
+      "title": "State",
+      "default": "already_consumed"
+     },
+     "message": {
+      "type": "string",
+      "title": "Message",
+      "default": ""
+     },
+     "previous_decision": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Previous Decision"
+     }
+    },
+    "type": "object",
+    "title": "SwapExecuteConflict",
+    "description": "409/410 body of the execute door (T2-E idempotency): the quote_id\nstate plus, on 409, the PREVIOUS decision replayed verbatim \u2014 a retry\ncan never mint a second transaction."
+   },
+   "SwapExecuteRequest": {
+    "properties": {
+     "quote_id": {
+      "type": "string",
+      "title": "Quote Id"
+     }
+    },
+    "type": "object",
+    "required": [
+     "quote_id"
+    ],
+    "title": "SwapExecuteRequest",
+    "description": "A machine request to execute a previously quoted route.\n\nThe policy answer today is ALWAYS refusal (quote_only terminal) \u2014 the\nendpoint exists so agents and clients hit one honest, idempotent door\ninstead of inventing their own execution path."
+   },
+   "SwapExecuteResponse": {
+    "properties": {
+     "data_mode": {
+      "type": "string",
+      "enum": [
+       "live",
+       "fixture",
+       "unwired",
+       "static",
+       "partial"
+      ],
+      "title": "Data Mode",
+      "default": "static"
+     },
+     "schema_version": {
+      "type": "string",
+      "const": "1.0",
+      "title": "Schema Version",
+      "default": "1.0"
+     },
+     "sources": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Sources"
+     },
+     "ts": {
+      "type": "string",
+      "title": "Ts"
+     },
+     "quote_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Quote Id"
+     },
+     "decision": {
+      "type": "string",
+      "title": "Decision",
+      "default": "refused"
+     },
+     "reason": {
+      "type": "string",
+      "title": "Reason",
+      "default": "execution is disabled by policy \u2014 the terminal is quote_only"
+     },
+     "recorded_at": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Recorded At"
+     },
+     "idempotency_state": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Idempotency State"
+     }
+    },
+    "type": "object",
+    "title": "SwapExecuteResponse",
+    "description": "The single execution decision. ``decision`` is the only field to\nbranch on; it is \"refused\" until provider, simulation and policy gates\nare independently configured and enabled by the operator."
    },
    "TokenContext": {
     "properties": {

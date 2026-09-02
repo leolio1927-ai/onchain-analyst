@@ -30,11 +30,11 @@ import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 HISTORY_LIMIT_MAX = 500
 
 _TABLES = ("price_points", "trades", "scan_snapshots", "ingest_run",
-           "tokens", "wallet_labels")
+           "tokens", "wallet_labels", "swap_quotes")
 
 # The honest kind set for wallet labels — enforced HERE, in code, never in SQL
 # (an open SQL CHECK would silently accept tomorrow's typo as a new category).
@@ -127,6 +127,25 @@ CREATE TABLE IF NOT EXISTS wallet_labels (
 );
 """
 
+# v4 (T2-E) — swap quote_id idempotency state machine. quote_id is the
+# PRIMARY KEY (UNIQUE by construction): one row per validated request.
+# status is the lifecycle enum; it is enforced in swap_quote_state code,
+# not in SQL (same law as LABEL_KINDS — a CHECK would silently accept
+# tomorrow's typo as a new state).
+_DDL_V4 = """
+CREATE TABLE IF NOT EXISTS swap_quotes (
+    quote_id TEXT PRIMARY KEY,
+    status TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    request_json TEXT NOT NULL,
+    result_json TEXT,
+    consumed_at TEXT,
+    decision_json TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_swap_quotes_status ON swap_quotes (status, expires_at);
+"""
+
 def _migrate_v3(conn: sqlite3.Connection) -> None:
     """v3 (BE-F5a-R) — deployer provenance columns on scan_snapshots, added
     in one ALTER batch. Conditional because SQLite lacks ADD COLUMN IF NOT
@@ -144,7 +163,7 @@ def _migrate_v3(conn: sqlite3.Connection) -> None:
 # connection (used when a step must be conditional, e.g. SQLite has no
 # "ADD COLUMN IF NOT EXISTS").
 _MIGRATIONS: tuple[tuple[int, str | object], ...] = (
-    (1, _DDL), (2, _DDL_V2), (3, _migrate_v3))
+    (1, _DDL), (2, _DDL_V2), (3, _migrate_v3), (4, _DDL_V4))
 
 
 def resolve_path() -> Path | None:

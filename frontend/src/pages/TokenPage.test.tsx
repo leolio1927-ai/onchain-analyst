@@ -1,6 +1,6 @@
 /* TokenPage render smoke + the Fase-1 identity law: header and rail read the
    SAME active pair from lib/tokenStore — no second default anywhere. */
-import { render, waitFor } from '@testing-library/react'
+import { render, waitFor, fireEvent } from '@testing-library/react'
 import { act } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { TokenPage } from './TokenPage'
@@ -99,5 +99,103 @@ describe('<TokenPage /> — single identity + honest panels', () => {
        shortener cuts both ends from one string */
     expect(text).not.toMatch(/0x94…1cE82/)   // AERO head + CAKE tail
     expect(text).not.toMatch(/0x0E…8631/)   // CAKE head + AERO tail
+  })
+
+  it('T2 capability registry: the rail shows the backend execution state, never an execution claim', async () => {
+    vi.stubGlobal('fetch', (url: string) => {
+      if (String(url).includes('/api/v1/swap/capabilities')) {
+        return jsonResponse({
+          data_mode: 'static', schema_version: '1.0', sources: ['providers/swap_policy.py'], ts: 't',
+          chains: [
+            { chain: 'sol', name: 'Solana', namespace: 'solana', caip2: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
+              native_symbol: 'SOL', execution_status: 'quote_only',
+              reason: 'provider adapter and simulation gate are not configured', provider_candidates: ['jupiter', 'lifi'] },
+            { chain: 'bnb', name: 'BNB Chain', namespace: 'eip155', caip2: 'eip155:56',
+              native_symbol: 'BNB', execution_status: 'quote_only',
+              reason: 'provider adapter and simulation gate are not configured', provider_candidates: ['lifi', 'relay', 'debridge'] },
+          ],
+          provider_allowlist: ['lifi', 'relay', 'jupiter', 'mayan', 'debridge'],
+          max_slippage_bps: 500, execution_enabled: false,
+          honest_note: 'execution is disabled until provider and simulation gates are configured',
+        })
+      }
+      return new Promise<Response>(() => {})
+    })
+    const { container } = render(<TokenPage />)
+    /* default pair is BONK on sol → the header chip quotes the registry */
+    await waitFor(() => expect(container.querySelector('.tk-phd')?.textContent).toContain('QUOTE ONLY'))
+    /* ADVANCED details render verbatim backend facts — candidates and cap */
+    container.querySelector('.sw2-adv')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await waitFor(() => {
+      const cap = container.querySelector('[data-testid="swap-capability"]')
+      expect(cap?.textContent).toContain('EXECUTION CAPABILITY')
+    })
+    const cap = container.querySelector('[data-testid="swap-capability"]')
+    expect(cap?.textContent).toContain('JUPITER')
+    expect(cap?.textContent).toContain('provider adapter and simulation gate are not configured')
+    expect(cap?.textContent).toContain('SLIPPAGE CAP 500 BPS')
+    /* no enabled/execute wording can leak from the client side */
+    expect(container.textContent).not.toContain('EXECUTION ENABLED')
+  })
+
+  it('T2 capability registry unreachable: no chip and no invented capability state', () => {
+    vi.stubGlobal('fetch', () => new Promise<Response>(() => {}))
+    const { container } = render(<TokenPage />)
+    expect(container.querySelector('.tk-phd')?.textContent).not.toContain('QUOTE ONLY')
+    expect(container.querySelector('.tk-phd')?.textContent).not.toContain('UNWIRED')
+    expect(container.textContent).not.toContain('EXECUTION ENABLED')
+  })
+
+  it('T2 server quote: a live exact-in quote renders verbatim with the QUOTE ONLY guard', async () => {
+    vi.stubGlobal('fetch', (url: string) => {
+      if (String(url).includes('/api/v1/swap/quote')) {
+        return jsonResponse({
+          data_mode: 'live', schema_version: '1.0', sources: ['providers/swap_quotes.py'], ts: 't',
+          source_chain: 'sol', destination_chain: 'sol',
+          token_in: 'native', token_out: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263',
+          amount_in: '2', amount_out: '66906556.65132', minimum_received: '66572023.86808',
+          slippage_bps: 50, quote_id: 'abc123', provider_quoted: 'jupiter',
+          provider_candidates: ['jupiter', 'lifi'], execution_status: 'quote_only',
+          policy: { quote_allowed: true, execution_allowed: false, reasons: ['x'] },
+          simulation: { state: 'not_run', allowed: false, reason: 'y' },
+          route: ['Whirlpool'], degraded: null, provenance: {}, transaction_request: null,
+        })
+      }
+      return new Promise<Response>(() => {})
+    })
+    const { container } = render(<TokenPage />)
+    const input = container.querySelector('.sw2-input') as HTMLInputElement
+    expect(input).toBeTruthy()
+    fireEvent.change(input, { target: { value: '2' } })
+    const line = await waitFor(() => {
+      const el = container.querySelector('[data-testid="server-quote"]')
+      expect(el?.textContent).toContain('SERVER QUOTE · JUPITER')
+      return el
+    }, { timeout: 3000 })
+    expect(line?.textContent).toContain('QUOTE ONLY')
+    expect(line?.getAttribute('title')).toContain('quote_id abc123')
+  })
+
+  it('T2 server quote: unwired/degraded response stays silent — no invented quote', async () => {
+    vi.stubGlobal('fetch', (url: string) => {
+      if (String(url).includes('/api/v1/swap/quote')) {
+        return jsonResponse({
+          data_mode: 'unwired', schema_version: '1.0', sources: ['providers/swap_quotes.py'], ts: 't',
+          source_chain: 'sol', destination_chain: 'sol', token_in: 'native',
+          token_out: 'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', amount_in: '2',
+          amount_out: null, minimum_received: null, provider_quoted: null,
+          degraded: 'jupiter: failed (TimeoutError)', execution_status: 'quote_only',
+          policy: { quote_allowed: true, execution_allowed: false, reasons: [] },
+          simulation: { state: 'not_run', allowed: false, reason: 'y' },
+          route: [], provenance: {}, transaction_request: null,
+        })
+      }
+      return new Promise<Response>(() => {})
+    })
+    const { container } = render(<TokenPage />)
+    const input = container.querySelector('.sw2-input') as HTMLInputElement
+    fireEvent.change(input, { target: { value: '2' } })
+    await waitFor(() => { expect(container.textContent).toContain('YOU GET') }, { timeout: 3000 })
+    expect(container.querySelector('[data-testid="server-quote"]')).toBeNull()
   })
 })

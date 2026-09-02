@@ -16,6 +16,8 @@ import { accentStyle } from './liveParts'
 import { ChainLogo } from './chainLogos'
 import { fetchSwapQuote } from '../services/dexscreener'
 import type { SwapQuote } from '../services/dexscreener'
+import { fetchSwapCapabilities, fetchServerQuote } from '../services/swapCapabilities'
+import type { SwapCapabilities, ServerQuote } from '../services/swapCapabilities'
 import { getGeneration, useActivePair } from '../lib/tokenStore'
 import type { ActivePair } from '../lib/tokenStore'
 import { INDICATOR_LEGEND, ema, rsi, vwap } from '../lib/indicators'
@@ -132,6 +134,50 @@ function useQuote(pair: ActivePair | null): { quote: SwapQuote | null; error: st
     return () => { on = false }
   }, [pair])
   return { quote, error }
+}
+
+/* T2 capability registry (one fetch per page): the rail renders the per-chain
+   execution state VERBATIM from the backend (quote_only/unwired) — the client
+   never derives or caches an execution claim of its own. Registry unreachable
+   → no chip, no invented state. */
+const CAP_CHIP: Record<string, string> = { quote_only: 'QUOTE ONLY', unwired: 'UNWIRED' }
+
+function useSwapCapabilities(): SwapCapabilities | null {
+  const [caps, setCaps] = useState<SwapCapabilities | null>(null)
+  useEffect(() => {
+    let on = true
+    fetchSwapCapabilities().then((c) => { if (on) setCaps(c) })
+    return () => { on = false }
+  }, [])
+  return caps
+}
+
+/* T2 server route quote: an EXACT-IN quote for the typed amount, debounced
+   and generation-guarded. Only a data_mode=live response is surfaced; the
+   unwired/degraded contract maps to null (the DexScreener estimate stays,
+   honestly labeled — the server line is additive, never a replacement). */
+function useServerQuote(pair: ActivePair | null, dir: 'buy' | 'sell', amount: string): ServerQuote | null {
+  const [sq, setSq] = useState<ServerQuote | null>(null)
+  useEffect(() => {
+    let on = true
+    const gen = getGeneration()
+    const n = Number.parseFloat(amount)
+    if (!pair || !Number.isFinite(n) || n <= 0) { setSq(null); return }
+    const t = setTimeout(() => {
+      fetchServerQuote({
+        chain: pair.chain,
+        tokenIn: dir === 'buy' ? 'native' : pair.tokenAddress,
+        tokenOut: dir === 'buy' ? pair.tokenAddress : 'native',
+        amountIn: String(n),
+        slippageBps: 50,
+      }).then((q) => {
+        if (!on || getGeneration() !== gen) return
+        setSq(q && q.minimum_received != null ? q : null)
+      }).catch(() => { if (on) setSq(null) })
+    }, 400)
+    return () => { on = false; clearTimeout(t) }
+  }, [pair, dir, amount])
+  return sq
 }
 
 /* OHLCV via the backend (Fase 4): SEEDING until the first array answers,
@@ -332,6 +378,10 @@ function SwapRail({ pair, quote, qErr }: { pair: ActivePair | null; quote: SwapQ
   const [pct, setPct] = useState(0)
   const [adv, setAdv] = useState(false)
   const chain = pair?.chain ?? 'sol'
+  const caps = useSwapCapabilities()
+  const capRow = caps?.chains.find((c) => c.chain === chain) ?? null
+  const capChip = capRow ? (CAP_CHIP[capRow.execution_status] ?? capRow.execution_status.toUpperCase()) : null
+  const serverQuote = useServerQuote(pair, dir, amount)
 
   /* ONE balance source (Fase 1.2): wallet store when connected, else the
      deterministic per-chain demo number — the header chip shows the same. */
@@ -348,6 +398,7 @@ function SwapRail({ pair, quote, qErr }: { pair: ActivePair | null; quote: SwapQ
 
   /* BUY: pay native, get token. SELL: pay token, get native (1.5). */
   const payingNative = dir === 'buy'
+  const getSym = payingNative ? (quote?.token ?? pair?.symbol ?? '—') : NATIVE[chain]
   const paySymbol = payingNative ? NATIVE[chain] : (quote?.token ?? pair?.symbol ?? '—')
   const payBal = payingNative ? nativeBal : tokenBal
   const payBalUsd = payingNative ? nativeBal * nativeUsd : tokenBal * (quote?.priceUsd ?? 0)
@@ -382,6 +433,7 @@ function SwapRail({ pair, quote, qErr }: { pair: ActivePair | null; quote: SwapQ
       <div className="tk-phd">
         <span>VILMEI SWAP</span>
         {quote ? <span className="tk-live">LIVE QUOTE · DEXSCREENER</span> : <span className="tk-mock">NO QUOTE</span>}
+        {capChip && <span className="tk-mock" title={`${capRow?.name ?? chain}: ${capRow?.reason ?? ''}`}>{capChip}</span>}
       </div>
       <div className="tk-swap">
         {/* SWAP-1: the wallet zone — ALL detected wallets (EIP-6963 + Solana
@@ -489,10 +541,23 @@ function SwapRail({ pair, quote, qErr }: { pair: ActivePair | null; quote: SwapQ
 
         {/* 1.6 compact rate — never the truncated long number */}
         <div className="sw2-rate mono" aria-label="exchange rate">
-          {quote && rate > 0
-            ? <>1 {NATIVE[chain]} ≈ {fmtCompact(rate, 2)} {quote.token}{quote.priceUsd != null && <> · {quote.token} {fmtPrice(quote.priceUsd)}</>}</>
-            : <>rate —</>}
+          {quote && rate > 0 ? (
+            <>1 {NATIVE[chain]} ≈ {fmtCompact(rate, 2)} {quote.token}{quote.priceUsd != null && <> · {quote.token} {fmtPrice(quote.priceUsd)}</>}</>
+          ) : (
+            <>rate —</>
+          )}
         </div>
+
+        {/* T2 exact-in route quote from the backend: shown only when a REAL
+            keyless provider answered (data_mode=live); the floor is the
+            provider's own minimum_received. Quote-only, always. */}
+        {serverQuote && serverQuote.minimum_received != null && (
+          <div className="sw2-note" data-testid="server-quote"
+            title={`quote_id ${serverQuote.quote_id ?? ''} · route ${(serverQuote.route ?? []).join(' → ')}`}>
+            SERVER QUOTE · {(serverQuote.provider_quoted ?? 'PROVIDER').toUpperCase()} —
+            {' '}≥ {fmtCompact(Number(serverQuote.minimum_received), Number(serverQuote.minimum_received) < 1000 ? 4 : 2)} {getSym} · 0.5% SLIP · QUOTE ONLY
+          </div>
+        )}
 
         {/* 1.7 info grid: every growable string ellipsized WITH a title */}
         <div className="sw2-grid">
@@ -515,6 +580,23 @@ function SwapRail({ pair, quote, qErr }: { pair: ActivePair | null; quote: SwapQ
           <div className="sw2-adv-body">
             <label>SLIPPAGE TOLERANCE <span className="tk-mock">SIMULATED</span><input placeholder="1.0 %" readOnly tabIndex={-1} /></label>
             <label>DEADLINE <span className="tk-mock">SIMULATED</span><input placeholder="30 min" readOnly tabIndex={-1} /></label>
+
+            {/* T2 capability registry — the honest per-chain state, verbatim
+                from the backend; candidates are allowlist facts, not claims */}
+            <div className="sw2-fees" data-testid="swap-capability">
+              <div className="sw2-fees-hd">
+                <span className="l">EXECUTION CAPABILITY</span>
+                <span className="tk-mock">{capChip ?? 'REGISTRY UNAVAILABLE'}</span>
+              </div>
+              <div className="sw2-fees-chips">
+                {(capRow?.provider_candidates ?? []).map((p) => (
+                  <span key={p} className="fee-chip"
+                    title="allowlisted route candidate — not yet executable">{p.toUpperCase()}</span>
+                ))}
+                <span className="fee-chip">SLIPPAGE CAP {caps?.max_slippage_bps ?? 500} BPS</span>
+              </div>
+              <p className="sw2-fees-note">{capRow?.reason ?? 'capability registry unreachable — no execution claim is made'}</p>
+            </div>
 
             {/* R4 fee frontier — planned, inspectable, never charged */}
             <div className="sw2-fees" data-testid="fee-strip">

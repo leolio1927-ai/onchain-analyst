@@ -371,19 +371,119 @@ class HistoryPage[T](Envelope):
     next_cursor: str | None = None
 
 
+class QuotePolicy(BaseModel):
+    quote_allowed: bool = False
+    execution_allowed: bool = False
+    reasons: list[str] = Field(default_factory=list)
+
+
+class SimulationGate(BaseModel):
+    state: str = "not_run"                 # passed | reverted | unavailable | not_run
+    allowed: bool = False
+    reason: str = "simulation is required before execution"
+
+
 class QuoteResponse(Envelope):
-    """Read-only route quote (planned TA-101). No order, no signature, no
-    execution — amount_out stays None until the quote engine exists."""
+    """Chain-aware quote contract (T2).
+
+    Two honest modes:
+    - live: a REAL keyless provider quote (Jupiter/LI.FI, verified 2026-09-02)
+      with amount_out/minimum_received/route filled — execution is STILL
+      refused (quote_only terminal), and raw scaling/decimals are surfaced.
+    - unwired: request validated but no provider answered (or live quoting is
+      disabled) — output fields stay absent and `degraded` carries the
+      per-attempt reasons verbatim.
+    Every response carries the deterministic policy + simulation decision and
+    the request-derived quote_id (idempotency key for any future execution).
+    """
 
     data_mode: DataMode = "unwired"
 
-    chain: str | None = None
+    source_chain: str | None = None
+    destination_chain: str | None = None
+    source_chain_caip2: str | None = None
+    destination_chain_caip2: str | None = None
     token_in: str | None = None
     token_out: str | None = None
     amount_in: str | None = None
     amount_out: str | None = None
-    price_impact_pct: float | None = None
+    minimum_received: str | None = None
+    slippage_bps: int | None = None
+    quote_id: str | None = None
+    provider_requested: str | None = None
+    provider_quoted: str | None = None
+    provider_candidates: list[str] = Field(default_factory=list)
+    execution_status: str = "unwired"
+    policy: QuotePolicy = Field(default_factory=QuotePolicy)
+    simulation: SimulationGate = Field(default_factory=SimulationGate)
     route: list[str] = Field(default_factory=list)
+    degraded: str | None = None
+    provenance: dict = Field(default_factory=dict)
+    transaction_request: dict | None = None
+    quote_cache: str | None = None
+
+
+class ChainCapability(BaseModel):
+    chain: str
+    name: str
+    namespace: str
+    caip2: str | None = None
+    native_symbol: str | None = None
+    execution_status: str
+    reason: str
+    provider_candidates: list[str] = Field(default_factory=list)
+    simulation_rpc_configured: bool = False
+
+
+class SwapExecuteRequest(BaseModel):
+    """A machine request to execute a previously quoted route.
+
+    The policy answer today is ALWAYS refusal (quote_only terminal) — the
+    endpoint exists so agents and clients hit one honest, idempotent door
+    instead of inventing their own execution path.
+    """
+
+    quote_id: str
+
+
+class SwapExecuteResponse(Envelope):
+    """The single execution decision. ``decision`` is the only field to
+    branch on; it is "refused" until provider, simulation and policy gates
+    are independently configured and enabled by the operator."""
+
+    data_mode: DataMode = "static"
+    quote_id: str | None = None
+    decision: str = "refused"
+    reason: str = "execution is disabled by policy — the terminal is quote_only"
+    recorded_at: str | None = None
+    idempotency_state: str | None = None
+
+
+class SwapExecuteConflict(Envelope):
+    """409/410 body of the execute door (T2-E idempotency): the quote_id
+    state plus, on 409, the PREVIOUS decision replayed verbatim — a retry
+    can never mint a second transaction."""
+
+    data_mode: DataMode = "static"
+    quote_id: str | None = None
+    state: str = "already_consumed"
+    message: str = ""
+    previous_decision: dict | None = None
+
+
+class SwapCapabilitiesResponse(Envelope):
+    """The chain-aware execution capability registry.
+
+    Quote-only/unwired is a real state; it must never render as executable.
+    """
+
+    data_mode: DataMode = "static"
+    chains: list[ChainCapability] = Field(default_factory=list)
+    provider_allowlist: list[str] = Field(default_factory=list)
+    max_slippage_bps: int = 500
+    execution_enabled: bool = False
+    honest_note: str = "execution is disabled until provider and simulation gates are configured"
+
 
 
 class WatchlistItem(Envelope):

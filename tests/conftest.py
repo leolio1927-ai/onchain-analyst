@@ -8,9 +8,29 @@ provider_stub.install_enrichment, which re-patches with full mode control.
 """
 import pytest
 
-from providers import blockscout, evm, goplus, jupiter
+from providers import blockscout, evm, goplus, jupiter, swap_quotes
+from webapp import swap_exec, swap_quote_state, swap_shadow, swap_throttle
 
 _CANNED_CREATOR = "0xcanned0000000000000000000000000000000001"
+
+
+@pytest.fixture(autouse=True)
+def _swap_side_effects_isolated(tmp_path, monkeypatch):
+    """Every test writes swap ledgers into its own tmp dir and starts every
+    swap limiter/cache empty — the repo's logs/ and data/ files must never
+    gain lines from a test run, and one test's request burst must never
+    throttle the next test."""
+    monkeypatch.setattr(swap_shadow, "SHADOW_PATH", tmp_path / "swap_quotes.jsonl")
+    monkeypatch.setattr(swap_exec, "EXEC_PATH", tmp_path / "swap_exec.jsonl")
+    swap_exec.reset_for_tests()
+    swap_quote_state.reset_for_tests()
+    swap_throttle.reset_for_tests()
+    swap_quotes.reset_quote_cache_for_tests()
+    yield
+    swap_exec.reset_for_tests()
+    swap_quote_state.reset_for_tests()
+    swap_throttle.reset_for_tests()
+    swap_quotes.reset_quote_cache_for_tests()
 
 
 @pytest.fixture(autouse=True)
@@ -27,6 +47,10 @@ def _offline_keyless_providers(monkeypatch):
         "code": 1,
         "result": {_token_from_url(url): {
             "creator_address": _CANNED_CREATOR, "is_honeypot": "0"}}})
+    # swap T2: live quoting is best_quote/urllib network — OFF in every test;
+    # quote-endpoint tests re-enable it explicitly with stubbed best_quote.
+    monkeypatch.setenv("VILMEI_SWAP_LIVE", "0")
+    monkeypatch.delenv("VILMEI_SWAP_KILL", raising=False)
     yield
     jupiter._cache.clear()
     blockscout._cache.clear()

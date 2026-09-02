@@ -58,11 +58,25 @@ from providers import (
     nvidia,
     portfolio,
     rugcheck,
+    simulation,
+    swap_policy,
+    swap_quotes,
     vaults,
     whale_windows,
     whales,
 )
-from webapp import ai_ask, ai_runs, chains, db, mcp, schemas
+from webapp import (
+    ai_ask,
+    ai_runs,
+    chains,
+    db,
+    mcp,
+    schemas,
+    swap_exec,
+    swap_quote_state,
+    swap_shadow,
+    swap_throttle,
+)
 from webapp import alerts as alerts_engine
 from webapp import lineage as lineage_mod
 
@@ -1430,6 +1444,142 @@ async def api_fees_destinations() -> dict:
     nothing is charged — policy data published before a basis point moves
     (docs/FEE-VAULTS.md). data_mode='static'."""
     return vaults.destinations()
+
+
+@app.get("/api/v1/swap/capabilities", response_model=schemas.SwapCapabilitiesResponse,
+         tags=["market"])
+async def api_swap_capabilities() -> dict:
+    """Chain-aware swap capability registry.
+
+    This is configuration, not a claim that all five networks are
+    executable. The response stays explicit until a provider adapter and
+    simulation implementation are independently verified.
+    """
+    return {
+        "data_mode": "static",
+        "schema_version": "1.0",
+        "sources": ["providers/swap_policy.py", "providers/simulation.py"],
+        "ts": schemas._utc_now_iso(),
+        "chains": [{**row, "simulation_rpc_configured": simulation.rpc_configured(row["chain"])}
+                   for row in swap_policy.capabilities()],
+        "provider_allowlist": sorted(swap_policy.PROVIDER_ALLOWLIST),
+        "max_slippage_bps": swap_policy.MAX_SLIPPAGE_BPS,
+        "execution_enabled": False,
+        "honest_note": "execution is disabled until provider and simulation gates are configured",
+    }
+
+
+@app.get("/api/v1/swap/quote", response_model=schemas.QuoteResponse,
+         tags=["market"])
+async def api_swap_quote(request: Request, source_chain: str, destination_chain: str,
+                         token_in: str, token_out: str, amount_in: str,
+                         slippage_bps: int = 50, provider: str | None = None,
+                         wallet: str | None = None,
+                         live: bool = True) -> dict:
+    """Chain-aware quote: policy-validated, then a REAL keyless provider
+    quote when one is reachable (Jupiter sol, LI.FI bnb/base — verified
+    keyless 2026-09-02), else the honest unwired contract with the
+    per-attempt reasons verbatim.
+
+    Execution is ALWAYS refused on this surface (quote_only terminal): no
+    transaction_request is ever built, execution_allowed stays false even
+    when the quote is live. The circuit breaker auto-disables failing
+    providers; the global kill switch (VILMEI_SWAP_KILL=1) stops live
+    quoting entirely. T2-E hardening: per-IP and per-wallet throttle (429 +
+    Retry-After) and a 10–15s provider-quote cache — the cache damps the
+    fan-out only; policy and simulation gates run fresh on every request.
+    ``wallet`` is used ONLY as an in-memory throttle key: never logged,
+    never persisted.
+    """
+    ip = request.client.host if request.client else "unknown"
+    keys = [f"ip:{ip}"]
+    if wallet:
+        keys.append(f"wallet:{wallet}")
+    allowed, retry_after, blocked_key = swap_throttle.check(keys)
+    if not allowed:
+        scope = "wallet" if (blocked_key or "").startswith("wallet") else "IP"
+        raise HTTPException(
+            429, f"swap quote rate limit reached ({swap_throttle.limit_per_minute()}/min per {scope}) — retry after {retry_after}s",
+            {"Retry-After": str(retry_after)})
+
+    def _run() -> dict:
+        out = swap_quotes.build_quote_response(
+            source_chain=source_chain, destination_chain=destination_chain,
+            token_in=token_in, token_out=token_out, amount_in=amount_in,
+            slippage_bps=slippage_bps, provider=provider, live=live)
+        # T2-E idempotency: persist the QUOTED row (quote_id is the
+        # deterministic key). Best-effort — the execute door stays fail-closed
+        # (unknown quote_id → refusal) even if this write fails.
+        db_path = db.resolve_path()
+        if db_path is not None and out.get("quote_id"):
+            swap_quote_state.record_quote(
+                db_path, quote_id=out["quote_id"],
+                request={"source_chain": out.get("source_chain"),
+                         "destination_chain": out.get("destination_chain"),
+                         "token_in": out.get("token_in"),
+                         "token_out": out.get("token_out"),
+                         "amount_in": out.get("amount_in"),
+                         "slippage_bps": out.get("slippage_bps"),
+                         "provider_requested": out.get("provider_requested")},
+                result=out)
+        swap_shadow.record_quote(
+            quote_id=out.get("quote_id") or "",
+            source_chain=out.get("source_chain") or source_chain,
+            destination_chain=out.get("destination_chain") or destination_chain,
+            token_in=out.get("token_in") or token_in,
+            token_out=out.get("token_out") or token_out,
+            amount_in=out.get("amount_in") or amount_in,
+            slippage_bps=int(out.get("slippage_bps") or slippage_bps),
+            provider_quoted=out.get("provider_quoted"),
+            amount_out=out.get("amount_out"),
+            minimum_received=out.get("minimum_received"),
+            latency_ms=(out.get("provenance") or {}).get("latency_ms"),
+            degraded=out.get("degraded"),
+            live=out.get("data_mode") == "live")
+        return out
+    try:
+        return await asyncio.to_thread(_run)
+    except swap_policy.SwapPolicyError as exc:
+        raise HTTPException(400, f"{exc.code}: {exc.message}") from exc
+
+
+@app.post("/api/v1/swap/execute", response_model=schemas.SwapExecuteResponse,
+          responses={409: {"model": schemas.SwapExecuteConflict,
+                           "description": "quote_id already CONSUMED — the previous decision is replayed"},
+                     410: {"model": schemas.SwapExecuteConflict,
+                           "description": "quote expired — request a fresh quote"}},
+          tags=["market"])
+async def api_swap_execute(body: schemas.SwapExecuteRequest) -> dict:
+    """The one execution door — and today it always REFUSES (quote_only
+    terminal). T2-E idempotency, enforced in one atomic SQLite transaction:
+    a quote_id already CONSUMED answers 409 with the previous decision
+    replayed (a retry can never produce a second transaction); an expired
+    quote answers 410 and must be re-quoted. Without ALPHA_DB_PATH the
+    JSONL refusal ledger remains the fail-closed backing."""
+    qid = body.quote_id.strip()
+    db_path = db.resolve_path()
+    idem_state = None
+    if db_path is not None and qid:
+        outcome, info = await asyncio.to_thread(
+            swap_quote_state.begin_consume, db_path, quote_id=qid)
+        idem_state = outcome
+        if outcome == "consumed":
+            body_out = schemas.SwapExecuteConflict(
+                quote_id=qid, state="already_consumed",
+                message="this quote_id was already submitted — a retry cannot produce a second transaction",
+                previous_decision=(info or {}).get("previous_decision")).model_dump()
+            return JSONResponse(status_code=409, content=body_out)
+        if outcome == "expired":
+            body_out = schemas.SwapExecuteConflict(
+                quote_id=qid, state="expired",
+                message="quote expired — request a fresh quote").model_dump()
+            return JSONResponse(status_code=410, content=body_out)
+    decision = await asyncio.to_thread(swap_exec.request_execution, quote_id=qid)
+    decision["idempotency_state"] = idem_state
+    if db_path is not None and qid and idem_state == "consumed_now":
+        await asyncio.to_thread(swap_quote_state.attach_decision,
+                                db_path, quote_id=qid, decision=decision)
+    return decision
 
 
 # ── PROMPT-V4 M4: portfolio watch — market facts for a watchlist ──────────

@@ -105,6 +105,22 @@ brackets) and was last re-verified 2026-08-29.
   Labels default UNKNOWN; seeds live in ledgers/labels.solana.json.
 - GET /ledger.jsonl — the same ledger as NDJSON: envelope → holder* → eof.
 - GET /api/ledger/history — 48h supply + top-2 concentration points from the snapshot store; empty-by-law until points exist.
+- GET /api/v1/swap/capabilities — T2 chain-aware swap capability registry for
+  sol|bnb|base|hype|hood. Returns canonical CAIP-2 where verified, provider
+  candidates, honest execution_status (quote_only|unwired), and per-chain
+  simulation_rpc_configured (T2-E: simulation RPCs are env-only — a chain
+  without VILMEI_SIM_RPC_<CHAIN> set reports false and stays quote-only).
+  Current execution_enabled=false; no transaction or wallet request is created.
+- GET /api/v1/swap/quote?source_chain=&destination_chain=&token_in=&token_out=&amount_in=&slippage_bps=&provider=&live=&wallet= — T2 quote contract, two honest modes. live: a REAL keyless provider quote (Jupiter lite-api.jup.ag for sol, LI.FI li.quest for bnb/base — both verified HTTP 200 keyless 2026-09-02) with amount_out/minimum_received/route/provenance (decimals + raw scaling surfaced; amount precision beyond token decimals is refused, never truncated). unwired: no provider answered or live disabled — `degraded` carries the per-attempt reasons verbatim. T2-E hardening: a circuit breaker per (provider, chain, route-type) auto-disables failing providers and falls back down the allowlist (provider_quoted names the active one); kill switch VILMEI_SWAP_KILL=1 stops live quoting; identical requests within ~12s are served from a provider-quote cache (`quote_cache` hit/miss — the cache only damps fan-out, policy and simulation gates still decide fresh); throttled to 20/min per IP and per optional `wallet` (429 + Retry-After; `wallet` is an in-memory throttle key only — never logged, never stored). Execution is ALWAYS refused on this surface (quote_only terminal): transaction_request stays null, execution_allowed=false, every response carries the request-derived quote_id.
+- POST /api/v1/swap/execute {"quote_id"} — the single execution door, and
+  today it always answers decision="refused" (the terminal is quote_only).
+  T2-E idempotency (needs ALPHA_DB_PATH): one SQLite row per quote_id
+  (QUOTED/CONSUMED/EXPIRED, checked+consumed in a single atomic
+  transaction) — a retry of a CONSUMED quote_id answers 409 with the
+  previous decision replayed, an expired quote (past expires_at minus a
+  15s buffer) answers 410 and must be re-quoted, and without the DB the
+  append-only ledger still refuses every attempt. A retry can never
+  double-submit.
 - POST /api/v1/landing/chat — the Analyst chat (V6-3): the landing §06
   conversation lane. Streams SSE provenance → delta* → data: [DONE] from
   the founder's chat key (BAI_API_KEY, model via VILMEI_CHAT_MODEL, default
