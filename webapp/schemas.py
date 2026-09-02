@@ -1052,3 +1052,43 @@ class HoldingsResponse(Envelope):
     tokens: list[HoldingToken] = Field(default_factory=list)
     reasons: list[str] = Field(default_factory=list)
     pricing_note: str | None = None
+
+
+# ── Slot D.2: Settlement Persistence Schemas ─────────────────────────────
+
+class SettlementEventItem(BaseModel):
+    """Immutable audit trail event for a settlement state transition."""
+
+    id: int
+    quote_id: str
+    state_from: str
+    state_to: str
+    event_type: str
+    reason: str | None = None
+    evidence_ref: str | None = None
+    created_at: str
+
+
+class SettlementStatusResponse(Envelope):
+    """Database-backed settlement status response for a swap quote (Slot D.2)."""
+
+    quote_id: str
+    wallet: str | None = None
+    provider: str | None = None
+    underlying_route_id: str | None = None
+    src_chain: str
+    dest_chain: str
+    state: str
+    reason: str | None = None
+    stuck_reason: str | None = None
+    claim_token: str | None = None
+    source_tx_hash: str | None = None
+    dest_tx_hash: str | None = None
+    source_explorer_link: str | None = None
+    dest_explorer_link: str | None = None
+    amount_in: str | None = None
+    amount_out_expected: str | None = None
+    amount_out_min: str | None = None
+    fee_expected_bps: int | None = None
+    events: list[SettlementEventItem] = Field(default_factory=list)
+

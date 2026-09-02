@@ -2019,6 +2019,49 @@
     }
    }
   },
+  "/api/v1/swap/settlement/{quote_id}": {
+   "get": {
+    "tags": [
+     "market"
+    ],
+    "summary": "Api Swap Settlement",
+    "description": "Read-only settlement status and event log for a quote (Slot D.2).\n\nReads directly from SQLite settlement tables; never polls network/RPC.",
+    "operationId": "api_swap_settlement_api_v1_swap_settlement__quote_id__get",
+    "parameters": [
+     {
+      "name": "quote_id",
+      "in": "path",
+      "required": true,
+      "schema": {
+       "type": "string",
+       "title": "Quote Id"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "description": "Successful Response",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SettlementStatusResponse"
+        }
+       }
+      }
+     },
+     "422": {
+      "description": "Validation Error",
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      }
+     }
+    }
+   }
+  },
   "/api/v1/portfolio/snapshot": {
    "get": {
     "tags": [
@@ -5676,6 +5719,286 @@
     "type": "object",
     "title": "SellTest",
     "description": "Sell-side simulation, tri-state: routable True / False / None.\nNone = \"sell simulation unavailable\" (timeout etc.) \u2014 NEVER implied safe;\nFalse = a recognized no-route answer, a loud honeypot signal."
+   },
+   "SettlementEventItem": {
+    "properties": {
+     "id": {
+      "type": "integer",
+      "title": "Id"
+     },
+     "quote_id": {
+      "type": "string",
+      "title": "Quote Id"
+     },
+     "state_from": {
+      "type": "string",
+      "title": "State From"
+     },
+     "state_to": {
+      "type": "string",
+      "title": "State To"
+     },
+     "event_type": {
+      "type": "string",
+      "title": "Event Type"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "evidence_ref": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Evidence Ref"
+     },
+     "created_at": {
+      "type": "string",
+      "title": "Created At"
+     }
+    },
+    "type": "object",
+    "required": [
+     "id",
+     "quote_id",
+     "state_from",
+     "state_to",
+     "event_type",
+     "created_at"
+    ],
+    "title": "SettlementEventItem",
+    "description": "Immutable audit trail event for a settlement state transition."
+   },
+   "SettlementStatusResponse": {
+    "properties": {
+     "data_mode": {
+      "type": "string",
+      "enum": [
+       "live",
+       "fixture",
+       "unwired",
+       "static",
+       "partial"
+      ],
+      "title": "Data Mode",
+      "default": "live"
+     },
+     "schema_version": {
+      "type": "string",
+      "const": "1.0",
+      "title": "Schema Version",
+      "default": "1.0"
+     },
+     "sources": {
+      "items": {
+       "type": "string"
+      },
+      "type": "array",
+      "title": "Sources"
+     },
+     "ts": {
+      "type": "string",
+      "title": "Ts"
+     },
+     "quote_id": {
+      "type": "string",
+      "title": "Quote Id"
+     },
+     "wallet": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Wallet"
+     },
+     "provider": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Provider"
+     },
+     "underlying_route_id": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Underlying Route Id"
+     },
+     "src_chain": {
+      "type": "string",
+      "title": "Src Chain"
+     },
+     "dest_chain": {
+      "type": "string",
+      "title": "Dest Chain"
+     },
+     "state": {
+      "type": "string",
+      "title": "State"
+     },
+     "reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Reason"
+     },
+     "stuck_reason": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Stuck Reason"
+     },
+     "claim_token": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Claim Token"
+     },
+     "source_tx_hash": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Tx Hash"
+     },
+     "dest_tx_hash": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Dest Tx Hash"
+     },
+     "source_explorer_link": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Source Explorer Link"
+     },
+     "dest_explorer_link": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Dest Explorer Link"
+     },
+     "amount_in": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Amount In"
+     },
+     "amount_out_expected": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Amount Out Expected"
+     },
+     "amount_out_min": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Amount Out Min"
+     },
+     "fee_expected_bps": {
+      "anyOf": [
+       {
+        "type": "integer"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Fee Expected Bps"
+     },
+     "events": {
+      "items": {
+       "$ref": "#/components/schemas/SettlementEventItem"
+      },
+      "type": "array",
+      "title": "Events"
+     }
+    },
+    "type": "object",
+    "required": [
+     "quote_id",
+     "src_chain",
+     "dest_chain",
+     "state"
+    ],
+    "title": "SettlementStatusResponse",
+    "description": "Database-backed settlement status response for a swap quote (Slot D.2)."
    },
    "SignalRow": {
     "properties": {

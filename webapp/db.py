@@ -30,11 +30,12 @@ import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 HISTORY_LIMIT_MAX = 500
 
 _TABLES = ("price_points", "trades", "scan_snapshots", "ingest_run",
-           "tokens", "wallet_labels", "swap_quotes")
+           "tokens", "wallet_labels", "swap_quotes", "settlement_state",
+           "settlement_events")
 
 # The honest kind set for wallet labels — enforced HERE, in code, never in SQL
 # (an open SQL CHECK would silently accept tomorrow's typo as a new category).
@@ -158,12 +159,54 @@ def _migrate_v3(conn: sqlite3.Connection) -> None:
                  "ON scan_snapshots (chain, deployer)")
 
 
+_DDL_V5 = """
+CREATE TABLE IF NOT EXISTS settlement_state (
+  quote_id TEXT NOT NULL,
+  wallet TEXT,
+  provider TEXT NOT NULL,
+  underlying_route_id TEXT NOT NULL,
+  src_chain TEXT NOT NULL,
+  dest_chain TEXT NOT NULL,
+  state TEXT NOT NULL DEFAULT 'SUBMITTED_PENDING',
+  reason TEXT,
+  source_tx_hash TEXT,
+  dest_tx_hash TEXT,
+  amount_in TEXT,
+  amount_out_expected TEXT,
+  amount_out_min TEXT,
+  fee_expected_bps INTEGER,
+  next_poll_at TEXT,
+  max_watch_until TEXT,
+  evidence_payload TEXT,
+  stuck_reason TEXT,
+  claim_token TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_settlement_state_quote_id ON settlement_state(quote_id);
+CREATE INDEX IF NOT EXISTS idx_settlement_state_status ON settlement_state(state, next_poll_at);
+
+CREATE TABLE IF NOT EXISTS settlement_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  quote_id TEXT NOT NULL,
+  state_from TEXT NOT NULL,
+  state_to TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  reason TEXT,
+  evidence_ref TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_settlement_events_id ON settlement_events(id);
+CREATE INDEX IF NOT EXISTS idx_settlement_events_quote_ts ON settlement_events(quote_id, created_at);
+"""
+
+
 # ordered migrations; each applied at most once, recorded in schema_migrations.
 # A str entry runs via executescript; a callable entry runs against the open
 # connection (used when a step must be conditional, e.g. SQLite has no
 # "ADD COLUMN IF NOT EXISTS").
 _MIGRATIONS: tuple[tuple[int, str | object], ...] = (
-    (1, _DDL), (2, _DDL_V2), (3, _migrate_v3), (4, _DDL_V4))
+    (1, _DDL), (2, _DDL_V2), (3, _migrate_v3), (4, _DDL_V4), (5, _DDL_V5))
 
 
 def resolve_path() -> Path | None:

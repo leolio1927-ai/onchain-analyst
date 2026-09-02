@@ -17,6 +17,7 @@ import logging
 import math
 import os
 import re
+import sqlite3
 import sys
 import time
 import urllib.error
@@ -58,6 +59,7 @@ from providers import (
     nvidia,
     portfolio,
     rugcheck,
+    settlement_repository,
     simulation,
     swap_policy,
     swap_quotes,
@@ -1580,6 +1582,80 @@ async def api_swap_execute(body: schemas.SwapExecuteRequest) -> dict:
         await asyncio.to_thread(swap_quote_state.attach_decision,
                                 db_path, quote_id=qid, decision=decision)
     return decision
+
+
+# ── Slot D.2: Settlement Persistence & Audit Trail ────────────────────────
+
+@app.get(
+    "/api/v1/swap/settlement/{quote_id}",
+    response_model=schemas.SettlementStatusResponse,
+    tags=["market"],
+)
+async def api_swap_settlement(quote_id: str) -> schemas.SettlementStatusResponse:
+    """Read-only settlement status and event log for a quote (Slot D.2).
+
+    Reads directly from SQLite settlement tables; never polls network/RPC.
+    """
+    db_path = db.resolve_path()
+    if db_path is None:
+        raise HTTPException(503, "settlement unavailable — ALPHA_DB_PATH unset")
+
+    try:
+        conn = db.connect(db_path)
+    except sqlite3.Error as err:
+        raise HTTPException(503, f"settlement unavailable — {err}")
+
+    try:
+        settlement = settlement_repository.get_settlement(conn, quote_id=quote_id)
+        if settlement is None:
+            raise HTTPException(404, f"settlement for quote_id {quote_id!r} not found")
+        events = settlement_repository.get_settlement_events(conn, quote_id=quote_id, limit=10)
+    except sqlite3.Error as err:
+        raise HTTPException(503, f"settlement unavailable — {err}")
+    finally:
+        conn.close()
+
+    src_chain = settlement.get("src_chain") or ""
+    dst_chain = settlement.get("dest_chain") or ""
+    src_tx = settlement.get("source_tx_hash")
+    dst_tx = settlement.get("dest_tx_hash")
+
+    event_items = [
+        schemas.SettlementEventItem(
+            id=ev["id"],
+            quote_id=ev["quote_id"],
+            state_from=ev["state_from"],
+            state_to=ev["state_to"],
+            event_type=ev["event_type"],
+            reason=ev.get("reason"),
+            evidence_ref=ev.get("evidence_ref"),
+            created_at=ev["created_at"],
+        )
+        for ev in events
+    ]
+
+    return schemas.SettlementStatusResponse(
+        quote_id=settlement["quote_id"],
+        wallet=settlement.get("wallet"),
+        provider=settlement.get("provider"),
+        underlying_route_id=settlement.get("underlying_route_id"),
+        src_chain=src_chain,
+        dest_chain=dst_chain,
+        state=settlement["state"],
+        reason=settlement.get("reason"),
+        stuck_reason=settlement.get("stuck_reason"),
+        claim_token=settlement.get("claim_token"),
+        source_tx_hash=src_tx,
+        dest_tx_hash=dst_tx,
+        source_explorer_link=settlement_repository.explorer_tx_link(src_chain, src_tx),
+        dest_explorer_link=settlement_repository.explorer_tx_link(dst_chain, dst_tx),
+        amount_in=settlement.get("amount_in"),
+        amount_out_expected=settlement.get("amount_out_expected"),
+        amount_out_min=settlement.get("amount_out_min"),
+        fee_expected_bps=settlement.get("fee_expected_bps"),
+        events=event_items,
+        sources=["settlement_db"],
+    )
 
 
 # ── PROMPT-V4 M4: portfolio watch — market facts for a watchlist ──────────
