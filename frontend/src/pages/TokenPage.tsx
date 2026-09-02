@@ -7,7 +7,7 @@
    browser never calls GeckoTerminal directly — zero third-party-host claim);
    trades = /ws/tape (real GT deltas). Simulated-only surfaces keep their
    declared chips (holders). DNA: 2px bordir, dashed hairlines, mono density. */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { LiveChain } from '../lib/liveApi'
 import { LIVE_CHAIN_LABEL } from '../lib/liveApi'
@@ -380,7 +380,7 @@ function SwapRail({ pair, quote, qErr }: { pair: ActivePair | null; quote: SwapQ
   return (
     <section className="tk-panel sw-rail" data-chain={chain} style={accentStyle(chain)}>
       <div className="tk-phd">
-        <span>SWAP</span>
+        <span>VILMEI SWAP</span>
         {quote ? <span className="tk-live">LIVE QUOTE · DEXSCREENER</span> : <span className="tk-mock">NO QUOTE</span>}
       </div>
       <div className="tk-swap">
@@ -589,6 +589,9 @@ export function TokenPage() {
   const { quote, error } = useQuote(pair)
   const chain = pair?.chain ?? 'sol'
   const [tool, setTool] = useState('cross')
+  const [chartZoom, setChartZoom] = useState(1)
+  const [chartFullscreen, setChartFullscreen] = useState(false)
+  const chartRef = useRef<HTMLElement>(null)
   /* indicator toggles — the chart lines obey these switches (no fake legend) */
   const [inds, setInds] = useState<Record<'ema' | 'vwap' | 'rsi', boolean>>({ ema: true, vwap: true, rsi: true })
   const [tab, setTab] = useState('TRADES')
@@ -598,8 +601,35 @@ export function TokenPage() {
   const tape = useTape(pair?.pairAddress)
   const { session } = useWallet()
   useEffect(() => {
+    const onFullscreen = () => setChartFullscreen(document.fullscreenElement === chartRef.current)
+    document.addEventListener('fullscreenchange', onFullscreen)
+    return () => document.removeEventListener('fullscreenchange', onFullscreen)
+  }, [])
+
+  useEffect(() => {
     document.title = `${pair?.symbol ?? 'Token'} · ${chain.toUpperCase()} — VILMEI`
   }, [pair, chain])
+
+  const toggleChartFullscreen = () => {
+    const el = chartRef.current
+    if (!el) return
+    if (document.fullscreenElement) {
+      void document.exitFullscreen?.()
+      return
+    }
+    if (chartFullscreen) {
+      setChartFullscreen(false)
+      return
+    }
+    if (el.requestFullscreen) {
+      void el.requestFullscreen().catch(() => setChartFullscreen(true))
+    } else {
+      setChartFullscreen(true)
+    }
+  }
+
+  const resetChartView = () => setChartZoom(1)
+
 
   const closes = useMemo(() => ohlcv.candles.map((c) => c.c), [ohlcv.candles])
   const rsiLine = useMemo(() => rsi(closes), [closes])
@@ -668,7 +698,7 @@ export function TokenPage() {
               {/* chart — live OHLCV array; SEEDING watermark <5s, LIVE after.
                   TradingView layout: drawing tools LEFT (vertical), indicator
                   toolbar TOP, timeframe bar BOTTOM. */}
-              <section className="tk-panel tk-chart" data-chain={chain}>
+              <section ref={chartRef} className={`tk-panel tk-chart${chartFullscreen ? ' is-fullscreen' : ''}`} data-chain={chain}>
                 <div className="tk-tools">
                   {([
                     ['cross', 'Crosshair', TOOL_ICONS.cross],
@@ -693,10 +723,23 @@ export function TokenPage() {
                     <span className="tk-watermark" data-state={ohlcv.state}>
                       {ohlcv.state === 'SEEDING' ? 'SEEDING…' : ohlcv.state === 'LIVE' ? 'LIVE · GECKOTERMINAL' : ohlcv.state === 'EMPTY' ? 'NO CANDLES' : 'FEED ERROR'}
                     </span>
+                    <div className="tk-chart-actions" aria-label="chart view controls">
+                      <button type="button" onClick={() => setChartZoom((z) => Math.max(1, +(z - .25).toFixed(2)))}
+                        aria-label="zoom out" title="Zoom out">−</button>
+                      <button type="button" className="tk-zoom-value" onClick={resetChartView}
+                        aria-label="reset chart zoom" title="Reset zoom">{chartZoom.toFixed(2).replace('.00', '')}x</button>
+                      <button type="button" onClick={() => setChartZoom((z) => Math.min(3, +(z + .25).toFixed(2)))}
+                        aria-label="zoom in" title="Zoom in">+</button>
+                      <span className="tk-action-sep" />
+                      <button type="button" className="tk-full-btn" onClick={toggleChartFullscreen}
+                        aria-label={chartFullscreen ? 'exit full chart' : 'open full chart'} title={chartFullscreen ? 'Exit full chart' : 'Open full chart'}>
+                        {chartFullscreen ? 'EXIT' : 'FULL CHART'}
+                      </button>
+                    </div>
                   </div>
                   <div className="tk-canvas">
                     <div className="tk-overlay">{pair?.symbol ?? '—'} / {NATIVE[chain]} · O H L C V {ohlcv.state === 'LIVE' ? '· live' : ''}</div>
-                    <ChartSvg candles={chart} state={ohlcv.state} showEma={inds.ema} showVwap={inds.vwap} />
+                    <ChartSvg candles={chart} state={ohlcv.state} showEma={inds.ema} showVwap={inds.vwap} zoom={chartZoom} />
                   </div>
                   <div className="tk-xaxis">
                     <span className="tk-tfs">
@@ -884,8 +927,8 @@ function useXchain(pair: ActivePair | null) {
 
 /* candle chart over the LIVE array; SEEDING keeps the page honest while the
    first answer is in flight (declared watermark in the toolbar) */
-function ChartSvg({ candles, state, showEma, showVwap }: {
-  candles: Candle[] | null; state: string; showEma: boolean; showVwap: boolean
+function ChartSvg({ candles, state, showEma, showVwap, zoom }: {
+  candles: Candle[] | null; state: string; showEma: boolean; showVwap: boolean; zoom: number
 }) {
   const W = 960, H = 400, PADR = 66, VOLH = 74, TOP = 12
   if (!candles || candles.length < 2) {
@@ -897,15 +940,17 @@ function ChartSvg({ candles, state, showEma, showVwap }: {
       </svg>
     )
   }
-  const hi = Math.max(...candles.map((b) => b.h))
-  const lo = Math.min(...candles.map((b) => b.l))
-  const vmax = Math.max(...candles.map((b) => b.v), 1e-9)
-  const cw = (W - PADR - 16) / candles.length
+  const visibleCount = Math.max(2, Math.round(candles.length / zoom))
+  const visibleCandles = candles.slice(-visibleCount)
+  const hi = Math.max(...visibleCandles.map((b) => b.h))
+  const lo = Math.min(...visibleCandles.map((b) => b.l))
+  const vmax = Math.max(...visibleCandles.map((b) => b.v), 1e-9)
+  const cw = (W - PADR - 16) / visibleCandles.length
   const y = (p: number) => TOP + ((hi - p) / (hi - lo || 1)) * (H - VOLH - TOP - 46)
-  const last = candles[candles.length - 1]
-  const closes = candles.map((b) => b.c)
+  const last = visibleCandles[visibleCandles.length - 1]
+  const closes = visibleCandles.map((b) => b.c)
   const emaLine = ema(closes, 12)
-  const vwLine = vwap(candles)
+  const vwLine = vwap(visibleCandles)
   const grid = [0, 1, 2, 3, 4].map((i) => lo + ((hi - lo) * i) / 4)
   return (
     <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="live candlestick chart, GeckoTerminal ohlcv">
@@ -915,7 +960,7 @@ function ChartSvg({ candles, state, showEma, showVwap }: {
           <text x={W - PADR + 8} y={y(p) + 3} className="tk-yt">{fmtPrice(p)}</text>
         </g>
       ))}
-      {candles.map((b, i) => {
+      {visibleCandles.map((b, i) => {
         const x = 8 + i * cw + cw / 2
         const up = b.c >= b.o
         const col = up ? 'var(--brand-2)' : 'var(--rose)'

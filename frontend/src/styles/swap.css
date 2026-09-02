@@ -154,7 +154,23 @@
   border-color: color-mix(in srgb, var(--acc, var(--brand)) 40%, transparent);
   background: rgba(255, 255, 255, .03); }
 .tk-cb .tk-watermark { margin-left: auto; }
-.tk-canvas { position: relative; }
+.tk-chart-actions { display: inline-flex; align-items: center; gap: 3px; margin-left: 4px; }
+.tk-chart-actions button { height: 25px; min-width: 25px; padding: 0 7px; border: 1px solid var(--border-soft);
+  border-radius: 6px; background: rgba(255, 255, 255, .025); color: var(--muted); cursor: pointer;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 700; transition: color .15s, border-color .15s, background .15s; }
+.tk-chart-actions button:hover { color: var(--brand); border-color: color-mix(in srgb, var(--brand) 48%, transparent);
+  background: color-mix(in srgb, var(--brand) 7%, transparent); }
+.tk-chart-actions .tk-zoom-value { min-width: 38px; color: var(--text); font-size: 9px; }
+.tk-chart-actions .tk-action-sep { height: 18px; border-left: 1px dashed var(--border); margin-inline: 3px; }
+.tk-chart-actions .tk-full-btn { padding-inline: 9px; color: var(--brand-2); letter-spacing: .08em; font-size: 8.5px; }
+.tk-chart.is-fullscreen { width: 100vw; height: 100vh; min-height: 0; border-radius: 0; background: #06130d;
+  display: grid; grid-template-columns: 48px 1fr; }
+.tk-chart.is-fullscreen .tk-chart-main { min-height: 100vh; }
+.tk-chart.is-fullscreen .tk-canvas svg { max-height: none; height: calc(100vh - 104px); }
+.tk-chart:fullscreen { width: 100vw; height: 100vh; border-radius: 0; background: #06130d; }
+.tk-chart:fullscreen .tk-chart-main { min-height: 100vh; }
+.tk-chart:fullscreen .tk-canvas svg { max-height: none; height: calc(100vh - 104px); }
+
 .tk-canvas svg { display: block; width: 100%; height: auto; max-height: 430px; }
 .tk-overlay { position: absolute; top: 8px; left: 60px; font-family: var(--font-mono);
   font-size: 10.5px; color: var(--muted); pointer-events: none; }
@@ -623,9 +639,15 @@
 .sw-rail .sw2-cta { height: 44px; font-size: 11px; letter-spacing: .14em; }
 .sw-rail .sw2-disclaimer { margin-top: 6px; font-size: 9.5px; line-height: 1.4; }
 
-@media (max-width: 1380px) and (min-width: 1101px) {
-  .tk-main { grid-template-columns: minmax(0, 1fr) minmax(320px, 360px); }
+/* final desktop/mobile fit for the expanded hero composer */
+@media (max-width: 1200px) and (min-width: 901px) {
+  .tk-hero-top { align-items: flex-start; }
+  .tk-hero-search { max-width: 360px; min-width: 220px; }
 }
+@media (max-width: 900px) {
+  .tk-hero-top { align-items: center; }
+}
+
 @media (max-width: 480px) {
   .tk-main { grid-template-columns: minmax(0, 1fr); }
   .sw-wallet { grid-template-columns: minmax(0, 1fr); }

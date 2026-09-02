@@ -44,6 +44,9 @@ interface TokenState {
 }
 
 const RECENTS_KEY = 'vilmei.recents'
+/* Active selection persists separately from recents, so a reload restores
+   the exact token the user was viewing instead of falling back to BONK. */
+const ACTIVE_KEY = 'vilmei.active-pair'
 const RECENTS_MAX = 8
 
 /* P7 law: alpha.recents → vilmei.recents migration-once — recents survive
@@ -67,11 +70,30 @@ function loadRecents(): ActivePair[] {
   } catch { return [] }
 }
 
+function loadActivePair(): ActivePair | null {
+  try {
+    const raw = localStorage.getItem(ACTIVE_KEY)
+    if (!raw) return null
+    const p = JSON.parse(raw) as Partial<ActivePair>
+    if (!p || typeof p.tokenAddress !== 'string' || !p.tokenAddress || typeof p.symbol !== 'string' || !p.symbol) return null
+    if (typeof p.chain !== 'string' || !(LIVE_CHAINS as readonly string[]).includes(p.chain)) return null
+    return { ...p, chain: p.chain as LiveChain, tokenAddress: p.tokenAddress, symbol: p.symbol,
+      source: p.source === 'default' || p.source === 'user' || p.source === 'detect' ? p.source : 'user' }
+  } catch { return null }
+}
+
+function persistActivePair(pair: ActivePair | null): void {
+  try {
+    if (pair) localStorage.setItem(ACTIVE_KEY, JSON.stringify(pair))
+    else localStorage.removeItem(ACTIVE_KEY)
+  } catch { /* storage blocked — active selection falls back to the default */ }
+}
+
 function persistRecents(list: ActivePair[]): void {
   try { localStorage.setItem(RECENTS_KEY, JSON.stringify(list)) } catch { /* storage full/blocked — recents are a nicety, never a crash */ }
 }
 
-let state: TokenState = { pair: defaultPair('sol'), recents: loadRecents() }
+let state: TokenState = { pair: loadActivePair() ?? defaultPair('sol'), recents: loadRecents() }
 let generation = 0
 const listeners = new Set<() => void>()
 
@@ -100,10 +122,12 @@ export function setPair(next: ActivePair): void {
     recents: [next, ...state.recents.filter((r) => !(r.chain === next.chain && r.tokenAddress === next.tokenAddress))].slice(0, RECENTS_MAX),
   }
   persistRecents(state.recents)
+  persistActivePair(next)
   emit()
 }
 
 export function resetStore(): void {
+  persistActivePair(null)
   state = { pair: defaultPair('sol'), recents: loadRecents() }
   emit()
 }
