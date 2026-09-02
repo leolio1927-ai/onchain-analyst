@@ -23,7 +23,7 @@ export function AutodetectSearch() {
   const [phase, setPhase] = useState<Phase>({ id: 'idle' })
   const [open, setOpen] = useState(false)
   const recents = useRecents()
-  const boxRef = useRef<HTMLDivElement>(null)
+  const boxRef = useRef<HTMLFormElement>(null)
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -68,18 +68,20 @@ export function AutodetectSearch() {
   }
 
   return (
-    <div className="ta-search" ref={boxRef}>
-      <input
-        className="ta-search-input"
-        value={q}
-        placeholder="PASTE CA OR $TICKER — AUTO-DETECT CHAIN (5)"
-        aria-label="auto-detect token across the five live chains"
-        onChange={(e) => { setQ(e.target.value); setPhase({ id: 'idle' }) }}
-        onKeyDown={(e) => { if (e.key === 'Enter') run() }}
-        onBlur={run}
-        onFocus={() => setOpen(true)}
-      />
-      <span className="ta-search-ico" aria-hidden="true">⌕</span>
+    <form className="ta-search tk-token-search" ref={boxRef} onSubmit={(e) => { e.preventDefault(); run() }}>
+      <div className="tk-token-field">
+        <input
+          className="ta-search-input tk-token-input"
+          value={q}
+          placeholder="PASTE CA OR $TICKER"
+          aria-label="paste a token address or ticker"
+          onChange={(e) => { setQ(e.target.value); setPhase({ id: 'idle' }) }}
+          onFocus={() => setOpen(true)}
+        />
+      </div>
+      <button className="tk-token-send" type="submit" disabled={phase.id === 'busy'}>
+        {phase.id === 'busy' ? '...' : 'SEND'}
+      </button>
       {open && (
         <div className="ta-search-drop" role="listbox" aria-label="detection results">
           {phase.id === 'busy' && <div className="ta-search-row dim">detecting on the five live feeds…</div>}
@@ -122,6 +124,6 @@ export function AutodetectSearch() {
           )}
         </div>
       )}
-    </div>
+    </form>
   )
 }

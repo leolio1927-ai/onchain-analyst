@@ -91,10 +91,37 @@
 .tk-chip b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
 .tk-chip.pos b { color: var(--brand-2); } .tk-chip.neg b { color: var(--rose); }
 
-/* paste-CA search — lives in the hero's middle column: Swap owns token
-   selection, and the global topbar search is gone so a paste meant for the
-   Scanner can never hijack the user to the swap page */
-.tk-hero-search { flex: 1 1 260px; max-width: 460px; min-width: 0; margin-inline: auto; }
+/* centered AI-style token composer: one field + one action, no search glyph */
+.tk-hero-search { flex: 1 1 310px; max-width: 490px; min-width: 280px; margin-inline: auto; }
+.tk-token-search { display: flex; align-items: stretch; gap: 8px; max-width: none; width: 100%; position: relative;
+  padding: 4px; border: 1px solid color-mix(in srgb, var(--acc, var(--brand)) 42%, transparent);
+  border-radius: 13px; background: rgba(4, 13, 9, .78);
+  box-shadow: 0 0 0 1px rgba(20, 241, 149, .06), 0 0 22px color-mix(in srgb, var(--acc, var(--brand)) 12%, transparent); }
+.tk-token-field { flex: 1; min-width: 0; display: flex; align-items: center; }
+.tk-token-input { height: 38px; min-width: 0; width: 100%; padding: 0 11px; border: 0; background: transparent;
+  font-size: 11px; letter-spacing: .09em; }
+.tk-token-input:focus { box-shadow: none; border-color: transparent; }
+.tk-token-send { flex: none; height: 38px; min-width: 72px; padding: 0 15px; border: 1px solid color-mix(in srgb, var(--brand) 48%, transparent);
+  border-radius: 9px; color: #03150d; background: linear-gradient(135deg, var(--brand), var(--brand-2));
+  font-family: var(--font-mono); font-size: 10px; font-weight: 800; letter-spacing: .16em; cursor: pointer;
+  box-shadow: 0 0 16px rgba(20, 241, 149, .18); transition: filter .15s, transform .15s, box-shadow .15s; }
+.tk-token-send:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 0 22px rgba(20, 241, 149, .3); }
+.tk-token-send:disabled { opacity: .65; cursor: wait; }
+.tk-token-search:focus-within { border-color: color-mix(in srgb, var(--acc, var(--brand)) 68%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--acc, var(--brand)) 14%, transparent),
+    0 0 28px color-mix(in srgb, var(--acc, var(--brand)) 17%, transparent); }
+.tk-token-field { border: 0; background: transparent; }
+.tk-token-input:focus-visible { outline: none; }
+.tk-token-input::placeholder { color: var(--muted-deep); }
+.tk-token-search .ta-search-ico { display: none; }
+.tk-token-search .ta-search-drop { top: calc(100% + 8px); left: 0; right: 0; }
+@media (max-width: 900px) {
+  .tk-hero-search { order: 4; flex-basis: 100%; max-width: none; }
+}
+@media (max-width: 480px) {
+  .tk-hero-search { min-width: 0; }
+  .tk-token-send { min-width: 62px; padding-inline: 10px; }
+}
 
 /* ── [C1] chart card — TradingView layout: drawing tools LEFT (vertical),
    indicator toolbar TOP, timeframe bar BOTTOM ─────────────────── */
