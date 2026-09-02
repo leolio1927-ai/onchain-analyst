@@ -39,3 +39,23 @@
   - `uv run pytest -q`: **465 passed** in 119.72s (0 failed, 1 snapshot passed).
   - Total `swap + settlement` tests: **95 passed** (80 swap + 15 settlement; target >= 79).
 
+---
+
+## Status Sesi: Slot D.3 (Provider Settlement Status Normalizer)
+- **Status:** COMPLETED.
+- **Normalizer Module (`providers/settlement_status.py`):**
+  - CanonicalProvider enum: `lifi`, `relay`, `mayan`, `jupiter`, `debridge`.
+  - Parsers for all 5 providers: `parse_lifi`, `parse_relay`, `parse_mayan`, `parse_jupiter`, `parse_debridge`.
+  - All parsers and module marked with `[TODAY_UNVERIFIED]` draft disclosure.
+  - Fail-closed invariant: NO parser ever invents or returns `COMPLETED` (max state is `DEST_CONFIRMED`).
+  - Same-chain rule: Jupiter same-chain confirmed signature maps to `DEST_CONFIRMED`; cross-chain or unconfirmed never maps to destination.
+  - `to_transition_input` and `apply_normalized_status` pure/DB integration helper.
+- **Test Suite (`tests/test_settlement_status.py`):**
+  - 13 comprehensive mock-only tests covering all provider status mappings, invariant guards, same-chain branches, and atomic DB application.
+- **Verification Gates (WSL Linux):**
+  - `uv run ruff check`: Clean (0 errors).
+  - `uv run pytest tests/test_settlement_status.py tests/test_settlement_state.py -q`: 28 passed in 68.14s.
+  - `uv run pytest -q`: **478 passed** in 113.36s (0 failed, 1 snapshot passed).
+  - Settlement tests collected: **28** (`test_settlement_*`).
+
+
