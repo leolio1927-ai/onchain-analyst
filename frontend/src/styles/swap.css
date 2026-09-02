@@ -91,25 +91,42 @@
 .tk-chip b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
 .tk-chip.pos b { color: var(--brand-2); } .tk-chip.neg b { color: var(--rose); }
 
-/* ── [C1] chart card ──────────────────────────────────────────── */
+/* paste-CA search — lives in the hero's middle column: Swap owns token
+   selection, and the global topbar search is gone so a paste meant for the
+   Scanner can never hijack the user to the swap page */
+.tk-hero-search { flex: 1 1 260px; max-width: 460px; min-width: 0; margin-inline: auto; }
+
+/* ── [C1] chart card — TradingView layout: drawing tools LEFT (vertical),
+   indicator toolbar TOP, timeframe bar BOTTOM ─────────────────── */
 .tk-chart { display: grid; grid-template-columns: 44px 1fr; min-height: 440px; }
 .tk-tools { border-right: 1px dashed color-mix(in srgb, var(--acc, var(--brand)) 26%, transparent);
-  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 0; }
+  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 0; }
 .tk-tool { width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center;
-  border: 1px solid transparent; background: none; color: var(--muted); cursor: pointer; }
-.tk-tool:hover { color: var(--text); }
+  border: 1px solid transparent; background: none; color: var(--muted); cursor: pointer;
+  transition: color .15s, background .15s, box-shadow .15s; }
+.tk-tool:hover { color: var(--text); background: rgba(255, 255, 255, .04); }
 .tk-tool.on { color: var(--acc, var(--brand));
   border-color: color-mix(in srgb, var(--acc, var(--brand)) 55%, transparent);
   box-shadow: 0 0 12px color-mix(in srgb, var(--acc, var(--brand)) 30%, transparent),
     inset 0 0 8px color-mix(in srgb, var(--acc, var(--brand)) 12%, transparent); }
-.tk-tsep { width: 20px; border-top: 1px dashed var(--border); margin: 5px 0; }
 .tk-chart-main { display: grid; grid-template-rows: auto 1fr auto; min-width: 0; }
-.tk-cb { display: flex; align-items: center; gap: 14px; padding: 9px 14px;
+.tk-cb { display: flex; align-items: center; gap: 8px; padding: 8px 14px;
   border-bottom: 1px solid var(--border-soft); font-family: var(--font-mono); font-size: 10.5px;
   color: var(--muted); flex-wrap: wrap; }
-.tk-cb .rgt { margin-left: auto; display: flex; gap: 12px; align-items: center;
-  color: var(--muted-deep); }
-.tk-cb .g { cursor: pointer; } .tk-cb .g:hover { color: var(--brand); }
+.tk-cb-lbl { font-size: 8.5px; letter-spacing: .18em; color: var(--muted-deep); margin-right: 4px; }
+.tk-ind { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px;
+  border-radius: 999px; border: 1px solid var(--border); background: none; cursor: pointer;
+  font-family: var(--font-mono); font-size: 9.5px; letter-spacing: .06em; color: var(--muted-deep);
+  transition: color .15s, border-color .15s, background .15s; }
+.tk-ind i { width: 7px; height: 7px; border-radius: 2px; background: var(--muted-deep); }
+.tk-ind[data-ind='ema'] i { background: var(--amber); }
+.tk-ind[data-ind='vwap'] i { background: var(--blue); }
+.tk-ind[data-ind='rsi'] i { background: var(--violet); }
+.tk-ind:hover { color: var(--text); }
+.tk-ind.on { color: var(--text);
+  border-color: color-mix(in srgb, var(--acc, var(--brand)) 40%, transparent);
+  background: rgba(255, 255, 255, .03); }
+.tk-cb .tk-watermark { margin-left: auto; }
 .tk-canvas { position: relative; }
 .tk-canvas svg { display: block; width: 100%; height: auto; max-height: 430px; }
 .tk-overlay { position: absolute; top: 8px; left: 60px; font-family: var(--font-mono);
@@ -118,8 +135,13 @@
   border-top: 1px solid var(--border-soft); font-family: var(--font-mono); font-size: 10px;
   color: var(--muted-deep); }
 .tk-xaxis .rgt { margin-left: auto; display: flex; gap: 10px; align-items: center; }
-.tk-xaxis .tg { padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border-soft); }
-.tk-xaxis .tg.on { color: var(--brand); border-color: color-mix(in srgb, var(--brand) 45%, transparent); }
+.tk-tfs { display: flex; gap: 4px; }
+.tk-tfs .tg, .tk-xaxis .tg { padding: 3px 10px; border-radius: 7px; border: 1px solid transparent;
+  background: none; cursor: pointer; color: var(--muted-deep); font-family: var(--font-mono);
+  font-size: 9.5px; transition: color .15s, border-color .15s; }
+.tk-tfs .tg:hover, .tk-xaxis .tg:hover { color: var(--text); }
+.tk-tfs .tg.on, .tk-xaxis .tg.on { color: var(--brand);
+  border-color: color-mix(in srgb, var(--brand) 45%, transparent); }
 
 /* ── right rail: swap ─────────────────────────────────────────── */
 .tk-swap { padding: 12px; display: grid; gap: 10px; }
@@ -535,3 +557,51 @@
 /* header: quote chip breathes with the title */
 .sw-rail .tk-phd { padding: 4px 2px 2px; font-size: 13px; }
 @media (prefers-reduced-motion: reduce) { .sw-wallet, .sw2-field, .sw2-grid { transition: none; } }
+
+/* ═══ SWAP DESK FIT PASS — compact rail, zero horizontal clipping ═══
+   The rail is a dense trading instrument, not a marketing card. Keep every
+   control inside its grid track at desktop widths and let wallet identity
+   truncate before the connect action does. */
+.tk-wrap, .tk-main, .tk-col-a, .tk-rail-r, .sw-rail { min-width: 0; max-width: 100%; }
+.tk-main { grid-template-columns: minmax(0, 1fr) minmax(340px, 360px); gap: 12px; }
+.tk-rail-r { gap: 10px; }
+.sw-rail { overflow: hidden; }
+.sw-rail .tk-swap { min-width: 0; gap: 9px; padding: 0 8px; }
+
+.sw-wallet { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px;
+  align-items: center; padding: 8px 10px; min-width: 0; }
+.sw-wallet-id, .sw-wallet-bal, .sw-wallet > .ta-wallet { min-width: 0; }
+.sw-wallet-id { overflow: hidden; }
+.sw-wallet-id .mono, .sw-wallet-tag, .sw-wallet-bal span { min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.sw-wallet > .ta-wallet { justify-self: end; }
+.sw-wallet .ta-wallet-chip { max-width: 100%; padding: 0 9px; font-size: 9px; white-space: nowrap; }
+
+.sw-rail .sw-tabs2 { height: 40px; }
+.sw-rail .sw-tab2 { height: 34px; font-size: 11px; letter-spacing: .16em; }
+.sw-rail .sw2-field { padding: 9px 10px 8px; gap: 6px; border-radius: 11px; }
+.sw-rail .sw2-hd, .sw-rail .sw2-row { min-width: 0; }
+.sw-rail .sw2-hd > *, .sw-rail .sw2-row > * { min-width: 0; }
+.sw-rail .sw2-hd > :last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sw-rail .sw2-input { height: 40px; font-size: 21px; }
+.sw-rail .sw2-chip { height: 30px; max-width: 42%; padding: 0 8px; gap: 5px; }
+.sw-rail .sw2-quick { gap: 5px; }
+.sw-rail .sw2-quick button { height: 26px; padding: 0 8px; font-size: 10px; }
+.sw-rail .sw2-flip { margin: -6px 0; }
+.sw-rail .sw2-flip button { width: 34px; height: 34px; font-size: 14px; }
+.sw-rail .sw2-rate { padding: 6px 10px; }
+.sw-rail .sw2-grid { margin-top: 0; padding: 8px 9px; gap: 6px; }
+.sw-rail .sw2-grid > div { padding: 7px 8px; }
+.sw-rail .sw2-adv-body { padding: 7px 8px; gap: 6px; }
+.sw-rail .sw2-cta { height: 44px; font-size: 11px; letter-spacing: .14em; }
+.sw-rail .sw2-disclaimer { margin-top: 6px; font-size: 9.5px; line-height: 1.4; }
+
+@media (max-width: 1380px) and (min-width: 1101px) {
+  .tk-main { grid-template-columns: minmax(0, 1fr) minmax(320px, 360px); }
+}
+@media (max-width: 480px) {
+  .tk-main { grid-template-columns: minmax(0, 1fr); }
+  .sw-wallet { grid-template-columns: minmax(0, 1fr); }
+  .sw-wallet > .ta-wallet { justify-self: stretch; }
+  .sw-wallet .ta-wallet-chip { width: 100%; justify-content: center; }
+}

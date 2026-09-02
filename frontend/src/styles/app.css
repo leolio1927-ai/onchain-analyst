@@ -573,6 +573,8 @@ input, select { font-family: inherit; }
   position: sticky; top: 0; z-index: var(--z-header); backdrop-filter: blur(10px); }
 .ta-topbar-note { margin-left: auto; font-size: 9.5px; letter-spacing: .14em;
   color: var(--dim, #649580); white-space: nowrap; }
+.ta-topbar-context { font-size: 9.5px; letter-spacing: .22em; font-weight: 700;
+  color: var(--brand, #00ffa3); white-space: nowrap; }
 .ta-search { position: relative; flex: 1; max-width: 520px; }
 .ta-search-input { width: 100%; height: 34px; padding: 0 34px 0 12px;
   background: rgba(255,255,255,.03); border: 1px solid var(--border, #16352a);

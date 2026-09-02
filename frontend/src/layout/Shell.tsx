@@ -2,7 +2,6 @@ import { Component, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 import '../styles/app.css'
-import { AutodetectSearch } from './AutodetectSearch'
 import { NAV } from './navModel'
 
 /* crash guard: a broken page must NEVER white-screen the terminal — the
@@ -119,9 +118,10 @@ export function Shell({ pages }: { pages: Record<string, ReactNode> }) {
         </div>
       </aside>
       <main className="ta-main">
-        {/* PROMPT-V Fase 3.1: one global search bar on every terminal page */}
+        {/* Search is contextual: Swap owns token selection in its hero; scanner and
+            other surfaces keep their own purpose-built search controls. */}
         <header className="ta-topbar embroidery">
-          <AutodetectSearch />
+          <span className="ta-topbar-context mono">VILMEI TERMINAL</span>
           <span className="ta-topbar-note mono">READ-ONLY · 5 LIVE FEEDS</span>
         </header>
         <PageBoundary>{current}</PageBoundary>

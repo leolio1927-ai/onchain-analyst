@@ -8,6 +8,7 @@
    trades = /ws/tape (real GT deltas). Simulated-only surfaces keep their
    declared chips (holders). DNA: 2px bordir, dashed hairlines, mono density. */
 import { useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import type { LiveChain } from '../lib/liveApi'
 import { LIVE_CHAIN_LABEL } from '../lib/liveApi'
 import { shorten } from '../lib/liveFormat'
@@ -22,6 +23,7 @@ import type { Candle } from '../lib/indicators'
 import { demoTokenBalance, WALLET_LABEL } from '../wallet/registry'
 import { useWallet } from '../wallet/WalletContext'
 import { WalletButton } from '../wallet/WalletButton'
+import { AutodetectSearch } from '../layout/AutodetectSearch'
 import '../styles/swap.css'
 
 const OHLCV_RESOLUTIONS = ['1m', '15m', '1h', '4h', '1d'] as const
@@ -62,6 +64,30 @@ const DEX_LABEL: Record<string, string> = {
 }
 const dexLabel = (dexId: string | null | undefined) =>
   (dexId && (DEX_LABEL[dexId] ?? dexId.replace(/[-_]/g, ' '))) || 'DEX'
+
+/* drawing-tool glyphs — crisp 16px strokes, one meaning per icon (TradingView
+   convention: crosshair / trendline / measure), never a reused placeholder */
+const TOOL_ICONS: Record<string, ReactNode> = {
+  cross: (
+    <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
+      <circle cx="8" cy="8" r="4" fill="none" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M8 .5v3.5M8 12v3.5M.5 8H4M12 8h3.5" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+  ),
+  trend: (
+    <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
+      <path d="M3 13 13 3" stroke="currentColor" strokeWidth="1.3" />
+      <circle cx="3" cy="13" r="1.7" fill="currentColor" />
+      <circle cx="13" cy="3" r="1.7" fill="currentColor" />
+    </svg>
+  ),
+  measure: (
+    <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
+      <path d="M8 2.5v11M4.8 5.7 8 2.5l3.2 3.2M4.8 10.3 8 13.5l3.2-3.2"
+        fill="none" stroke="currentColor" strokeWidth="1.3" />
+    </svg>
+  ),
+}
 
 function fmtCompact(n: number, digits = 2): string {
   if (!Number.isFinite(n)) return '—'
@@ -563,6 +589,8 @@ export function TokenPage() {
   const { quote, error } = useQuote(pair)
   const chain = pair?.chain ?? 'sol'
   const [tool, setTool] = useState('cross')
+  /* indicator toggles — the chart lines obey these switches (no fake legend) */
+  const [inds, setInds] = useState<Record<'ema' | 'vwap' | 'rsi', boolean>>({ ema: true, vwap: true, rsi: true })
   const [tab, setTab] = useState('TRADES')
   const [resolution, setResolution] = useState<Resolution>('15m')
   const ohlcv = useOhlcv(pair, resolution, pair?.pairAddress)
@@ -621,6 +649,11 @@ export function TokenPage() {
                   <span className="tk-chip" title={dexLabel(quote?.dexId)}>DEX <b>{dexLabel(quote?.dexId)}</b></span>
                 </div>
               </div>
+              {/* paste-CA lives HERE — Swap owns token selection; the global
+                  topbar no longer redirects Scanner users to the swap page */}
+              <div className="tk-hero-search">
+                <AutodetectSearch />
+              </div>
               <div className="tk-mc">
                 <div className="l">{LIVE_CHAIN_LABEL[chain]} · {tape.live ? 'TAPE LIVE' : 'TAPE SEEDING'}</div>
                 <div className="v mono">{railBalance.toFixed(3)} {NATIVE[chain]}</div>
@@ -632,33 +665,46 @@ export function TokenPage() {
 
           <div className="tk-main">
             <div className="tk-col-a">
-              {/* chart — live OHLCV array; SEEDING watermark <5s, LIVE after */}
+              {/* chart — live OHLCV array; SEEDING watermark <5s, LIVE after.
+                  TradingView layout: drawing tools LEFT (vertical), indicator
+                  toolbar TOP, timeframe bar BOTTOM. */}
               <section className="tk-panel tk-chart" data-chain={chain}>
                 <div className="tk-tools">
-                  {['cross', 'trend', 'measure'].map((t) => (
-                    <button key={t} type="button" title={t} className={`tk-tool${tool === t ? ' on' : ''}`}
-                      onClick={() => setTool(t)}>◎</button>
+                  {([
+                    ['cross', 'Crosshair', TOOL_ICONS.cross],
+                    ['trend', 'Trend line', TOOL_ICONS.trend],
+                    ['measure', 'Measure', TOOL_ICONS.measure],
+                  ] as const).map(([t, title, icon]) => (
+                    <button key={t} type="button" title={title} aria-label={title}
+                      className={`tk-tool${tool === t ? ' on' : ''}`}
+                      onClick={() => setTool(t)}>{icon}</button>
                   ))}
-                  <span className="tk-tsep" />
-                  <span className="tk-watermark" data-state={ohlcv.state}>
-                    {ohlcv.state === 'SEEDING' ? 'SEEDING…' : ohlcv.state === 'LIVE' ? 'LIVE · GECKOTERMINAL' : ohlcv.state === 'EMPTY' ? 'NO CANDLES' : 'FEED ERROR'}
-                  </span>
                 </div>
                 <div className="tk-chart-main">
                   <div className="tk-cb">
-                    {OHLCV_RESOLUTIONS.map((r) => (
-                      <button key={r} type="button" className={`tg${resolution === r ? ' on' : ''}`}
-                        onClick={() => setResolution(r)}>{r}</button>
+                    <span className="tk-cb-lbl">INDICATORS</span>
+                    {INDICATOR_LEGEND.map((ind) => (
+                      <button key={ind.id} type="button" title={ind.formula}
+                        className={`tk-ind${inds[ind.id] ? ' on' : ''}`} data-ind={ind.id}
+                        onClick={() => setInds((s) => ({ ...s, [ind.id]: !s[ind.id] }))}>
+                        <i />{ind.label}{ind.id === 'rsi' && inds.rsi && lastRsi != null ? ` ${lastRsi.toFixed(0)}` : ''}
+                      </button>
                     ))}
-                    <span className="rgt mono sw-legend" title={INDICATOR_LEGEND[0].formula}>EMA12</span>
-                    <span className="rgt mono sw-legend" title={INDICATOR_LEGEND[1].formula}>VWAP</span>
-                    <span className="rgt mono sw-legend" title={INDICATOR_LEGEND[2].formula}>RSI14 {lastRsi != null ? lastRsi.toFixed(0) : '—'}</span>
+                    <span className="tk-watermark" data-state={ohlcv.state}>
+                      {ohlcv.state === 'SEEDING' ? 'SEEDING…' : ohlcv.state === 'LIVE' ? 'LIVE · GECKOTERMINAL' : ohlcv.state === 'EMPTY' ? 'NO CANDLES' : 'FEED ERROR'}
+                    </span>
                   </div>
                   <div className="tk-canvas">
                     <div className="tk-overlay">{pair?.symbol ?? '—'} / {NATIVE[chain]} · O H L C V {ohlcv.state === 'LIVE' ? '· live' : ''}</div>
-                    <ChartSvg candles={chart} state={ohlcv.state} />
+                    <ChartSvg candles={chart} state={ohlcv.state} showEma={inds.ema} showVwap={inds.vwap} />
                   </div>
                   <div className="tk-xaxis">
+                    <span className="tk-tfs">
+                      {OHLCV_RESOLUTIONS.map((r) => (
+                        <button key={r} type="button" className={`tg${resolution === r ? ' on' : ''}`}
+                          onClick={() => setResolution(r)}>{r}</button>
+                      ))}
+                    </span>
                     <span>{ohlcv.lastTs ? `${new Date(ohlcv.lastTs * 1000).toISOString().slice(0, 16).replace('T', ' ')} UTC` : '—'}</span>
                     <span className="rgt">
                       {ohlcv.reason && <span className="sw-reason" title={ohlcv.reason}>{ohlcv.state}</span>}
@@ -838,7 +884,9 @@ function useXchain(pair: ActivePair | null) {
 
 /* candle chart over the LIVE array; SEEDING keeps the page honest while the
    first answer is in flight (declared watermark in the toolbar) */
-function ChartSvg({ candles, state }: { candles: Candle[] | null; state: string }) {
+function ChartSvg({ candles, state, showEma, showVwap }: {
+  candles: Candle[] | null; state: string; showEma: boolean; showVwap: boolean
+}) {
   const W = 960, H = 400, PADR = 66, VOLH = 74, TOP = 12
   if (!candles || candles.length < 2) {
     return (
@@ -882,13 +930,18 @@ function ChartSvg({ candles, state }: { candles: Candle[] | null; state: string 
           </g>
         )
       })}
-      {/* indicators over the SAME live array (Fase 4, deterministic) */}
-      <polyline fill="none" stroke="var(--amber)" strokeWidth="1.2" opacity=".8"
-        points={emaLine.map((v, i) => v != null ? `${8 + i * cw + cw / 2},${y(v)}` : null)
-          .filter(Boolean).join(' ')} />
-      <polyline fill="none" stroke="var(--blue)" strokeWidth="1.2" opacity=".8"
-        points={vwLine.map((v, i) => v != null ? `${8 + i * cw + cw / 2},${y(v)}` : null)
-          .filter(Boolean).join(' ')} />
+      {/* indicators over the SAME live array (Fase 4, deterministic);
+          each polyline obeys its toolbar toggle */}
+      {showEma && (
+        <polyline fill="none" stroke="var(--amber)" strokeWidth="1.2" opacity=".8"
+          points={emaLine.map((v, i) => v != null ? `${8 + i * cw + cw / 2},${y(v)}` : null)
+            .filter(Boolean).join(' ')} />
+      )}
+      {showVwap && (
+        <polyline fill="none" stroke="var(--blue)" strokeWidth="1.2" opacity=".8"
+          points={vwLine.map((v, i) => v != null ? `${8 + i * cw + cw / 2},${y(v)}` : null)
+            .filter(Boolean).join(' ')} />
+      )}
       <line x1={0} x2={W - PADR} y1={y(last.c)} y2={y(last.c)} stroke="var(--brand)" strokeDasharray="2 4" opacity=".7" />
       <rect x={W - PADR + 4} y={y(last.c) - 9} width={64} height={18} rx="4" fill="var(--brand)" />
       <text x={W - PADR + 36} y={y(last.c) + 4} textAnchor="middle" className="tk-ychip">{fmtPrice(last.c)}</text>
