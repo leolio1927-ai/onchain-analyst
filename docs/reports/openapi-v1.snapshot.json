@@ -2196,6 +2196,77 @@
         }
       }
     },
+    "/api/v1/dev/settlement-feeder/seed": {
+      "post": {
+        "tags": [
+          "dev"
+        ],
+        "summary": "Api Dev Settlement Feeder Seed",
+        "description": "Seed deterministic dev settlement scenarios. Gated by ALPHA_SIM_FEEDER=1.",
+        "operationId": "api_dev_settlement_feeder_seed_api_v1_dev_settlement_feeder_seed_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DevFeederSeedRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Req"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DevFeederSeedResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dev/settlement-feeder/tick": {
+      "post": {
+        "tags": [
+          "dev"
+        ],
+        "summary": "Api Dev Settlement Feeder Tick",
+        "description": "Advance active simulated settlements along scenario steps. Gated by ALPHA_SIM_FEEDER=1.",
+        "operationId": "api_dev_settlement_feeder_tick_api_v1_dev_settlement_feeder_tick_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DevFeederTickResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/portfolio/snapshot": {
       "get": {
         "tags": [
@@ -2992,6 +3063,118 @@
         },
         "type": "object",
         "title": "DetectResponse"
+      },
+      "DevFeederSeedRequest": {
+        "properties": {
+          "reset": {
+            "type": "boolean",
+            "title": "Reset",
+            "default": false
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
+          }
+        },
+        "type": "object",
+        "title": "DevFeederSeedRequest",
+        "description": "Optional seed options."
+      },
+      "DevFeederSeedResponse": {
+        "properties": {
+          "seeded": {
+            "type": "integer",
+            "title": "Seeded"
+          },
+          "skipped_hood": {
+            "type": "integer",
+            "title": "Skipped Hood"
+          },
+          "errors": {
+            "type": "integer",
+            "title": "Errors"
+          }
+        },
+        "type": "object",
+        "required": [
+          "seeded",
+          "skipped_hood",
+          "errors"
+        ],
+        "title": "DevFeederSeedResponse",
+        "description": "Summary of seeded scenarios."
+      },
+      "DevFeederTickItem": {
+        "properties": {
+          "quote_id": {
+            "type": "string",
+            "title": "Quote Id"
+          },
+          "state_from": {
+            "type": "string",
+            "title": "State From"
+          },
+          "state_to": {
+            "type": "string",
+            "title": "State To"
+          },
+          "event_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Id"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "quote_id",
+          "state_from",
+          "state_to"
+        ],
+        "title": "DevFeederTickItem",
+        "description": "Result of advancing one settlement row."
+      },
+      "DevFeederTickResponse": {
+        "properties": {
+          "advanced": {
+            "items": {
+              "$ref": "#/components/schemas/DevFeederTickItem"
+            },
+            "type": "array",
+            "title": "Advanced"
+          },
+          "errors": {
+            "type": "integer",
+            "title": "Errors",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "title": "DevFeederTickResponse",
+        "description": "Summary of ticked settlements."
       },
       "DiscoveryItem": {
         "properties": {
@@ -5963,6 +6146,11 @@
             "title": "Db Enabled",
             "default": true
           },
+          "dev_feeder": {
+            "type": "boolean",
+            "title": "Dev Feeder",
+            "default": false
+          },
           "generated_at": {
             "type": "string",
             "title": "Generated At"
@@ -5973,7 +6161,7 @@
           "generated_at"
         ],
         "title": "SettlementListResponse",
-        "description": "Database-backed settlement list response for cockpit (Slot D.4)."
+        "description": "Database-backed settlement list response for cockpit (Slot D.4 / D.5)."
       },
       "SettlementListRow": {
         "properties": {

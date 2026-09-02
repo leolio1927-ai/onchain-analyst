@@ -1118,11 +1118,45 @@ class SettlementListRow(BaseModel):
 
 
 class SettlementListResponse(Envelope):
-    """Database-backed settlement list response for cockpit (Slot D.4)."""
+    """Database-backed settlement list response for cockpit (Slot D.4 / D.5)."""
 
     items: list[SettlementListRow] = Field(default_factory=list)
     count: int = 0
     db_enabled: bool = True
+    dev_feeder: bool = False
     generated_at: str
+
+
+class DevFeederSeedRequest(BaseModel):
+    """Optional seed options."""
+
+    reset: bool = False
+    provider: str | None = None
+
+
+class DevFeederSeedResponse(BaseModel):
+    """Summary of seeded scenarios."""
+
+    seeded: int
+    skipped_hood: int
+    errors: int
+
+
+class DevFeederTickItem(BaseModel):
+    """Result of advancing one settlement row."""
+
+    quote_id: str
+    state_from: str
+    state_to: str
+    event_id: int | None = None
+    error: str | None = None
+
+
+class DevFeederTickResponse(BaseModel):
+    """Summary of ticked settlements."""
+
+    advanced: list[DevFeederTickItem] = Field(default_factory=list)
+    errors: int = 0
+
 
 

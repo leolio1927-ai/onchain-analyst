@@ -1734,13 +1734,89 @@ async def api_swap_settlements(
     ]
 
     now_iso = datetime.now(UTC).isoformat()
+    dev_feeder_on = os.environ.get("ALPHA_SIM_FEEDER") == "1"
     return schemas.SettlementListResponse(
         items=items,
         count=len(items),
         db_enabled=True,
+        dev_feeder=dev_feeder_on,
         generated_at=now_iso,
         sources=["settlement_db"],
     )
+
+
+# ── Dev Settlement Simulator Endpoints (Slot D.5) ──────────────────────────
+# Strictly gated by environment variable ALPHA_SIM_FEEDER=1.
+# Defaults to OFF (HTTP 404).
+
+@app.post("/api/v1/dev/settlement-feeder/seed", response_model=schemas.DevFeederSeedResponse, tags=["dev"])
+async def api_dev_settlement_feeder_seed(
+    req: schemas.DevFeederSeedRequest | None = None,
+) -> schemas.DevFeederSeedResponse:
+    """Seed deterministic dev settlement scenarios. Gated by ALPHA_SIM_FEEDER=1."""
+    if os.environ.get("ALPHA_SIM_FEEDER") != "1":
+        raise HTTPException(404, "dev endpoint disabled")
+
+    db_path = db.resolve_path()
+    if db_path is None:
+        raise HTTPException(503, "settlement database not configured")
+
+    from providers import settlement_feeder
+
+    try:
+        conn = db.connect(db_path)
+    except sqlite3.Error as err:
+        raise HTTPException(503, f"database connection error — {err}")
+
+    try:
+        res = settlement_feeder.seed_settlements(
+            conn,
+            reset=req.reset if req else False,
+            provider_filter=req.provider if req else None,
+        )
+        return schemas.DevFeederSeedResponse(
+            seeded=res["seeded"],
+            skipped_hood=res["skipped_hood"],
+            errors=res["errors"],
+        )
+    finally:
+        conn.close()
+
+
+@app.post("/api/v1/dev/settlement-feeder/tick", response_model=schemas.DevFeederTickResponse, tags=["dev"])
+async def api_dev_settlement_feeder_tick() -> schemas.DevFeederTickResponse:
+    """Advance active simulated settlements along scenario steps. Gated by ALPHA_SIM_FEEDER=1."""
+    if os.environ.get("ALPHA_SIM_FEEDER") != "1":
+        raise HTTPException(404, "dev endpoint disabled")
+
+    db_path = db.resolve_path()
+    if db_path is None:
+        raise HTTPException(503, "settlement database not configured")
+
+    from providers import settlement_feeder
+
+    try:
+        conn = db.connect(db_path)
+    except sqlite3.Error as err:
+        raise HTTPException(503, f"database connection error — {err}")
+
+    try:
+        results = settlement_feeder.tick_settlements(conn)
+        advanced_items = [
+            schemas.DevFeederTickItem(
+                quote_id=r.quote_id,
+                state_from=r.state_from,
+                state_to=r.state_to,
+                event_id=r.event_id,
+                error=r.error,
+            )
+            for r in results
+        ]
+        err_count = sum(1 for r in results if r.error is not None)
+        return schemas.DevFeederTickResponse(advanced=advanced_items, errors=err_count)
+    finally:
+        conn.close()
+
 
 
 

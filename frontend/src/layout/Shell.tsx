@@ -84,6 +84,20 @@ export function UpgradeModal({ open, onClose }: { open: boolean; onClose: () => 
 export function Shell({ pages }: { pages: Record<string, ReactNode> }) {
   const route = useHashRoute()
   const [upgrade, setUpgrade] = useState(false)
+  const [topbarNote, setTopbarNote] = useState<string | null>(null)
+
+  useEffect(() => {
+    const onNote = (e: Event) => {
+      const custom = e as CustomEvent<string>
+      setTopbarNote(custom.detail)
+    }
+    window.addEventListener('vilmei:topbar-note', onNote)
+    return () => window.removeEventListener('vilmei:topbar-note', onNote)
+  }, [])
+
+  const defaultNote = route === 'settlement' ? 'READ-ONLY • SIM FEED • DEV' : 'READ-ONLY · LIVE DATA'
+  const displayNote = topbarNote ?? defaultNote
+
   const current = pages[route] ?? pages.dashboard
   return (
     <div className="ta-shell">
@@ -122,7 +136,7 @@ export function Shell({ pages }: { pages: Record<string, ReactNode> }) {
             other surfaces keep their own purpose-built search controls. */}
         <header className="ta-topbar embroidery">
           <span className="ta-topbar-context mono">VILMEI TERMINAL</span>
-          <span className="ta-topbar-note mono">READ-ONLY · 5 LIVE FEEDS</span>
+          <span className="ta-topbar-note mono">{displayNote}</span>
         </header>
         <PageBoundary>{current}</PageBoundary>
       </main>

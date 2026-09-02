@@ -62,6 +62,7 @@ export interface SettlementListResponse {
   items: SettlementItem[]
   count: number
   db_enabled: boolean
+  dev_feeder?: boolean
   generated_at: string
 }
 
@@ -338,3 +339,51 @@ export async function fetchSettlementDetail(quoteId: string): Promise<Settlement
   }
   return res.json()
 }
+
+export interface DevFeederSeedResponse {
+  seeded: number
+  skipped_hood: number
+  errors: number
+}
+
+export interface DevFeederTickResponse {
+  advanced: Array<{
+    quote_id: string
+    state_from: string
+    state_to: string
+    event_id?: number | null
+    error?: string | null
+  }>
+  errors: number
+}
+
+/**
+ * Trigger dev feeder tick (advances active simulated settlements 1 step).
+ * Gated by ALPHA_SIM_FEEDER=1 on backend.
+ */
+export async function advanceSimFeeder(): Promise<DevFeederTickResponse> {
+  const url = '/api/v1/dev/settlement-feeder/tick'
+  const res = await fetch(url, { method: 'POST' })
+  if (!res.ok) {
+    throw new Error(`Feeder tick failed: ${res.status} ${res.statusText}`)
+  }
+  return res.json()
+}
+
+/**
+ * Seed dev scenarios into internal DB.
+ * Gated by ALPHA_SIM_FEEDER=1 on backend.
+ */
+export async function seedSimFeeder(reset = false): Promise<DevFeederSeedResponse> {
+  const url = '/api/v1/dev/settlement-feeder/seed'
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reset }),
+  })
+  if (!res.ok) {
+    throw new Error(`Feeder seed failed: ${res.status} ${res.statusText}`)
+  }
+  return res.json()
+}
+

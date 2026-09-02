@@ -2,7 +2,7 @@
  * Tests for Slot D.4: Settlement Cockpit UI & Service Invariants
  */
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DEMO_SETTLEMENTS } from '../mock/settlementDemo'
 import {
@@ -22,6 +22,7 @@ describe('Settlement Cockpit Core Requirements', () => {
   })
 
   afterEach(() => {
+    cleanup()
     global.fetch = originalFetch
   })
 
@@ -147,7 +148,7 @@ describe('Settlement Cockpit Core Requirements', () => {
     expect(screen.getByText(/Active in Flight/i)).toBeDefined()
     expect(screen.getByText(/Honest Stuck/i)).toBeDefined()
     expect(screen.getAllByText(/Completed/i).length).toBeGreaterThan(0)
-    expect(screen.getByText(/24h Volume/i)).toBeDefined()
+    expect(screen.getByText(/VOLUME/i)).toBeDefined()
 
     // Click another settlement in the queue
     const secondItem = DEMO_SETTLEMENTS[1]
@@ -158,5 +159,167 @@ describe('Settlement Cockpit Core Requirements', () => {
     await waitFor(() => {
       expect(screen.getAllByText(new RegExp(secondItem.provider!, 'i')).length).toBeGreaterThan(0)
     })
+  })
+
+  it('test_live_empty_db_renders_placeholder_not_throw: empty DB shows placeholder and 3D stage does not throw', async () => {
+    global.fetch = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      if (url.includes('/api/v1/swap/settlements')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            items: [],
+            count: 0,
+            db_enabled: true,
+            dev_feeder: true,
+            generated_at: new Date().toISOString(),
+          }),
+        })
+      }
+      return Promise.reject(new Error(`Unexpected call to ${url}`))
+    })
+
+    render(<SettlementCockpitPage />)
+
+    await waitFor(() => {
+      expect(screen.getByText(/NO SETTLEMENT ROWS IN DB/i)).toBeDefined()
+    })
+    expect(screen.getByText(/READ-ONLY • LIVE DB \(empty\)/i)).toBeDefined()
+    expect(screen.getByText(/AWAITING TELEMETRY/i)).toBeDefined()
+  })
+
+  it('test_dev_feeder_controls_visible_and_trigger_actions: advance and seed buttons call dev endpoints', async () => {
+    const postUrls: string[] = []
+
+    global.fetch = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      const method = init?.method || 'GET'
+
+      if (method === 'POST') {
+        postUrls.push(url)
+        if (url.includes('/api/v1/dev/settlement-feeder/tick')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => ({
+              advanced: [{ quote_id: 'q_sim_01', state_from: 'CREATED', state_to: 'SUBMITTED_PENDING' }],
+              errors: 0,
+            }),
+          })
+        }
+        if (url.includes('/api/v1/dev/settlement-feeder/seed')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => ({
+              seeded: 8,
+              skipped_hood: 1,
+              errors: 0,
+            }),
+          })
+        }
+      }
+
+      if (url.includes('/api/v1/swap/settlements')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            items: [
+              {
+                quote_id: 'q_sim_lifi_01',
+                provider: 'lifi',
+                src_chain: 'eip155:8453',
+                dest_chain: 'eip155:42161',
+                state: 'SUBMITTED_PENDING',
+                amount_in: '1.0 ETH',
+              },
+            ],
+            count: 1,
+            db_enabled: true,
+            dev_feeder: true,
+            generated_at: new Date().toISOString(),
+          }),
+        })
+      }
+
+      if (url.includes('/api/v1/swap/settlement/')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            quote_id: 'q_sim_lifi_01',
+            provider: 'lifi',
+            src_chain: 'eip155:8453',
+            dest_chain: 'eip155:42161',
+            state: 'SUBMITTED_PENDING',
+            events: [],
+          }),
+        })
+      }
+
+      return Promise.reject(new Error(`Unexpected call to ${url}`))
+    })
+
+    render(<SettlementCockpitPage />)
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/ADVANCE SIM/i).length).toBeGreaterThan(0)
+      expect(screen.getAllByText(/SEED SCENARIOS/i).length).toBeGreaterThan(0)
+    })
+
+    // Click ADVANCE SIM
+    const advBtn = screen.getAllByText(/ADVANCE SIM/i)[0]
+    fireEvent.click(advBtn)
+
+    await waitFor(() => {
+      expect(postUrls).toContain('/api/v1/dev/settlement-feeder/tick')
+    })
+  })
+
+  it('test_dev_feeder_controls_hidden_when_disabled: hides dev buttons when dev_feeder is false', async () => {
+    global.fetch = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      if (url.includes('/api/v1/swap/settlements')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            items: [
+              {
+                quote_id: 'q_real_01',
+                provider: 'lifi',
+                src_chain: 'eip155:8453',
+                dest_chain: 'eip155:42161',
+                state: 'COMPLETED',
+                amount_in: '1.0 ETH',
+              },
+            ],
+            count: 1,
+            db_enabled: true,
+            dev_feeder: false,
+            generated_at: new Date().toISOString(),
+          }),
+        })
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          quote_id: 'q_real_01',
+          state: 'COMPLETED',
+          events: [],
+        }),
+      })
+    })
+
+    render(<SettlementCockpitPage />)
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^READ-ONLY • LIVE DB$/i })).toBeDefined()
+    })
+    expect(screen.queryByText(/ADVANCE SIM/i)).toBeNull()
+    expect(screen.queryByText(/SEED SCENARIOS/i)).toBeNull()
   })
 })

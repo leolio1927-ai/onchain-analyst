@@ -120,17 +120,17 @@ def can_transition(
             return False, f"REFUND_AVAILABLE cannot be reached from {from_state}"
         return True, "legal"
 
-    # QUOTE_ONLY transitions
-    if from_state == "QUOTE_ONLY":
+    # CREATED / QUOTE_ONLY transitions
+    if from_state in ("CREATED", "QUOTE_ONLY"):
         if to_state in ("SUBMITTED_PENDING", "EXPIRED", "FAILED"):
             return True, "legal"
-        return False, f"QUOTE_ONLY can only transition to SUBMITTED_PENDING, EXPIRED, or FAILED (got {to_state})"
+        return False, f"{from_state} can only transition to SUBMITTED_PENDING, EXPIRED, or FAILED (got {to_state})"
 
     # SUBMITTED_PENDING transitions
     if from_state == "SUBMITTED_PENDING":
-        if to_state in ("SOURCE_CONFIRMED", "FAILED", "STUCK_UNKNOWN"):
+        if to_state in ("SOURCE_CONFIRMED", "FAILED", "STUCK_UNKNOWN", "EXPIRED"):
             return True, "legal"
-        return False, f"SUBMITTED_PENDING can only transition to SOURCE_CONFIRMED, FAILED, or STUCK_UNKNOWN (got {to_state})"
+        return False, f"SUBMITTED_PENDING can only transition to SOURCE_CONFIRMED, FAILED, STUCK_UNKNOWN, or EXPIRED (got {to_state})"
 
     # SOURCE_CONFIRMED transitions
     if from_state == "SOURCE_CONFIRMED":

@@ -453,6 +453,27 @@ export function Pipeline3D({ settlement }: Pipeline3DProps) {
           CHAIN NOT WIRED (chain_id: null)
         </div>
       )}
+
+      {!settlement && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '12px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            padding: '4px 14px',
+            borderRadius: '6px',
+            background: 'rgba(100, 116, 139, 0.2)',
+            border: '1px solid rgba(100, 116, 139, 0.4)',
+            fontFamily: 'var(--f-mono, monospace)',
+            fontSize: '10px',
+            color: '#94a3b8',
+            fontWeight: 600,
+          }}
+        >
+          AWAITING TELEMETRY · QUEUE EMPTY
+        </div>
+      )}
     </div>
   )
 }

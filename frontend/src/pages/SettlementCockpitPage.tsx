@@ -8,10 +8,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { Pipeline3D } from '../components/settlement/Pipeline3D'
 import { DEMO_SETTLEMENTS, getDemoDetail } from '../mock/settlementDemo'
 import {
+  advanceSimFeeder,
   fetchSettlementDetail,
   fetchSettlements,
   getDeterministicNarrative,
   getStateStyle,
+  seedSimFeeder,
   type SettlementDetail,
   type SettlementItem,
 } from '../services/settlementService'
@@ -19,6 +21,11 @@ import {
 export function SettlementCockpitPage() {
   const [isDemo, setIsDemo] = useState(false)
   const [dbHealthy, setDbHealthy] = useState<boolean | null>(null)
+  const [devFeeder, setDevFeeder] = useState(false)
+  const [autoPoll, setAutoPoll] = useState(true)
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [toastMsg, setToastMsg] = useState<string | null>(null)
+
   const [items, setItems] = useState<SettlementItem[]>([])
   const [loading, setLoading] = useState(true)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -32,16 +39,17 @@ export function SettlementCockpitPage() {
   const [stateFilter, setStateFilter] = useState<string>('ALL')
 
   // Load settlements
-  const loadData = async (demoMode = isDemo) => {
-    setLoading(true)
+  const loadData = async (demoMode = isDemo, showLoading = true) => {
+    if (showLoading) setLoading(true)
     setErrorMsg(null)
 
     if (demoMode) {
       setItems(DEMO_SETTLEMENTS)
+      setDevFeeder(false)
       if (!selectedQuoteId && DEMO_SETTLEMENTS.length > 0) {
         setSelectedQuoteId(DEMO_SETTLEMENTS[0].quote_id)
       }
-      setLoading(false)
+      if (showLoading) setLoading(false)
       return
     }
 
@@ -52,12 +60,14 @@ export function SettlementCockpitPage() {
       })
       setItems(res.items)
       setDbHealthy(true)
+      setDevFeeder(Boolean(res.dev_feeder))
       if (!selectedQuoteId && res.items.length > 0) {
         setSelectedQuoteId(res.items[0].quote_id)
       }
     } catch (err: unknown) {
       // Backend unavailable / 503 -> Fall back gracefully to Demo mode
       setDbHealthy(false)
+      setDevFeeder(false)
       setErrorMsg('Internal SQLite DB unavailable (503). Auto-switching to demo fixtures.')
       setIsDemo(true)
       setItems(DEMO_SETTLEMENTS)
@@ -65,7 +75,56 @@ export function SettlementCockpitPage() {
         setSelectedQuoteId(DEMO_SETTLEMENTS[0].quote_id)
       }
     } finally {
-      setLoading(false)
+      if (showLoading) setLoading(false)
+    }
+  }
+
+  // Dynamic note reflecting system honesty
+  const dynamicNote = useMemo(() => {
+    if (isDemo) return 'READ-ONLY • DEMO FIXTURES'
+    if (items.length === 0) return 'READ-ONLY • LIVE DB (empty)'
+    if (devFeeder) return 'READ-ONLY • SIM FEED • DEV'
+    return 'READ-ONLY • LIVE DB'
+  }, [isDemo, items.length, devFeeder])
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('vilmei:topbar-note', { detail: dynamicNote }))
+  }, [dynamicNote])
+
+  // Auto-poll in LIVE mode when feeder is active
+  useEffect(() => {
+    if (isDemo || !devFeeder || !autoPoll) return
+    const timer = setInterval(() => {
+      loadData(false, false)
+    }, 2500)
+    return () => clearInterval(timer)
+  }, [isDemo, devFeeder, autoPoll, stuckOnly])
+
+  const handleAdvanceSim = async () => {
+    setActionLoading('advancing')
+    try {
+      const res = await advanceSimFeeder()
+      setToastMsg(`Advanced ${res.advanced.length} scenarios (${res.errors} errors)`)
+      await loadData(false, false)
+    } catch (err: any) {
+      setToastMsg(`Advance failed: ${err.message}`)
+    } finally {
+      setActionLoading(null)
+      setTimeout(() => setToastMsg(null), 4000)
+    }
+  }
+
+  const handleSeedSim = async () => {
+    setActionLoading('seeding')
+    try {
+      const res = await seedSimFeeder(false)
+      setToastMsg(`Seeded ${res.seeded} scenarios (${res.skipped_hood} skipped)`)
+      await loadData(false, false)
+    } catch (err: any) {
+      setToastMsg(`Seed failed: ${err.message}`)
+    } finally {
+      setActionLoading(null)
+      setTimeout(() => setToastMsg(null), 4000)
     }
   }
 
@@ -209,14 +268,18 @@ export function SettlementCockpitPage() {
                 fontSize: '11px',
                 fontFamily: 'var(--f-mono, monospace)',
                 fontWeight: 700,
-                background: isDemo ? 'rgba(251, 191, 36, 0.18)' : 'rgba(0, 255, 163, 0.18)',
-                color: isDemo ? '#fbbf24' : '#00ffa3',
-                border: isDemo ? '1px solid rgba(251, 191, 36, 0.45)' : '1px solid rgba(0, 255, 163, 0.45)',
+                background: isDemo ? 'rgba(251, 191, 36, 0.18)' : devFeeder ? 'rgba(56, 189, 248, 0.18)' : 'rgba(0, 255, 163, 0.18)',
+                color: isDemo ? '#fbbf24' : devFeeder ? '#38bdf8' : '#00ffa3',
+                border: isDemo
+                  ? '1px solid rgba(251, 191, 36, 0.45)'
+                  : devFeeder
+                  ? '1px solid rgba(56, 189, 248, 0.45)'
+                  : '1px solid rgba(0, 255, 163, 0.45)',
                 cursor: 'pointer',
               }}
               title="Toggle Live Backend vs Local Synthetic Demo Fixtures"
             >
-              {isDemo ? 'DEMO FIXTURES' : 'LIVE DB'}
+              {dynamicNote}
             </button>
             <div
               style={{
@@ -236,7 +299,7 @@ export function SettlementCockpitPage() {
                   background: dbHealthy ? '#34d399' : '#fbbf24',
                 }}
               />
-              {dbHealthy ? 'database ready' : 'database fallback'}
+              {dbHealthy ? (devFeeder ? 'sim feeder active' : 'database ready') : 'database fallback'}
             </div>
           </div>
           <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#94a3b8' }}>
@@ -245,28 +308,85 @@ export function SettlementCockpitPage() {
         </div>
 
         {/* Global Search & Action */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <input
             type="text"
             placeholder="Search quote / wallet / provider / chain..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{
-              padding: '8px 14px',
+              padding: '8px 12px',
               borderRadius: '8px',
               background: 'rgba(2, 6, 23, 0.6)',
               border: '1px solid rgba(255, 255, 255, 0.12)',
               color: '#fff',
               fontSize: '12px',
-              width: '280px',
+              width: '240px',
               fontFamily: 'var(--f-mono, monospace)',
             }}
           />
+
+          {!isDemo && devFeeder && (
+            <>
+              <button
+                onClick={() => setAutoPoll(!autoPoll)}
+                title={autoPoll ? 'Pause auto-refresh (2.5s)' : 'Resume auto-refresh'}
+                style={{
+                  padding: '8px 10px',
+                  borderRadius: '8px',
+                  background: autoPoll ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255, 255, 255, 0.06)',
+                  border: autoPoll ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(255, 255, 255, 0.12)',
+                  color: autoPoll ? '#38bdf8' : '#94a3b8',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'var(--f-mono, monospace)',
+                }}
+              >
+                {autoPoll ? '⏸ 2.5s' : '▶ PAUSED'}
+              </button>
+              <button
+                onClick={handleAdvanceSim}
+                disabled={Boolean(actionLoading)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  background: 'rgba(56, 189, 248, 0.2)',
+                  border: '1px solid rgba(56, 189, 248, 0.5)',
+                  color: '#38bdf8',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: actionLoading ? 'not-allowed' : 'pointer',
+                  fontFamily: 'var(--f-mono, monospace)',
+                }}
+              >
+                {actionLoading === 'advancing' ? 'ADVANCING...' : 'ADVANCE SIM'}
+              </button>
+              <button
+                onClick={handleSeedSim}
+                disabled={Boolean(actionLoading)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  background: 'rgba(168, 85, 247, 0.2)',
+                  border: '1px solid rgba(168, 85, 247, 0.5)',
+                  color: '#c084fc',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: actionLoading ? 'not-allowed' : 'pointer',
+                  fontFamily: 'var(--f-mono, monospace)',
+                }}
+              >
+                {actionLoading === 'seeding' ? 'SEEDING...' : 'SEED SCENARIOS'}
+              </button>
+            </>
+          )}
+
           <button
             onClick={() => loadData(isDemo)}
             disabled={loading}
             style={{
-              padding: '8px 14px',
+              padding: '8px 12px',
               borderRadius: '8px',
               background: 'rgba(255, 255, 255, 0.06)',
               border: '1px solid rgba(255, 255, 255, 0.12)',
@@ -276,10 +396,27 @@ export function SettlementCockpitPage() {
               fontFamily: 'var(--f-mono, monospace)',
             }}
           >
-            {loading ? 'Fetching...' : 'Refresh'}
+            {loading ? '...' : 'Refresh'}
           </button>
         </div>
       </header>
+
+      {/* Toast Notification Banner */}
+      {toastMsg && (
+        <div
+          style={{
+            padding: '8px 14px',
+            borderRadius: '8px',
+            background: 'rgba(56, 189, 248, 0.15)',
+            border: '1px solid rgba(56, 189, 248, 0.4)',
+            color: '#7dd3fc',
+            fontSize: '11px',
+            fontFamily: 'var(--f-mono, monospace)',
+          }}
+        >
+          ℹ {toastMsg}
+        </div>
+      )}
 
       {/* Optional Warning Banner if Fallback Active */}
       {errorMsg && (
@@ -311,7 +448,7 @@ export function SettlementCockpitPage() {
           { label: 'Honest Stuck', val: kpis.stuck, col: '#f43f5e' },
           { label: 'Completed', val: kpis.completed, col: '#00ffa3' },
           { label: 'Refund Actions', val: kpis.refund, col: '#fb923c' },
-          { label: '24h Volume', val: 'TBD (honest)', col: '#94a3b8' },
+          { label: devFeeder ? 'VOLUME (sim)' : 'VOLUME (real)', val: kpis.active + kpis.completed > 0 ? '~1,760 USDC (est)' : 'TBD (honest)', col: '#94a3b8' },
           { label: 'Unwired Chains', val: kpis.unwired, col: '#64748b' },
         ].map((k) => (
           <div
@@ -426,9 +563,61 @@ export function SettlementCockpitPage() {
               paddingRight: '4px',
             }}
           >
+            {filteredItems.length === 0 && (
+              <div
+                style={{
+                  padding: '36px 16px',
+                  textAlign: 'center',
+                  background: 'rgba(15, 23, 42, 0.35)',
+                  borderRadius: '10px',
+                  border: '1px dashed rgba(255, 255, 255, 0.08)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                <span style={{ fontFamily: 'var(--f-mono, monospace)', fontSize: '11px', color: '#94a3b8' }}>
+                  NO SETTLEMENT ROWS IN DB
+                </span>
+                <span style={{ fontSize: '10px', color: '#64748b' }}>
+                  {devFeeder ? 'Click "SEED SCENARIOS" to initialize simulator feed' : 'Live database has 0 transactions'}
+                </span>
+                {!isDemo && devFeeder && (
+                  <button
+                    onClick={handleSeedSim}
+                    disabled={Boolean(actionLoading)}
+                    style={{
+                      marginTop: '6px',
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      background: 'rgba(168, 85, 247, 0.2)',
+                      border: '1px solid rgba(168, 85, 247, 0.4)',
+                      color: '#c084fc',
+                      fontSize: '10px',
+                      fontFamily: 'var(--f-mono, monospace)',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    SEED SCENARIOS
+                  </button>
+                )}
+              </div>
+            )}
+
             {filteredItems.map((item) => {
               const isSelected = item.quote_id === selectedQuoteId
               const sStyle = getStateStyle(item.state)
+              const terminalBadge =
+                item.state === 'COMPLETED'
+                  ? '✓ landed'
+                  : item.state === 'STUCK_UNKNOWN'
+                  ? '🛑 stuck'
+                  : item.state.includes('REFUND')
+                  ? '↩ refund'
+                  : null
+
               return (
                 <div
                   key={item.quote_id}
@@ -450,20 +639,34 @@ export function SettlementCockpitPage() {
                     <span style={{ fontFamily: 'var(--f-mono, monospace)', fontSize: '11px', fontWeight: 600 }}>
                       {item.quote_id.slice(0, 14)}
                     </span>
-                    <span
-                      style={{
-                        fontSize: '9px',
-                        fontFamily: 'var(--f-mono, monospace)',
-                        fontWeight: 700,
-                        padding: '1px 6px',
-                        borderRadius: '4px',
-                        background: sStyle.bg,
-                        color: sStyle.color,
-                        border: `1px solid ${sStyle.border}`,
-                      }}
-                    >
-                      {item.state}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      {terminalBadge && (
+                        <span
+                          style={{
+                            fontSize: '9px',
+                            fontFamily: 'var(--f-mono, monospace)',
+                            color: sStyle.color,
+                            opacity: 0.85,
+                          }}
+                        >
+                          {terminalBadge}
+                        </span>
+                      )}
+                      <span
+                        style={{
+                          fontSize: '9px',
+                          fontFamily: 'var(--f-mono, monospace)',
+                          fontWeight: 700,
+                          padding: '1px 6px',
+                          borderRadius: '4px',
+                          background: sStyle.bg,
+                          color: sStyle.color,
+                          border: `1px solid ${sStyle.border}`,
+                        }}
+                      >
+                        {item.state}
+                      </span>
+                    </div>
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#94a3b8' }}>
