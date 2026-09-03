@@ -19,6 +19,7 @@ import {
   getEvents,
   getFeeRecon,
   getStateStyle,
+  postSwapHandoff,
   seedSimFeeder,
   type FeeRecon,
   type SettlementAuditEvent,
@@ -162,6 +163,27 @@ export function SettlementCockpitPage() {
       await loadData(false, false)
     } catch (err: any) {
       setToastMsg(`Seed failed: ${err.message}`)
+    } finally {
+      setActionLoading(null)
+      setTimeout(() => setToastMsg(null), 4000)
+    }
+  }
+
+  const handleHandoffQuote = async () => {
+    setActionLoading('handoff')
+    try {
+      const res = await postSwapHandoff({
+        wallet: '0xhandoff00000000000000000000000000000000ff',
+        chain_id: 'eip155:8453',
+        provider: 'lifi',
+        integrator: 'vilmei',
+        fee_bps: 30,
+        amount: '250.0 USDC',
+      })
+      setToastMsg(`Handoff ok ${res.quote_id} (${res.state}/${res.fee_status}, unsigned)`)
+      await loadData(false, false)
+    } catch (err: any) {
+      setToastMsg(`Handoff failed: ${err.message}`)
     } finally {
       setActionLoading(null)
       setTimeout(() => setToastMsg(null), 4000)
@@ -471,6 +493,25 @@ export function SettlementCockpitPage() {
               </button>
             </>
           )}
+
+          <button
+            onClick={handleHandoffQuote}
+            disabled={Boolean(actionLoading)}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '8px',
+              background: mix('var(--brand-2)', 14),
+              border: `1px solid ${mix('var(--brand-2)', 40)}`,
+              color: 'var(--brand-2)',
+              fontSize: '11px',
+              fontWeight: 700,
+              cursor: actionLoading ? 'not-allowed' : 'pointer',
+              fontFamily: 'var(--font-mono, monospace)',
+            }}
+            title="Handoff quote to settlement (DB-only, unsigned)"
+          >
+            {actionLoading === 'handoff' ? 'HANDING OFF...' : 'HANDOFF QUOTE'}
+          </button>
 
           <button
             onClick={handleExportAudit}

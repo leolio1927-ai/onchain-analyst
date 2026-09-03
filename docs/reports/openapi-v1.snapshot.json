@@ -2416,6 +2416,48 @@
         }
       }
     },
+    "/api/v1/swap/handoff": {
+      "post": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Api Swap Handoff",
+        "description": "Create a settlement row + fee track from a swap quote (T2-F.0).",
+        "operationId": "api_swap_handoff_api_v1_swap_handoff_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SwapHandoffRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwapHandoffResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/dev/settlement-feeder/seed": {
       "post": {
         "tags": [
@@ -7669,6 +7711,213 @@
         "type": "object",
         "title": "SwapExecuteResponse",
         "description": "The single execution decision. ``decision`` is the only field to\nbranch on; it is \"refused\" until provider, simulation and policy gates\nare independently configured and enabled by the operator."
+      },
+      "SwapHandoffRequest": {
+        "properties": {
+          "wallet": {
+            "type": "string",
+            "title": "Wallet"
+          },
+          "chain_id": {
+            "type": "string",
+            "title": "Chain Id"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "integrator": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Integrator"
+          },
+          "fee_bps": {
+            "type": "integer",
+            "title": "Fee Bps",
+            "default": 30
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "wallet",
+          "chain_id",
+          "provider"
+        ],
+        "title": "SwapHandoffRequest",
+        "description": "Quote-to-settlement handoff intake (T2-F.0, DB-only)."
+      },
+      "SwapHandoffResponse": {
+        "properties": {
+          "data_mode": {
+            "type": "string",
+            "enum": [
+              "live",
+              "fixture",
+              "unwired",
+              "static",
+              "partial"
+            ],
+            "title": "Data Mode",
+            "default": "live"
+          },
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version",
+            "default": "1.0"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "ts": {
+            "type": "string",
+            "title": "Ts"
+          },
+          "quote_id": {
+            "type": "string",
+            "title": "Quote Id"
+          },
+          "wallet": {
+            "type": "string",
+            "title": "Wallet"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "fee_status": {
+            "type": "string",
+            "title": "Fee Status"
+          },
+          "source_tx_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Tx Hash"
+          },
+          "unsigned_payload": {
+            "$ref": "#/components/schemas/SwapHandoffUnsignedPayload"
+          }
+        },
+        "type": "object",
+        "required": [
+          "quote_id",
+          "wallet",
+          "provider",
+          "state",
+          "fee_status",
+          "unsigned_payload"
+        ],
+        "title": "SwapHandoffResponse",
+        "description": "Handoff receipt: legal state + INJECTED fee + unsigned payload."
+      },
+      "SwapHandoffUnsignedPayload": {
+        "properties": {
+          "unsigned": {
+            "type": "boolean",
+            "title": "Unsigned",
+            "default": true
+          },
+          "quote_id": {
+            "type": "string",
+            "title": "Quote Id"
+          },
+          "wallet": {
+            "type": "string",
+            "title": "Wallet"
+          },
+          "chain_id": {
+            "type": "string",
+            "title": "Chain Id"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "fee_bps": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fee Bps"
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "source_tx_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Tx Hash"
+          },
+          "signature": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signature"
+          }
+        },
+        "type": "object",
+        "required": [
+          "quote_id",
+          "wallet",
+          "chain_id",
+          "provider"
+        ],
+        "title": "SwapHandoffUnsignedPayload",
+        "description": "Unsigned execution intent \u2014 never a broadcast receipt."
       },
       "TokenContext": {
         "properties": {

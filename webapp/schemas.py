@@ -1225,4 +1225,43 @@ class SettlementExportResponse(BaseModel):
     rows: list[SettlementExportRow] = Field(default_factory=list)
 
 
+# ── Slot T2-F.0: Swap Handoff Schemas (DB-only) ──────────────────────────
+
+class SwapHandoffRequest(BaseModel):
+    """Quote-to-settlement handoff intake (T2-F.0, DB-only)."""
+
+    wallet: str
+    chain_id: str
+    provider: str
+    integrator: str | None = None
+    fee_bps: int = 30
+    amount: str | None = None
+
+
+class SwapHandoffUnsignedPayload(BaseModel):
+    """Unsigned execution intent — never a broadcast receipt."""
+
+    unsigned: bool = True
+    quote_id: str
+    wallet: str
+    chain_id: str
+    provider: str
+    fee_bps: int | None = None
+    amount: str | None = None
+    source_tx_hash: str | None = None
+    signature: str | None = None
+
+
+class SwapHandoffResponse(Envelope):
+    """Handoff receipt: legal state + INJECTED fee + unsigned payload."""
+
+    quote_id: str
+    wallet: str
+    provider: str
+    state: str
+    fee_status: str
+    source_tx_hash: str | None = None
+    unsigned_payload: SwapHandoffUnsignedPayload
+
+
 

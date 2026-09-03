@@ -11,6 +11,7 @@ import {
   fetchSettlements,
   getDeterministicNarrative,
   getStateStyle,
+  postSwapHandoff,
   STATE_STYLES,
   type SettlementItem,
 } from '../services/settlementService'
@@ -548,5 +549,56 @@ describe('Settlement Cockpit Core Requirements', () => {
     expect(revokeObjectURL).toHaveBeenCalled()
     expect(requestedUrls).toContain('/api/v1/swap/settlements/export?limit=2000')
     expect(screen.getByText(/Exported 1 rows/)).toBeDefined()
+  })
+
+  it('test_handoff_posts_internal_api_and_returns_unsigned_receipt: handoff stays internal and unsigned', async () => {
+    const requestedUrls: string[] = []
+    global.fetch = vi.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      requestedUrls.push(url)
+      if (url === '/api/v1/swap/handoff' && init?.method === 'POST') {
+        const body = JSON.parse(String(init.body))
+        expect(body.wallet.startsWith('0x')).toBe(true)
+        expect(body.fee_bps).toBeLessThanOrEqual(3000)
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            quote_id: 'q_handoff_test01',
+            wallet: body.wallet,
+            provider: body.provider,
+            state: 'QUOTE_ONLY',
+            fee_status: 'INJECTED',
+            source_tx_hash: null,
+            unsigned_payload: {
+              unsigned: true,
+              quote_id: 'q_handoff_test01',
+              wallet: body.wallet,
+              chain_id: body.chain_id,
+              provider: body.provider,
+              source_tx_hash: null,
+              signature: null,
+            },
+          }),
+        })
+      }
+      return Promise.reject(new Error(`Unexpected call to ${url}`))
+    })
+
+    const res = await postSwapHandoff({
+      wallet: '0xhandoff00000000000000000000000000000000ff',
+      chain_id: 'eip155:8453',
+      provider: 'lifi',
+      integrator: 'vilmei',
+      fee_bps: 30,
+      amount: '250.0 USDC',
+    })
+    expect(res.state).toBe('QUOTE_ONLY')
+    expect(res.fee_status).toBe('INJECTED')
+    expect(res.source_tx_hash).toBeNull()
+    expect(res.unsigned_payload.unsigned).toBe(true)
+    expect(res.unsigned_payload.source_tx_hash).toBeNull()
+    expect(res.unsigned_payload.signature).toBeNull()
+    expect(requestedUrls).toEqual(['/api/v1/swap/handoff'])
   })
 })

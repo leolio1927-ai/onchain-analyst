@@ -21,6 +21,7 @@ import sqlite3
 import sys
 import time
 import urllib.error
+import uuid
 from collections import defaultdict, deque
 from collections.abc import AsyncGenerator
 from contextvars import ContextVar
@@ -1932,6 +1933,108 @@ async def api_swap_settlements(
         db_enabled=True,
         dev_feeder=dev_feeder_on,
         generated_at=now_iso,
+        sources=["settlement_db"],
+    )
+
+
+# ── Slot T2-F.0: Swap Handoff (DB-only) ───────────────────────────────────
+# Quote-to-settlement handoff. Pure SQLite writes: create_settlement with a
+# legal initial state plus an INJECTED fee track, and an unsigned payload.
+# Zero provider calls, zero chain reads — the payload is unsigned by design
+# (source_tx_hash stays null until a later stage broadcasts).
+
+
+@app.post(
+    "/api/v1/swap/handoff",
+    response_model=schemas.SwapHandoffResponse,
+    tags=["market"],
+)
+@app.post(
+    "/swap/handoff",
+    response_model=schemas.SwapHandoffResponse,
+    tags=["market"],
+    include_in_schema=False,
+)
+async def api_swap_handoff(body: schemas.SwapHandoffRequest) -> schemas.SwapHandoffResponse:
+    """Create a settlement row + fee track from a swap quote (T2-F.0)."""
+    wallet = (body.wallet or "").strip()
+    if not wallet.startswith("0x") or len(wallet) < 10:
+        raise HTTPException(400, "invalid wallet — must start with 0x and be at least 10 chars")
+    chain_id = (body.chain_id or "").strip()
+    if not chain_id:
+        raise HTTPException(400, "invalid chain_id — required")
+    provider = (body.provider or "").strip().lower()
+    if provider not in settlement_repository.SETTLEMENT_PROVIDERS:
+        raise HTTPException(404, f"invalid quote — unknown provider {body.provider!r}")
+    if body.fee_bps is None or body.fee_bps < 0 or body.fee_bps > 3000:
+        raise HTTPException(422, "fee_bps must be within 0..3000")
+
+    db_path = db.resolve_path()
+    if db_path is None:
+        raise HTTPException(503, "settlement unavailable — ALPHA_DB_PATH unset")
+
+    quote_id = f"q_handoff_{uuid.uuid4().hex[:12]}"
+    try:
+        conn = db.connect(db_path)
+    except sqlite3.Error as err:
+        raise HTTPException(503, f"settlement unavailable — {err}")
+
+    try:
+        settlement = settlement_repository.create_settlement(
+            conn,
+            quote_id=quote_id,
+            wallet=wallet,
+            provider=provider,
+            underlying_route_id=f"{provider}:{chain_id}:{body.fee_bps}",
+            src_chain=chain_id,
+            dest_chain=chain_id,
+            initial_state="QUOTE_ONLY",
+            reason="swap_handoff",
+            amount_in=body.amount,
+            fee_expected_bps=None,
+        )
+        if settlement is None:
+            raise HTTPException(503, "settlement unavailable — chain not wired")
+        asset_id = "USDC"
+        if body.amount and isinstance(body.amount, str) and len(body.amount.split()) > 1:
+            asset_id = body.amount.split()[-1].upper()[:16]
+        fee = settlement_repository.upsert_fee_recon(
+            conn,
+            quote_id=quote_id,
+            chain_id=chain_id,
+            asset_id=asset_id,
+            provider=provider,
+            integrator=body.integrator,
+            fee_expected_bps=None,
+            fee_injected_bps=body.fee_bps,
+            fee_quoted_bps=None,
+            status="INJECTED",
+            reason="swap_handoff_injected",
+        )
+    except sqlite3.Error as err:
+        raise HTTPException(503, f"settlement unavailable — {err}")
+    finally:
+        conn.close()
+
+    payload = schemas.SwapHandoffUnsignedPayload(
+        unsigned=True,
+        quote_id=quote_id,
+        wallet=wallet,
+        chain_id=chain_id,
+        provider=provider,
+        fee_bps=body.fee_bps,
+        amount=body.amount,
+        source_tx_hash=None,
+        signature=None,
+    )
+    return schemas.SwapHandoffResponse(
+        quote_id=quote_id,
+        wallet=wallet,
+        provider=provider,
+        state="QUOTE_ONLY",
+        fee_status=fee["status"],
+        source_tx_hash=None,
+        unsigned_payload=payload,
         sources=["settlement_db"],
     )
 

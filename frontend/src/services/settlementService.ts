@@ -498,3 +498,48 @@ export async function seedSimFeeder(reset = false): Promise<DevFeederSeedRespons
   return res.json()
 }
 
+export interface SwapHandoffRequest {
+  wallet: string
+  chain_id: string
+  provider: string
+  integrator?: string | null
+  fee_bps: number
+  amount?: string | null
+}
+
+export interface SwapHandoffReceipt {
+  quote_id: string
+  wallet: string
+  provider: string
+  state: string
+  fee_status: string
+  source_tx_hash: string | null
+  unsigned_payload: {
+    unsigned: boolean
+    quote_id: string
+    wallet: string
+    chain_id: string
+    provider: string
+    fee_bps?: number | null
+    amount?: string | null
+    source_tx_hash: string | null
+    signature: string | null
+  }
+}
+
+/**
+ * Quote-to-settlement handoff (T2-F.0, DB-only).
+ * Posts to the internal backend only — never a provider domain.
+ */
+export async function postSwapHandoff(req: SwapHandoffRequest): Promise<SwapHandoffReceipt> {
+  const res = await fetch('/api/v1/swap/handoff', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  })
+  if (!res.ok) {
+    throw new Error(`Handoff failed: ${res.status} ${res.statusText}`)
+  }
+  return res.json()
+}
+
