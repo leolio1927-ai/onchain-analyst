@@ -1659,6 +1659,55 @@ async def api_swap_settlement(quote_id: str) -> schemas.SettlementStatusResponse
 
 
 @app.get(
+    "/api/v1/swap/settlements/{quote_id}/fee-reconciliation",
+    response_model=schemas.SettlementFeeRow,
+    tags=["market"],
+)
+async def api_swap_settlement_fee_reconciliation(quote_id: str) -> schemas.SettlementFeeRow:
+    """Read-only fee reconciliation for one settlement (Slot D.6, DB-only).
+
+    Reads directly from SQLite fee_reconciliation; never polls network/RPC.
+    404 distinguishes a missing settlement from an un-seeded fee track."""
+    db_path = db.resolve_path()
+    if db_path is None:
+        raise HTTPException(503, "settlement unavailable — ALPHA_DB_PATH unset")
+
+    try:
+        conn = db.connect(db_path)
+    except sqlite3.Error as err:
+        raise HTTPException(503, f"settlement unavailable — {err}")
+
+    try:
+        settlement = settlement_repository.get_settlement(conn, quote_id=quote_id)
+        if settlement is None:
+            raise HTTPException(404, "quote not found")
+        fee = settlement_repository.get_fee_recon(conn, quote_id=quote_id)
+        if fee is None:
+            raise HTTPException(404, "fee track not seeded")
+    except sqlite3.Error as err:
+        raise HTTPException(503, f"settlement unavailable — {err}")
+    finally:
+        conn.close()
+
+    return schemas.SettlementFeeRow(
+        quote_id=fee["quote_id"],
+        chain_id=fee["chain_id"],
+        asset_id=fee["asset_id"],
+        provider=fee["provider"],
+        integrator=fee.get("integrator"),
+        fee_expected_bps=fee.get("fee_expected_bps"),
+        fee_injected_bps=fee.get("fee_injected_bps"),
+        fee_quoted_bps=fee.get("fee_quoted_bps"),
+        status=fee["status"],
+        revenue_leak=settlement_repository.is_revenue_leak(
+            fee.get("fee_expected_bps"), fee.get("fee_injected_bps")
+        ),
+        reason=fee.get("reason"),
+        note=None,
+    )
+
+
+@app.get(
     "/api/v1/swap/settlements",
     response_model=schemas.SettlementListResponse,
     tags=["market"],

@@ -461,9 +461,10 @@ def test_migration_v5_does_not_drop_v4(tmp_path: Path) -> None:
     assert "settlement_state" in tables, "v5 table settlement_state must exist"
     assert "settlement_events" in tables, "v5 table settlement_events must exist"
 
-    # Verify migration history has v1 through v5
+    # Verify migration history has every version 1..SCHEMA_VERSION exactly once
+    # (dynamic: advances automatically as additive migrations like v6 land)
     versions = [r[0] for r in conn.execute("SELECT version FROM schema_migrations ORDER BY version").fetchall()]
-    assert versions == [1, 2, 3, 4, 5]
+    assert versions == list(range(1, db.SCHEMA_VERSION + 1))
     conn.close()
 
 

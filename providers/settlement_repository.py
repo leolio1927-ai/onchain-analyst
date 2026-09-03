@@ -461,3 +461,101 @@ def get_event_summary(conn: sqlite3.Connection, quote_id: str) -> dict[str, Any]
         "last_reason": last_event["reason"] if last_event else None,
         "last_updated_at": last_event["created_at"] if last_event else None,
     }
+
+
+# ── Fee Reconciliation (Slot D.6, DB-only) ────────────────────────────────
+# Status enum enforced HERE, in code, never in SQL (same law as the
+# settlement states — a CHECK would silently accept tomorrow's typo).
+
+FEE_RECON_STATUSES: frozenset[str] = frozenset({"PENDING", "INJECTED", "MATCHED", "MISMATCH", "TBD"})
+
+
+def is_revenue_leak(expected: int | None, injected: int | None) -> bool:
+    """True only when the injected fee is provably below the expected take:
+    exp > 0 AND inj >= 0 AND inj < exp. Absent numbers are never a leak —
+    unknown is TBD, not dishonesty."""
+    if expected is None or injected is None:
+        return False
+    return expected > 0 and injected >= 0 and injected < expected
+
+
+def derive_fee_status(
+    fee_expected_bps: int | None,
+    fee_injected_bps: int | None,
+    fee_quoted_bps: int | None,
+) -> str:
+    """Derive the honest recon status from the three fee numbers."""
+    if fee_expected_bps is None and fee_injected_bps is None and fee_quoted_bps is not None:
+        return "TBD"
+    if fee_expected_bps is not None and fee_injected_bps is not None:
+        if fee_injected_bps == fee_expected_bps:
+            return "MATCHED"
+        if fee_injected_bps < fee_expected_bps:
+            return "MISMATCH"
+    if fee_injected_bps is not None and fee_injected_bps > 0 and fee_expected_bps is None:
+        return "INJECTED"
+    return "PENDING"
+
+
+def upsert_fee_recon(
+    conn: sqlite3.Connection,
+    *,
+    quote_id: str,
+    chain_id: str,
+    asset_id: str,
+    provider: str,
+    integrator: str | None = None,
+    fee_expected_bps: int | None = None,
+    fee_injected_bps: int | None = None,
+    fee_quoted_bps: int | None = None,
+    status: str | None = "PENDING",
+    reason: str | None = None,
+) -> dict[str, Any]:
+    """Insert or update one fee_reconciliation row (DB-only, Slot D.6).
+
+    status=None → derived from the three fee numbers; a derived TBD row gets
+    reason 'fee_model_unverified_draft' when the caller supplied none.
+    Pure DB write: zero network, zero provider calls."""
+    if status is None:
+        status = derive_fee_status(fee_expected_bps, fee_injected_bps, fee_quoted_bps)
+        if status == "TBD" and reason is None:
+            reason = "fee_model_unverified_draft"
+    if status not in FEE_RECON_STATUSES:
+        raise ValueError(
+            f"unknown fee recon status {status!r}; allowed: {sorted(FEE_RECON_STATUSES)}"
+        )
+    conn.execute(
+        """
+        INSERT INTO fee_reconciliation (
+            quote_id, chain_id, asset_id, provider, integrator,
+            fee_expected_bps, fee_injected_bps, fee_quoted_bps,
+            status, reason, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+        ON CONFLICT(quote_id) DO UPDATE SET
+            chain_id = excluded.chain_id,
+            asset_id = excluded.asset_id,
+            provider = excluded.provider,
+            integrator = excluded.integrator,
+            fee_expected_bps = excluded.fee_expected_bps,
+            fee_injected_bps = excluded.fee_injected_bps,
+            fee_quoted_bps = excluded.fee_quoted_bps,
+            status = excluded.status,
+            reason = excluded.reason,
+            updated_at = datetime('now')
+        """,
+        (quote_id, chain_id, asset_id, provider, integrator,
+         fee_expected_bps, fee_injected_bps, fee_quoted_bps, status, reason),
+    )
+    conn.commit()
+    row = get_fee_recon(conn, quote_id=quote_id)
+    assert row is not None  # INSERT OR CONFLICT UPDATE guarantees the row
+    return row
+
+
+def get_fee_recon(conn: sqlite3.Connection, *, quote_id: str) -> dict[str, Any] | None:
+    """One fee reconciliation row by quote_id, or None when never seeded."""
+    row = conn.execute(
+        "SELECT * FROM fee_reconciliation WHERE quote_id = ?",
+        (quote_id,),
+    ).fetchone()
+    return dict(row) if row is not None else None

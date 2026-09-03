@@ -15,8 +15,10 @@ import {
   fetchSettlementDetail,
   fetchSettlements,
   getDeterministicNarrative,
+  getFeeRecon,
   getStateStyle,
   seedSimFeeder,
+  type FeeRecon,
   type SettlementDetail,
   type SettlementItem,
 } from '../services/settlementService'
@@ -37,6 +39,7 @@ export function SettlementCockpitPage() {
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null)
   const [detail, setDetail] = useState<SettlementDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [fee, setFee] = useState<FeeRecon | null>(null)
 
   // Filters
   const [search, setSearch] = useState('')
@@ -141,11 +144,13 @@ export function SettlementCockpitPage() {
   useEffect(() => {
     if (!selectedQuoteId) {
       setDetail(null)
+      setFee(null)
       return
     }
 
     if (isDemo) {
       setDetail(getDemoDetail(selectedQuoteId))
+      setFee(null) // demo fixtures carry no fee track — honest absence
       return
     }
 
@@ -161,6 +166,14 @@ export function SettlementCockpitPage() {
       })
       .finally(() => {
         if (active) setDetailLoading(false)
+      })
+
+    getFeeRecon(selectedQuoteId)
+      .then((f) => {
+        if (active) setFee(f)
+      })
+      .catch(() => {
+        if (active) setFee(null)
       })
 
     return () => {
@@ -840,6 +853,33 @@ export function SettlementCockpitPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--muted)' }}>Fee bps:</span>
                 <span style={{ color: 'var(--text)' }}>{selectedItem?.fee_expected_bps ?? '—'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--muted)' }}>Fee injected:</span>
+                <span style={{ color: 'var(--text)' }}>{fee?.fee_injected_bps ?? '—'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: 'var(--muted)' }}>Fee status:</span>
+                <span style={{ color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {fee?.status ?? '—'}
+                  {fee?.revenue_leak ? (
+                    <span
+                      className="st-badge st-badge--rose"
+                      style={{
+                        fontSize: '9px',
+                        fontFamily: 'var(--font-mono, monospace)',
+                        fontWeight: 700,
+                        padding: '1px 6px',
+                        borderRadius: '4px',
+                        color: 'var(--rose)',
+                        background: mix('var(--rose)', 15),
+                        border: '1px solid color-mix(in srgb, var(--rose) 50%, transparent)',
+                      }}
+                    >
+                      revenue leak
+                    </span>
+                  ) : null}
+                </span>
               </div>
 
               {/* Source Tx Hash */}

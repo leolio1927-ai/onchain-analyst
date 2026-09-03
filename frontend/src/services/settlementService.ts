@@ -340,6 +340,35 @@ export async function fetchSettlementDetail(quoteId: string): Promise<Settlement
   return res.json()
 }
 
+export interface FeeRecon {
+  quote_id: string
+  chain_id: string
+  asset_id: string
+  provider: string
+  integrator?: string | null
+  fee_expected_bps?: number | null
+  fee_injected_bps?: number | null
+  fee_quoted_bps?: number | null
+  status: string
+  revenue_leak: boolean
+  reason?: string | null
+  note?: string | null
+}
+
+/**
+ * Fetch fee reconciliation for one settlement from internal backend API only.
+ * 404 (un-seeded fee track) → null: honest absence, not an error.
+ */
+export async function getFeeRecon(quoteId: string): Promise<FeeRecon | null> {
+  const url = `/api/v1/swap/settlements/${encodeURIComponent(quoteId)}/fee-reconciliation`
+  const res = await fetch(url)
+  if (res.status === 404) return null
+  if (!res.ok) {
+    throw new Error(`Fee recon fetch failed: ${res.status} ${res.statusText}`)
+  }
+  return res.json()
+}
+
 export interface DevFeederSeedResponse {
   seeded: number
   skipped_hood: number

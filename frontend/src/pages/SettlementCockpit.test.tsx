@@ -354,4 +354,78 @@ describe('Settlement Cockpit Core Requirements', () => {
     expect(screen.queryByText(/ADVANCE SIM/i)).toBeNull()
     expect(screen.queryByText(/SEED SCENARIOS/i)).toBeNull()
   })
+
+  it('test_settlement_fee_field_and_leakbadge_renders: inspector shows fee injected and honest leak badge', async () => {
+    global.fetch = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      // ORDER MATTERS: the fee URL contains the list URL as a substring.
+      if (url.includes('/api/v1/swap/settlements/')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            quote_id: 'q_fee_01',
+            chain_id: 'eip155:1',
+            asset_id: 'usdc',
+            provider: 'lifi',
+            integrator: null,
+            fee_expected_bps: 10,
+            fee_injected_bps: 8,
+            fee_quoted_bps: null,
+            status: 'MISMATCH',
+            revenue_leak: true,
+            reason: null,
+            note: null,
+          }),
+        })
+      }
+      if (url.includes('/api/v1/swap/settlements')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            items: [
+              {
+                quote_id: 'q_fee_01',
+                provider: 'lifi',
+                src_chain: 'eip155:1',
+                dest_chain: 'eip155:8453',
+                state: 'DEST_CONFIRMED',
+                amount_in: '1 ETH',
+              },
+            ],
+            count: 1,
+            db_enabled: true,
+            dev_feeder: false,
+            generated_at: new Date().toISOString(),
+          }),
+        })
+      }
+      if (url.includes('/api/v1/swap/settlement/')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            quote_id: 'q_fee_01',
+            provider: 'lifi',
+            src_chain: 'eip155:1',
+            dest_chain: 'eip155:8453',
+            state: 'DEST_CONFIRMED',
+            events: [],
+          }),
+        })
+      }
+      return Promise.reject(new Error(`Unexpected call to ${url}`))
+    })
+
+    render(<SettlementCockpitPage />)
+
+    // Wait for the fee VALUE (the label renders even before the fetch lands)
+    await waitFor(() => {
+      expect(screen.getByText('8')).toBeDefined()
+    })
+    expect(screen.getByText('Fee injected:')).toBeDefined()
+    expect(screen.getByText('MISMATCH')).toBeDefined()
+    expect(screen.getByText('revenue leak')).toBeDefined()
+  })
 })

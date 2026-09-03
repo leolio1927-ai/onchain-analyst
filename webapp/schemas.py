@@ -1159,4 +1159,21 @@ class DevFeederTickResponse(BaseModel):
     errors: int = 0
 
 
+class SettlementFeeRow(BaseModel):
+    """Fee reconciliation row for one settlement (Slot D.6, DB-only)."""
+
+    quote_id: str
+    chain_id: str
+    asset_id: str
+    provider: str
+    integrator: str | None = None
+    fee_expected_bps: int | None = None
+    fee_injected_bps: int | None = None
+    fee_quoted_bps: int | None = None
+    status: str
+    revenue_leak: bool
+    reason: str | None = None
+    note: str | None = None
+
+
 
