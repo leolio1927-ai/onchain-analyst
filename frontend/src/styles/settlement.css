@@ -1,0 +1,42 @@
+@import './tokens.css';
+/* ═══════════════════════════════════════════════════════════════
+   SETTLEMENT COCKPIT — one bordir DNA pass.
+   Every panel rides the --emb-* 6-chain tokens from tokens.css.
+   No hardcoded slate/blue: the cockpit inherits the landing DNA
+   (--panel / --border / --text / --brand), same law as ledger.css.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Shared panel skin: DNA panel + top 6-chain thread hairline. */
+.st-card { position: relative; overflow: hidden;
+  background: color-mix(in srgb, var(--panel) 74%, transparent);
+  border: 1px solid var(--border); }
+.st-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--emb-thread); opacity: .8; pointer-events: none; }
+.st-card.embroidery::after { opacity: .55; }
+
+/* ── State DAG stage (replaces the retired 3D lane) ─────────────── */
+.sdag-stage { position: relative; width: 100%; border-radius: 16px; overflow: hidden;
+  background: radial-gradient(ellipse at 50% 18%,
+    color-mix(in srgb, var(--panel-2) 86%, transparent), rgba(4, 12, 9, .96));
+  border: 1px solid var(--border); }
+.sdag-stage.embroidery::after { opacity: .6; }
+.sdag-grid { position: absolute; inset: 0; pointer-events: none; opacity: .55;
+  background-image: linear-gradient(rgba(0, 255, 163, .045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 255, 163, .045) 1px, transparent 1px);
+  background-size: 26px 26px; }
+.sdag-chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px;
+  border-radius: 6px; font-family: var(--font-mono, monospace); font-size: 9.5px;
+  letter-spacing: .05em; color: var(--muted);
+  background: color-mix(in srgb, var(--brand) 7%, transparent);
+  border: 1px solid var(--border); }
+
+/* Energy flowing along the proven path. */
+.sdag-flow { stroke-dasharray: 5 4; animation: sdag-dash 1.1s linear infinite; }
+@keyframes sdag-dash { to { stroke-dashoffset: -18; } }
+.sdag-pulse { animation: sdag-pulse 1.8s ease-in-out infinite; }
+@keyframes sdag-pulse { 0%, 100% { opacity: .14; } 50% { opacity: .5; } }
+@media (prefers-reduced-motion: reduce) {
+  .sdag-flow, .sdag-pulse { animation: none; }
+  .sdag-flow { opacity: .85; }
+  .sdag-pulse { opacity: .3; }
+}

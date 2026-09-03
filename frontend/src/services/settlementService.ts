@@ -193,7 +193,7 @@ export function getDeterministicNarrative(item?: SettlementItem | null, detail?:
   if (!item) {
     return {
       headline: 'Awaiting Settlement Selection',
-      body: 'Select a settlement quote from the queue to inspect lifecycle events, cryptographic proofs, and 3D pipeline routing.',
+      body: 'Select a settlement quote from the queue to inspect lifecycle events, cryptographic proofs, and state DAG routing.',
       badge: 'STANDBY',
       severity: 'info',
     }

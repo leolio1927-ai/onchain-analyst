@@ -1,11 +1,14 @@
 /**
- * Settlement Cockpit Page (Slot D.4)
- * Institutional-grade non-custodial settlement visualizer, 3D pipeline stage,
+ * Settlement Cockpit Page (Slot D.4/D.5 + one-DNA visual pass)
+ * Institutional-grade non-custodial settlement visualizer, state DAG stage,
  * deterministic narrator, and cryptographic audit event blackbox.
+ *
+ * Visual law: one bordir DNA — every color rides tokens.css (--panel/--border/
+ * --text/--brand/--emb-*), every panel carries the 6-chain thread/band.
  */
 
 import { useEffect, useMemo, useState } from 'react'
-import { Pipeline3D } from '../components/settlement/Pipeline3D'
+import { SettlementDAG } from '../components/settlement/SettlementDAG'
 import { DEMO_SETTLEMENTS, getDemoDetail } from '../mock/settlementDemo'
 import {
   advanceSimFeeder,
@@ -17,6 +20,8 @@ import {
   type SettlementDetail,
   type SettlementItem,
 } from '../services/settlementService'
+
+const mix = (token: string, pct: number) => `color-mix(in srgb, ${token} ${pct}%, transparent)`
 
 export function SettlementCockpitPage() {
   const [isDemo, setIsDemo] = useState(false)
@@ -225,8 +230,8 @@ export function SettlementCockpitPage() {
     <div
       style={{
         padding: '24px',
-        color: '#f8fafc',
-        fontFamily: 'var(--f-ui, sans-serif)',
+        color: 'var(--text)',
+        fontFamily: 'var(--font-ui, sans-serif)',
         display: 'flex',
         flexDirection: 'column',
         gap: '20px',
@@ -236,14 +241,13 @@ export function SettlementCockpitPage() {
     >
       {/* ── 1. Header Bar ────────────────────────────────────────────── */}
       <header
+        className="st-card embroidery"
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           padding: '16px 20px',
           borderRadius: '16px',
-          background: 'rgba(15, 23, 42, 0.65)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
           backdropFilter: 'blur(12px)',
         }}
       >
@@ -251,11 +255,12 @@ export function SettlementCockpitPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <h1
               style={{
-                fontFamily: 'var(--f-display, sans-serif)',
+                fontFamily: 'var(--font-display, sans-serif)',
                 fontSize: '22px',
                 fontWeight: 700,
                 letterSpacing: '-0.02em',
                 margin: 0,
+                color: 'var(--text)',
               }}
             >
               SETTLEMENT COCKPIT
@@ -266,15 +271,11 @@ export function SettlementCockpitPage() {
                 padding: '3px 10px',
                 borderRadius: '999px',
                 fontSize: '11px',
-                fontFamily: 'var(--f-mono, monospace)',
+                fontFamily: 'var(--font-mono, monospace)',
                 fontWeight: 700,
-                background: isDemo ? 'rgba(251, 191, 36, 0.18)' : devFeeder ? 'rgba(56, 189, 248, 0.18)' : 'rgba(0, 255, 163, 0.18)',
-                color: isDemo ? '#fbbf24' : devFeeder ? '#38bdf8' : '#00ffa3',
-                border: isDemo
-                  ? '1px solid rgba(251, 191, 36, 0.45)'
-                  : devFeeder
-                  ? '1px solid rgba(56, 189, 248, 0.45)'
-                  : '1px solid rgba(0, 255, 163, 0.45)',
+                background: mix(isDemo ? 'var(--amber)' : devFeeder ? 'var(--blue)' : 'var(--brand)', 16),
+                color: isDemo ? 'var(--amber)' : devFeeder ? 'var(--blue)' : 'var(--brand)',
+                border: `1px solid ${mix(isDemo ? 'var(--amber)' : devFeeder ? 'var(--blue)' : 'var(--brand)', 45)}`,
                 cursor: 'pointer',
               }}
               title="Toggle Live Backend vs Local Synthetic Demo Fixtures"
@@ -287,8 +288,8 @@ export function SettlementCockpitPage() {
                 alignItems: 'center',
                 gap: '6px',
                 fontSize: '11px',
-                fontFamily: 'var(--f-mono, monospace)',
-                color: dbHealthy ? '#34d399' : '#fbbf24',
+                fontFamily: 'var(--font-mono, monospace)',
+                color: dbHealthy ? 'var(--brand-2)' : 'var(--amber)',
               }}
             >
               <span
@@ -296,13 +297,13 @@ export function SettlementCockpitPage() {
                   width: '7px',
                   height: '7px',
                   borderRadius: '50%',
-                  background: dbHealthy ? '#34d399' : '#fbbf24',
+                  background: dbHealthy ? 'var(--brand-2)' : 'var(--amber)',
                 }}
               />
               {dbHealthy ? (devFeeder ? 'sim feeder active' : 'database ready') : 'database fallback'}
             </div>
           </div>
-          <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#94a3b8' }}>
+          <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--muted)' }}>
             non-custodial settlement inspector • source submitted ≠ completed • verified receipts only
           </p>
         </div>
@@ -317,12 +318,12 @@ export function SettlementCockpitPage() {
             style={{
               padding: '8px 12px',
               borderRadius: '8px',
-              background: 'rgba(2, 6, 23, 0.6)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              color: '#fff',
+              background: mix('var(--bg-deep)', 65),
+              border: '1px solid var(--border)',
+              color: 'var(--text)',
               fontSize: '12px',
               width: '240px',
-              fontFamily: 'var(--f-mono, monospace)',
+              fontFamily: 'var(--font-mono, monospace)',
             }}
           />
 
@@ -334,13 +335,13 @@ export function SettlementCockpitPage() {
                 style={{
                   padding: '8px 10px',
                   borderRadius: '8px',
-                  background: autoPoll ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255, 255, 255, 0.06)',
-                  border: autoPoll ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid rgba(255, 255, 255, 0.12)',
-                  color: autoPoll ? '#38bdf8' : '#94a3b8',
+                  background: autoPoll ? mix('var(--blue)', 14) : mix('var(--brand)', 4),
+                  border: autoPoll ? `1px solid ${mix('var(--blue)', 40)}` : '1px solid var(--border)',
+                  color: autoPoll ? 'var(--blue)' : 'var(--muted)',
                   fontSize: '11px',
                   fontWeight: 600,
                   cursor: 'pointer',
-                  fontFamily: 'var(--f-mono, monospace)',
+                  fontFamily: 'var(--font-mono, monospace)',
                 }}
               >
                 {autoPoll ? '⏸ 2.5s' : '▶ PAUSED'}
@@ -351,13 +352,13 @@ export function SettlementCockpitPage() {
                 style={{
                   padding: '8px 12px',
                   borderRadius: '8px',
-                  background: 'rgba(56, 189, 248, 0.2)',
-                  border: '1px solid rgba(56, 189, 248, 0.5)',
-                  color: '#38bdf8',
+                  background: mix('var(--blue)', 18),
+                  border: `1px solid ${mix('var(--blue)', 50)}`,
+                  color: 'var(--blue)',
                   fontSize: '11px',
                   fontWeight: 700,
                   cursor: actionLoading ? 'not-allowed' : 'pointer',
-                  fontFamily: 'var(--f-mono, monospace)',
+                  fontFamily: 'var(--font-mono, monospace)',
                 }}
               >
                 {actionLoading === 'advancing' ? 'ADVANCING...' : 'ADVANCE SIM'}
@@ -368,13 +369,13 @@ export function SettlementCockpitPage() {
                 style={{
                   padding: '8px 12px',
                   borderRadius: '8px',
-                  background: 'rgba(168, 85, 247, 0.2)',
-                  border: '1px solid rgba(168, 85, 247, 0.5)',
-                  color: '#c084fc',
+                  background: mix('var(--violet)', 18),
+                  border: `1px solid ${mix('var(--violet)', 50)}`,
+                  color: 'var(--violet)',
                   fontSize: '11px',
                   fontWeight: 700,
                   cursor: actionLoading ? 'not-allowed' : 'pointer',
-                  fontFamily: 'var(--f-mono, monospace)',
+                  fontFamily: 'var(--font-mono, monospace)',
                 }}
               >
                 {actionLoading === 'seeding' ? 'SEEDING...' : 'SEED SCENARIOS'}
@@ -388,12 +389,12 @@ export function SettlementCockpitPage() {
             style={{
               padding: '8px 12px',
               borderRadius: '8px',
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              color: '#fff',
+              background: mix('var(--brand)', 5),
+              border: '1px solid var(--border)',
+              color: 'var(--text)',
               fontSize: '12px',
               cursor: loading ? 'not-allowed' : 'pointer',
-              fontFamily: 'var(--f-mono, monospace)',
+              fontFamily: 'var(--font-mono, monospace)',
             }}
           >
             {loading ? '...' : 'Refresh'}
@@ -407,11 +408,11 @@ export function SettlementCockpitPage() {
           style={{
             padding: '8px 14px',
             borderRadius: '8px',
-            background: 'rgba(56, 189, 248, 0.15)',
-            border: '1px solid rgba(56, 189, 248, 0.4)',
-            color: '#7dd3fc',
+            background: mix('var(--blue)', 14),
+            border: `1px solid ${mix('var(--blue)', 40)}`,
+            color: 'var(--blue)',
             fontSize: '11px',
-            fontFamily: 'var(--f-mono, monospace)',
+            fontFamily: 'var(--font-mono, monospace)',
           }}
         >
           ℹ {toastMsg}
@@ -424,11 +425,11 @@ export function SettlementCockpitPage() {
           style={{
             padding: '8px 14px',
             borderRadius: '8px',
-            background: 'rgba(251, 191, 36, 0.12)',
-            border: '1px solid rgba(251, 191, 36, 0.35)',
-            color: '#fbbf24',
+            background: mix('var(--amber)', 12),
+            border: `1px solid ${mix('var(--amber)', 35)}`,
+            color: 'var(--amber)',
             fontSize: '11px',
-            fontFamily: 'var(--f-mono, monospace)',
+            fontFamily: 'var(--font-mono, monospace)',
           }}
         >
           ⚠ {errorMsg}
@@ -444,31 +445,30 @@ export function SettlementCockpitPage() {
         }}
       >
         {[
-          { label: 'Active in Flight', val: kpis.active, col: '#38bdf8' },
-          { label: 'Honest Stuck', val: kpis.stuck, col: '#f43f5e' },
-          { label: 'Completed', val: kpis.completed, col: '#00ffa3' },
-          { label: 'Refund Actions', val: kpis.refund, col: '#fb923c' },
-          { label: devFeeder ? 'VOLUME (sim)' : 'VOLUME (real)', val: kpis.active + kpis.completed > 0 ? '~1,760 USDC (est)' : 'TBD (honest)', col: '#94a3b8' },
-          { label: 'Unwired Chains', val: kpis.unwired, col: '#64748b' },
+          { label: 'Active in Flight', val: kpis.active, col: 'var(--blue)' },
+          { label: 'Honest Stuck', val: kpis.stuck, col: 'var(--rose)' },
+          { label: 'Completed', val: kpis.completed, col: 'var(--brand)' },
+          { label: 'Refund Actions', val: kpis.refund, col: 'var(--amber)' },
+          { label: devFeeder ? 'VOLUME (sim)' : 'VOLUME (real)', val: kpis.active + kpis.completed > 0 ? '~1,760 USDC (est)' : 'TBD (honest)', col: 'var(--muted)' },
+          { label: 'Unwired Chains', val: kpis.unwired, col: 'var(--muted-deep)' },
         ].map((k) => (
           <div
             key={k.label}
+            className="st-card"
             style={{
               padding: '14px 16px',
               borderRadius: '12px',
-              background: 'rgba(15, 23, 42, 0.45)',
-              border: '1px solid rgba(255, 255, 255, 0.06)',
               display: 'flex',
               flexDirection: 'column',
               gap: '4px',
             }}
           >
-            <span style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            <span style={{ fontSize: '11px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               {k.label}
             </span>
             <span
               style={{
-                fontFamily: 'var(--f-mono, monospace)',
+                fontFamily: 'var(--font-mono, monospace)',
                 fontSize: '18px',
                 fontWeight: 700,
                 color: k.col,
@@ -491,32 +491,31 @@ export function SettlementCockpitPage() {
       >
         {/* Left Column: Settlement Queue */}
         <aside
+          className="st-card"
           style={{
             display: 'flex',
             flexDirection: 'column',
             gap: '10px',
             borderRadius: '14px',
-            background: 'rgba(15, 23, 42, 0.5)',
-            border: '1px solid rgba(255, 255, 255, 0.06)',
             padding: '14px',
             overflow: 'hidden',
           }}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.06em', color: '#94a3b8' }}>
+              <span style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.06em', color: 'var(--muted)' }}>
                 QUEUE ({filteredItems.length})
               </span>
               <button
                 onClick={() => setStuckOnly(!stuckOnly)}
                 style={{
                   fontSize: '10px',
-                  fontFamily: 'var(--f-mono, monospace)',
+                  fontFamily: 'var(--font-mono, monospace)',
                   padding: '2px 8px',
                   borderRadius: '4px',
-                  border: stuckOnly ? '1px solid #f43f5e' : '1px solid rgba(255, 255, 255, 0.1)',
-                  background: stuckOnly ? 'rgba(244, 63, 94, 0.15)' : 'transparent',
-                  color: stuckOnly ? '#f43f5e' : '#94a3b8',
+                  border: stuckOnly ? '1px solid var(--rose)' : '1px solid var(--border)',
+                  background: stuckOnly ? mix('var(--rose)', 15) : 'transparent',
+                  color: stuckOnly ? 'var(--rose)' : 'var(--muted)',
                   cursor: 'pointer',
                 }}
               >
@@ -530,11 +529,11 @@ export function SettlementCockpitPage() {
                 width: '100%',
                 padding: '4px 8px',
                 borderRadius: '6px',
-                background: 'rgba(2, 6, 23, 0.6)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                color: '#cbd5e1',
+                background: mix('var(--bg-deep)', 65),
+                border: '1px solid var(--border)',
+                color: 'var(--text)',
                 fontSize: '11px',
-                fontFamily: 'var(--f-mono, monospace)',
+                fontFamily: 'var(--font-mono, monospace)',
               }}
             >
               <option value="ALL">ALL STATES</option>
@@ -568,19 +567,19 @@ export function SettlementCockpitPage() {
                 style={{
                   padding: '36px 16px',
                   textAlign: 'center',
-                  background: 'rgba(15, 23, 42, 0.35)',
+                  background: mix('var(--panel-2)', 45),
                   borderRadius: '10px',
-                  border: '1px dashed rgba(255, 255, 255, 0.08)',
+                  border: `1px dashed ${mix('var(--muted-deep)', 30)}`,
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   gap: '8px',
                 }}
               >
-                <span style={{ fontFamily: 'var(--f-mono, monospace)', fontSize: '11px', color: '#94a3b8' }}>
+                <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '11px', color: 'var(--muted)' }}>
                   NO SETTLEMENT ROWS IN DB
                 </span>
-                <span style={{ fontSize: '10px', color: '#64748b' }}>
+                <span style={{ fontSize: '10px', color: 'var(--muted-deep)' }}>
                   {devFeeder ? 'Click "SEED SCENARIOS" to initialize simulator feed' : 'Live database has 0 transactions'}
                 </span>
                 {!isDemo && devFeeder && (
@@ -591,11 +590,11 @@ export function SettlementCockpitPage() {
                       marginTop: '6px',
                       padding: '4px 10px',
                       borderRadius: '6px',
-                      background: 'rgba(168, 85, 247, 0.2)',
-                      border: '1px solid rgba(168, 85, 247, 0.4)',
-                      color: '#c084fc',
+                      background: mix('var(--violet)', 18),
+                      border: `1px solid ${mix('var(--violet)', 45)}`,
+                      color: 'var(--violet)',
                       fontSize: '10px',
-                      fontFamily: 'var(--f-mono, monospace)',
+                      fontFamily: 'var(--font-mono, monospace)',
                       fontWeight: 600,
                       cursor: 'pointer',
                     }}
@@ -625,8 +624,8 @@ export function SettlementCockpitPage() {
                   style={{
                     padding: '10px 12px',
                     borderRadius: '8px',
-                    background: isSelected ? 'rgba(30, 41, 59, 0.7)' : 'rgba(15, 23, 42, 0.4)',
-                    border: isSelected ? `1px solid ${sStyle.border}` : '1px solid rgba(255, 255, 255, 0.04)',
+                    background: isSelected ? mix('var(--panel-2)', 85) : mix('var(--panel)', 45),
+                    border: isSelected ? `1px solid ${sStyle.border}` : '1px solid var(--border-soft)',
                     boxShadow: isSelected ? sStyle.glow : 'none',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
@@ -636,7 +635,7 @@ export function SettlementCockpitPage() {
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontFamily: 'var(--f-mono, monospace)', fontSize: '11px', fontWeight: 600 }}>
+                    <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '11px', fontWeight: 600 }}>
                       {item.quote_id.slice(0, 14)}
                     </span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -644,7 +643,7 @@ export function SettlementCockpitPage() {
                         <span
                           style={{
                             fontSize: '9px',
-                            fontFamily: 'var(--f-mono, monospace)',
+                            fontFamily: 'var(--font-mono, monospace)',
                             color: sStyle.color,
                             opacity: 0.85,
                           }}
@@ -655,7 +654,7 @@ export function SettlementCockpitPage() {
                       <span
                         style={{
                           fontSize: '9px',
-                          fontFamily: 'var(--f-mono, monospace)',
+                          fontFamily: 'var(--font-mono, monospace)',
                           fontWeight: 700,
                           padding: '1px 6px',
                           borderRadius: '4px',
@@ -669,12 +668,12 @@ export function SettlementCockpitPage() {
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#94a3b8' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--muted)' }}>
                     <span>
                       {item.provider?.toUpperCase() || 'UNKNOWN'} · {item.src_chain.slice(0, 6)} →{' '}
                       {item.dest_chain.slice(0, 6)}
                     </span>
-                    <span style={{ color: '#cbd5e1' }}>{item.amount_in || '—'}</span>
+                    <span style={{ color: 'var(--text)' }}>{item.amount_in || '—'}</span>
                   </div>
                 </div>
               )
@@ -682,7 +681,7 @@ export function SettlementCockpitPage() {
           </div>
         </aside>
 
-        {/* Center Hero: 3D Pipeline Stage & Narrator */}
+        {/* Center Hero: State DAG Stage & Narrator */}
         <section
           style={{
             display: 'flex',
@@ -690,16 +689,15 @@ export function SettlementCockpitPage() {
             gap: '16px',
           }}
         >
-          {/* 3D Visualizer */}
-          <Pipeline3D settlement={selectedItem} />
+          {/* State DAG Visualizer */}
+          <SettlementDAG settlement={selectedItem} />
 
           {/* Deterministic Narrator Card */}
           <div
+            className="st-card"
             style={{
               padding: '18px 20px',
               borderRadius: '14px',
-              background: 'rgba(15, 23, 42, 0.55)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
               display: 'flex',
               flexDirection: 'column',
               gap: '8px',
@@ -707,13 +705,14 @@ export function SettlementCockpitPage() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ color: '#00ffa3', fontSize: '14px' }}>✦</span>
+                <span style={{ color: 'var(--brand)', fontSize: '14px' }}>✦</span>
                 <span
                   style={{
-                    fontFamily: 'var(--f-display, sans-serif)',
+                    fontFamily: 'var(--font-display, sans-serif)',
                     fontSize: '14px',
                     fontWeight: 700,
                     letterSpacing: '0.02em',
+                    color: 'var(--text)',
                   }}
                 >
                   {narrative.headline}
@@ -722,18 +721,18 @@ export function SettlementCockpitPage() {
               <span
                 style={{
                   fontSize: '9px',
-                  fontFamily: 'var(--f-mono, monospace)',
+                  fontFamily: 'var(--font-mono, monospace)',
                   fontWeight: 700,
                   padding: '2px 6px',
                   borderRadius: '4px',
-                  background: 'rgba(255, 255, 255, 0.06)',
-                  color: '#94a3b8',
+                  background: mix('var(--brand)', 6),
+                  color: 'var(--muted)',
                 }}
               >
                 provider mapping draft / unverified
               </span>
             </div>
-            <p style={{ margin: 0, fontSize: '13px', color: '#cbd5e1', lineHeight: '1.5' }}>{narrative.body}</p>
+            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text)', lineHeight: '1.5' }}>{narrative.body}</p>
           </div>
 
           {/* Collapsible Evidence Payload Preview */}
@@ -741,13 +740,13 @@ export function SettlementCockpitPage() {
             style={{
               padding: '12px 16px',
               borderRadius: '10px',
-              background: 'rgba(2, 6, 23, 0.4)',
-              border: '1px solid rgba(255, 255, 255, 0.05)',
+              background: mix('var(--bg-deep)', 50),
+              border: '1px solid var(--border-soft)',
               fontSize: '11px',
-              fontFamily: 'var(--f-mono, monospace)',
+              fontFamily: 'var(--font-mono, monospace)',
             }}
           >
-            <summary style={{ cursor: 'pointer', color: '#94a3b8', fontWeight: 600 }}>
+            <summary style={{ cursor: 'pointer', color: 'var(--muted)', fontWeight: 600 }}>
               CRYPTOGRAPHIC EVIDENCE PAYLOAD PREVIEW
             </summary>
             <pre
@@ -755,8 +754,8 @@ export function SettlementCockpitPage() {
                 marginTop: '10px',
                 padding: '10px',
                 borderRadius: '6px',
-                background: '#020617',
-                color: '#34d399',
+                background: 'var(--bg-deep)',
+                color: 'var(--brand-2)',
                 overflowX: 'auto',
                 maxHeight: '180px',
               }}
@@ -768,13 +767,12 @@ export function SettlementCockpitPage() {
 
         {/* Right Column: Detail Inspector & Terminal Blackbox */}
         <aside
+          className="st-card"
           style={{
             display: 'flex',
             flexDirection: 'column',
             gap: '14px',
             borderRadius: '14px',
-            background: 'rgba(15, 23, 42, 0.5)',
-            border: '1px solid rgba(255, 255, 255, 0.06)',
             padding: '16px',
           }}
         >
@@ -782,11 +780,11 @@ export function SettlementCockpitPage() {
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '12px', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.06em' }}>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.06em' }}>
                   SETTLEMENT INSPECTOR
                 </span>
                 {detailLoading && (
-                  <span style={{ fontSize: '10px', color: '#fbbf24', fontFamily: 'var(--f-mono, monospace)' }}>
+                  <span style={{ fontSize: '10px', color: 'var(--amber)', fontFamily: 'var(--font-mono, monospace)' }}>
                     (syncing...)
                   </span>
                 )}
@@ -795,12 +793,12 @@ export function SettlementCockpitPage() {
                 onClick={() => copyToClipboard(selectedItem?.quote_id)}
                 style={{
                   fontSize: '10px',
-                  fontFamily: 'var(--f-mono, monospace)',
+                  fontFamily: 'var(--font-mono, monospace)',
                   padding: '2px 8px',
                   borderRadius: '4px',
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  border: 'none',
-                  color: '#fff',
+                  background: mix('var(--brand)', 8),
+                  border: '1px solid var(--border)',
+                  color: 'var(--text)',
                   cursor: 'pointer',
                 }}
               >
@@ -814,90 +812,90 @@ export function SettlementCockpitPage() {
                 display: 'grid',
                 gap: '8px',
                 fontSize: '12px',
-                fontFamily: 'var(--f-mono, monospace)',
+                fontFamily: 'var(--font-mono, monospace)',
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Wallet:</span>
-                <span style={{ color: '#f8fafc' }}>{selectedItem?.wallet || '—'}</span>
+                <span style={{ color: 'var(--muted)' }}>Wallet:</span>
+                <span style={{ color: 'var(--text)' }}>{selectedItem?.wallet || '—'}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Provider:</span>
-                <span style={{ color: '#00ffa3' }}>{selectedItem?.provider?.toUpperCase() || '—'}</span>
+                <span style={{ color: 'var(--muted)' }}>Provider:</span>
+                <span style={{ color: 'var(--brand)' }}>{selectedItem?.provider?.toUpperCase() || '—'}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Chains:</span>
-                <span>
+                <span style={{ color: 'var(--muted)' }}>Chains:</span>
+                <span style={{ color: 'var(--text)' }}>
                   {selectedItem?.src_chain} → {selectedItem?.dest_chain}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Amount In:</span>
-                <span>{selectedItem?.amount_in || '—'}</span>
+                <span style={{ color: 'var(--muted)' }}>Amount In:</span>
+                <span style={{ color: 'var(--text)' }}>{selectedItem?.amount_in || '—'}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Expected Out:</span>
-                <span>{selectedItem?.amount_out_expected || '—'}</span>
+                <span style={{ color: 'var(--muted)' }}>Expected Out:</span>
+                <span style={{ color: 'var(--text)' }}>{selectedItem?.amount_out_expected || '—'}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Fee bps:</span>
-                <span>{selectedItem?.fee_expected_bps ?? '—'}</span>
+                <span style={{ color: 'var(--muted)' }}>Fee bps:</span>
+                <span style={{ color: 'var(--text)' }}>{selectedItem?.fee_expected_bps ?? '—'}</span>
               </div>
 
               {/* Source Tx Hash */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '4px' }}>
-                <span style={{ color: '#94a3b8' }}>Source Tx:</span>
+                <span style={{ color: 'var(--muted)' }}>Source Tx:</span>
                 {selectedItem?.source_tx_hash ? (
                   <a
                     href={selectedItem.source_explorer_link || '#'}
                     target="_blank"
                     rel="noreferrer"
-                    style={{ color: '#38bdf8', textDecoration: 'underline', wordBreak: 'break-all' }}
+                    style={{ color: 'var(--blue)', textDecoration: 'underline', wordBreak: 'break-all' }}
                   >
                     {selectedItem.source_tx_hash.slice(0, 24)}...
                   </a>
                 ) : (
-                  <span style={{ color: '#64748b' }}>None</span>
+                  <span style={{ color: 'var(--muted-deep)' }}>None</span>
                 )}
               </div>
 
               {/* Destination Tx Hash */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <span style={{ color: '#94a3b8' }}>Destination Tx:</span>
+                <span style={{ color: 'var(--muted)' }}>Destination Tx:</span>
                 {selectedItem?.dest_tx_hash ? (
                   <a
                     href={selectedItem.dest_explorer_link || '#'}
                     target="_blank"
                     rel="noreferrer"
-                    style={{ color: '#34d399', textDecoration: 'underline', wordBreak: 'break-all' }}
+                    style={{ color: 'var(--brand-2)', textDecoration: 'underline', wordBreak: 'break-all' }}
                   >
                     {selectedItem.dest_tx_hash.slice(0, 24)}...
                   </a>
                 ) : (
-                  <span style={{ color: '#64748b' }}>Awaiting destination confirmation</span>
+                  <span style={{ color: 'var(--muted-deep)' }}>Awaiting destination confirmation</span>
                 )}
               </div>
             </div>
           </div>
 
-          <hr style={{ borderColor: 'rgba(255, 255, 255, 0.06)', margin: '4px 0' }} />
+          <hr style={{ borderColor: 'var(--border-soft)', margin: '4px 0' }} />
 
           {/* Terminal / Event Blackbox */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.06em' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.06em' }}>
                 EVENT BLACKBOX ({detail?.events.length || 0})
               </span>
               <button
                 onClick={downloadAuditJson}
                 style={{
                   fontSize: '9px',
-                  fontFamily: 'var(--f-mono, monospace)',
+                  fontFamily: 'var(--font-mono, monospace)',
                   padding: '2px 6px',
                   borderRadius: '4px',
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  border: 'none',
-                  color: '#fff',
+                  background: mix('var(--brand)', 8),
+                  border: '1px solid var(--border)',
+                  color: 'var(--text)',
                   cursor: 'pointer',
                 }}
               >
@@ -911,13 +909,13 @@ export function SettlementCockpitPage() {
                 minHeight: '180px',
                 maxHeight: '260px',
                 overflowY: 'auto',
-                background: '#020617',
-                border: '1px solid rgba(255, 255, 255, 0.06)',
+                background: 'var(--bg-deep)',
+                border: '1px solid var(--border-soft)',
                 borderRadius: '8px',
                 padding: '10px',
-                fontFamily: 'var(--f-mono, monospace)',
+                fontFamily: 'var(--font-mono, monospace)',
                 fontSize: '10px',
-                color: '#cbd5e1',
+                color: 'var(--text)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '8px',
@@ -928,19 +926,19 @@ export function SettlementCockpitPage() {
                   <div
                     key={ev.id}
                     style={{
-                      borderBottom: '1px solid rgba(255, 255, 255, 0.04)',
+                      borderBottom: '1px solid var(--border-soft)',
                       paddingBottom: '6px',
                     }}
                   >
-                    <span style={{ color: '#64748b' }}>{ev.created_at.slice(11, 19)}</span>{' '}
-                    <span style={{ color: '#00ffa3' }}>
+                    <span style={{ color: 'var(--muted-deep)' }}>{ev.created_at.slice(11, 19)}</span>{' '}
+                    <span style={{ color: 'var(--brand)' }}>
                       [{ev.state_from} → {ev.state_to}]
                     </span>
-                    <div style={{ color: '#94a3b8', marginTop: '2px' }}>{ev.reason || ev.event_type}</div>
+                    <div style={{ color: 'var(--muted)', marginTop: '2px' }}>{ev.reason || ev.event_type}</div>
                   </div>
                 ))
               ) : (
-                <div style={{ color: '#64748b' }}>No audit events logged yet.</div>
+                <div style={{ color: 'var(--muted-deep)' }}>No audit events logged yet.</div>
               )}
             </div>
           </div>

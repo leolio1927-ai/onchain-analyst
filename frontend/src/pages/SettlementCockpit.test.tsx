@@ -4,6 +4,7 @@
 
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { SettlementDAG } from '../components/settlement/SettlementDAG'
 import { DEMO_SETTLEMENTS } from '../mock/settlementDemo'
 import {
   fetchSettlementDetail,
@@ -11,6 +12,7 @@ import {
   getDeterministicNarrative,
   getStateStyle,
   STATE_STYLES,
+  type SettlementItem,
 } from '../services/settlementService'
 import { SettlementCockpitPage } from './SettlementCockpitPage'
 
@@ -127,7 +129,37 @@ describe('Settlement Cockpit Core Requirements', () => {
     }
   })
 
-  it('test_demo_mode_selects_settlement_and_events_render: renders queue, 3D stage/fallback, and events in demo mode', async () => {
+  it('test_dag_renders_full_state_machine_with_same_chain_badge: DAG mirrors transition table, highlights current, honest same-chain chip', () => {
+    render(
+      <SettlementDAG
+        settlement={
+          {
+            quote_id: 'q_dag_01',
+            provider: 'jupiter',
+            src_chain: 'solana',
+            dest_chain: 'solana',
+            state: 'SOLVER_FILLING',
+          } as SettlementItem
+        }
+      />,
+    )
+
+    // All 11 canonical states are present as DAG nodes
+    const nodes = document.querySelectorAll('[data-dag-node]')
+    expect(nodes.length).toBe(11)
+
+    // Current state is explicitly marked (no guessing which node is active)
+    expect(document.querySelector('[data-dag-current="true"]')?.getAttribute('data-state')).toBe('SOLVER_FILLING')
+
+    // Same-chain honesty chip replaces the retired 3D lane collapse
+    expect(screen.getByText('SAME-CHAIN · SINGLE LANE')).toBeDefined()
+    expect(screen.getByText('solana → solana')).toBeDefined()
+
+    // Fail-closed caption: graph claims to mirror the backend transition table
+    expect(screen.getByText(/MIRRORS settlement_repository\.transition\(\)/i)).toBeDefined()
+  })
+
+  it('test_demo_mode_selects_settlement_and_events_render: renders queue, state DAG stage, and events in demo mode', async () => {
     // Mock fetch rejection to trigger auto-fallback to demo fixtures
     global.fetch = vi.fn().mockRejectedValue(new Error('503 backend off'))
 
@@ -161,7 +193,7 @@ describe('Settlement Cockpit Core Requirements', () => {
     })
   })
 
-  it('test_live_empty_db_renders_placeholder_not_throw: empty DB shows placeholder and 3D stage does not throw', async () => {
+  it('test_live_empty_db_renders_placeholder_not_throw: empty DB shows placeholder and DAG stage does not throw', async () => {
     global.fetch = vi.fn().mockImplementation((input: RequestInfo | URL) => {
       const url = typeof input === 'string' ? input : input.toString()
       if (url.includes('/api/v1/swap/settlements')) {
