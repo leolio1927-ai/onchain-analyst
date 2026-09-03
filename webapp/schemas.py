@@ -1264,4 +1264,26 @@ class SwapHandoffResponse(Envelope):
     unsigned_payload: SwapHandoffUnsignedPayload
 
 
+# ── Slot D.8: Confirm + Monitor Schemas (DB-only) ────────────────────────
+
+class SettlementConfirmRequest(BaseModel):
+    """Wallet-reported broadcast hash for a handoff quote (D.8)."""
+
+    quote_id: str
+    source_tx_hash: str
+    wallet: str
+
+
+class SwapMonitorResponse(Envelope):
+    """DB-read monitor receipt (D.8). confirmations stays null: no chain
+    reads on this surface — a set source_tx_hash is wallet-reported."""
+
+    quote_id: str
+    state: str
+    source_tx_hash: str | None = None
+    fee_status: str | None = None
+    confirmations: int | None = None
+    updated_at: str | None = None
+
+
 

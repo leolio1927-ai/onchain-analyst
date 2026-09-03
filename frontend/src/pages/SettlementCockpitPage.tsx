@@ -18,6 +18,7 @@ import {
   getDeterministicNarrative,
   getEvents,
   getFeeRecon,
+  getMonitorStatus,
   getStateStyle,
   postSwapHandoff,
   seedSimFeeder,
@@ -25,6 +26,7 @@ import {
   type SettlementAuditEvent,
   type SettlementDetail,
   type SettlementItem,
+  type SwapMonitorStatus,
 } from '../services/settlementService'
 
 const mix = (token: string, pct: number) => `color-mix(in srgb, ${token} ${pct}%, transparent)`
@@ -67,6 +69,9 @@ export function SettlementCockpitPage() {
   const [detail, setDetail] = useState<SettlementDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [fee, setFee] = useState<FeeRecon | null>(null)
+  // D.8 live-monitor: DB-read receipt for the selected quote. Null = unknown
+  // quote or demo mode — the badge hides instead of guessing.
+  const [monitor, setMonitor] = useState<SwapMonitorStatus | null>(null)
   // Full trail (D.7) normalized to the detail-event field names so the
   // blackbox renders one shape regardless of source.
   const [fullEvents, setFullEvents] = useState<
@@ -255,6 +260,25 @@ export function SettlementCockpitPage() {
     }
   }, [selectedQuoteId, isDemo])
 
+  // D.8 live-monitor poll: DB-read only, no chain calls. Null on 404/demo.
+  useEffect(() => {
+    if (!selectedQuoteId || isDemo) {
+      setMonitor(null)
+      return
+    }
+    let active = true
+    getMonitorStatus(selectedQuoteId)
+      .then((m) => {
+        if (active) setMonitor(m)
+      })
+      .catch(() => {
+        if (active) setMonitor(null)
+      })
+    return () => {
+      active = false
+    }
+  }, [selectedQuoteId, isDemo])
+
   const handleExportAudit = async () => {
     setExportLoading(true)
     try {
@@ -413,6 +437,41 @@ export function SettlementCockpitPage() {
               />
               {dbHealthy ? (devFeeder ? 'sim feeder active' : 'database ready') : 'database fallback'}
             </div>
+            {(monitor ?? detail) && (
+              <div
+                data-testid="handoff-badge"
+                title={
+                  (monitor?.source_tx_hash ?? detail?.source_tx_hash)
+                    ? 'Wallet-reported broadcast hash attached (DB-only, not chain-verified)'
+                    : 'No broadcast hash yet — wallet has not confirmed'
+                }
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '11px',
+                  fontFamily: 'var(--font-mono, monospace)',
+                  fontWeight: 700,
+                  color:
+                    monitor?.source_tx_hash ?? detail?.source_tx_hash ? 'var(--brand-2)' : 'var(--amber)',
+                }}
+              >
+                <span
+                  style={{
+                    width: '7px',
+                    height: '7px',
+                    borderRadius: '50%',
+                    background:
+                      monitor?.source_tx_hash ?? detail?.source_tx_hash
+                        ? 'var(--brand-2)'
+                        : 'var(--amber)',
+                  }}
+                />
+                {monitor?.source_tx_hash ?? detail?.source_tx_hash
+                  ? 'CONFIRMED on-chain'
+                  : 'PENDING wallet'}
+              </div>
+            )}
           </div>
           <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--muted)' }}>
             non-custodial settlement inspector • source submitted ≠ completed • verified receipts only

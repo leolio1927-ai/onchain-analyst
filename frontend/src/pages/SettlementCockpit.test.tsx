@@ -601,4 +601,78 @@ describe('Settlement Cockpit Core Requirements', () => {
     expect(res.unsigned_payload.signature).toBeNull()
     expect(requestedUrls).toEqual(['/api/v1/swap/handoff'])
   })
+
+  it('test_handoff_badge_pending_then_confirmed: badge tracks wallet-reported hash', async () => {
+    const monitorBody = (hash: string | null, state: string) => ({
+      quote_id: 'q_mon_01',
+      state,
+      source_tx_hash: hash,
+      fee_status: 'INJECTED',
+      confirmations: null,
+      updated_at: new Date().toISOString(),
+    })
+    const mockFor = (hash: string | null, state: string) =>
+      vi.fn().mockImplementation((input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString()
+        if (url.includes('/api/v1/swap/monitor/')) {
+          return Promise.resolve({ ok: true, status: 200, json: async () => monitorBody(hash, state) })
+        }
+        if (url.includes('/api/v1/swap/settlements/')) {
+          return Promise.resolve({ ok: false, status: 404, json: async () => ({ detail: 'missing' }) })
+        }
+        if (url.includes('/api/v1/swap/settlements')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => ({
+              items: [
+                {
+                  quote_id: 'q_mon_01',
+                  provider: 'lifi',
+                  src_chain: 'eip155:8453',
+                  dest_chain: 'eip155:8453',
+                  state,
+                  amount_in: '250.0 USDC',
+                },
+              ],
+              count: 1,
+              db_enabled: true,
+              dev_feeder: false,
+              generated_at: new Date().toISOString(),
+            }),
+          })
+        }
+        if (url.includes('/api/v1/swap/settlement/')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: async () => ({
+              quote_id: 'q_mon_01',
+              provider: 'lifi',
+              src_chain: 'eip155:8453',
+              dest_chain: 'eip155:8453',
+              state,
+              source_tx_hash: hash,
+              events: [],
+            }),
+          })
+        }
+        return Promise.reject(new Error(`Unexpected call to ${url}`))
+      })
+
+    global.fetch = mockFor(null, 'QUOTE_ONLY')
+    const { unmount } = render(<SettlementCockpitPage />)
+    await waitFor(() => {
+      expect(screen.getByTestId('handoff-badge').textContent).toContain('PENDING wallet')
+    })
+    expect(screen.getByTestId('handoff-badge').textContent).not.toContain('CONFIRMED')
+    unmount()
+    cleanup()
+
+    global.fetch = mockFor(`0x${'ab'.repeat(32)}`, 'SUBMITTED_PENDING')
+    render(<SettlementCockpitPage />)
+    await waitFor(() => {
+      expect(screen.getByTestId('handoff-badge').textContent).toContain('CONFIRMED on-chain')
+    })
+  })
 })

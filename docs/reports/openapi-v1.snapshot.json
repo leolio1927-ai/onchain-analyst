@@ -2458,6 +2458,91 @@
         }
       }
     },
+    "/api/v1/swap/handoff/confirm": {
+      "post": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Api Swap Handoff Confirm",
+        "description": "Attach a wallet-reported broadcast hash (D.8, DB-only).",
+        "operationId": "api_swap_handoff_confirm_api_v1_swap_handoff_confirm_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettlementConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwapMonitorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/swap/monitor/{quote_id}": {
+      "get": {
+        "tags": [
+          "market"
+        ],
+        "summary": "Api Swap Monitor",
+        "description": "DB-read settlement status for live-monitor polling (D.8).",
+        "operationId": "api_swap_monitor_api_v1_swap_monitor__quote_id__get",
+        "parameters": [
+          {
+            "name": "quote_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Quote Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SwapMonitorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/dev/settlement-feeder/seed": {
       "post": {
         "tags": [
@@ -6299,6 +6384,30 @@
         "title": "SellTest",
         "description": "Sell-side simulation, tri-state: routable True / False / None.\nNone = \"sell simulation unavailable\" (timeout etc.) \u2014 NEVER implied safe;\nFalse = a recognized no-route answer, a loud honeypot signal."
       },
+      "SettlementConfirmRequest": {
+        "properties": {
+          "quote_id": {
+            "type": "string",
+            "title": "Quote Id"
+          },
+          "source_tx_hash": {
+            "type": "string",
+            "title": "Source Tx Hash"
+          },
+          "wallet": {
+            "type": "string",
+            "title": "Wallet"
+          }
+        },
+        "type": "object",
+        "required": [
+          "quote_id",
+          "source_tx_hash",
+          "wallet"
+        ],
+        "title": "SettlementConfirmRequest",
+        "description": "Wallet-reported broadcast hash for a handoff quote (D.8)."
+      },
       "SettlementEventItem": {
         "properties": {
           "id": {
@@ -7918,6 +8027,98 @@
         ],
         "title": "SwapHandoffUnsignedPayload",
         "description": "Unsigned execution intent \u2014 never a broadcast receipt."
+      },
+      "SwapMonitorResponse": {
+        "properties": {
+          "data_mode": {
+            "type": "string",
+            "enum": [
+              "live",
+              "fixture",
+              "unwired",
+              "static",
+              "partial"
+            ],
+            "title": "Data Mode",
+            "default": "live"
+          },
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version",
+            "default": "1.0"
+          },
+          "sources": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "ts": {
+            "type": "string",
+            "title": "Ts"
+          },
+          "quote_id": {
+            "type": "string",
+            "title": "Quote Id"
+          },
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "source_tx_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Tx Hash"
+          },
+          "fee_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fee Status"
+          },
+          "confirmations": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmations"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "quote_id",
+          "state"
+        ],
+        "title": "SwapMonitorResponse",
+        "description": "DB-read monitor receipt (D.8). confirmations stays null: no chain\nreads on this surface \u2014 a set source_tx_hash is wallet-reported."
       },
       "TokenContext": {
         "properties": {

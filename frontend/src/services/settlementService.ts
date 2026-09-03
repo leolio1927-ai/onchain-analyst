@@ -543,3 +543,47 @@ export async function postSwapHandoff(req: SwapHandoffRequest): Promise<SwapHand
   return res.json()
 }
 
+export interface SwapConfirmRequest {
+  quote_id: string
+  source_tx_hash: string
+  wallet: string
+}
+
+export interface SwapMonitorStatus {
+  quote_id: string
+  state: string
+  source_tx_hash: string | null
+  fee_status: string | null
+  confirmations: number | null
+  updated_at: string | null
+}
+
+/**
+ * Wallet-reported broadcast hash (D.8, DB-only).
+ * The hash comes from the wallet payload — the server never dials a chain.
+ */
+export async function confirmHandoff(req: SwapConfirmRequest): Promise<SwapMonitorStatus> {
+  const res = await fetch('/api/v1/swap/handoff/confirm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  })
+  if (!res.ok) {
+    throw new Error(`Confirm failed: ${res.status} ${res.statusText}`)
+  }
+  return res.json()
+}
+
+/**
+ * DB-read monitor for one handoff quote (D.8).
+ * 404 (unknown quote) → null: honest absence, not an error.
+ */
+export async function getMonitorStatus(quoteId: string): Promise<SwapMonitorStatus | null> {
+  const res = await fetch(`/api/v1/swap/monitor/${encodeURIComponent(quoteId)}`)
+  if (res.status === 404) return null
+  if (!res.ok) {
+    throw new Error(`Monitor fetch failed: ${res.status} ${res.statusText}`)
+  }
+  return res.json()
+}
+

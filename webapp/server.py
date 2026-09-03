@@ -2039,6 +2039,114 @@ async def api_swap_handoff(body: schemas.SwapHandoffRequest) -> schemas.SwapHand
     )
 
 
+# ── Slot D.8: Handoff Confirm + Monitor (DB-only) ─────────────────────────
+# The wallet reports its broadcast hash; the server only writes it via the
+# legal repo transition (QUOTE_ONLY → SUBMITTED_PENDING). No chain reads,
+# no polling — the monitor is a plain DB read with confirmations=null.
+
+
+def _monitor_receipt(settlement: dict, fee_status: str | None) -> schemas.SwapMonitorResponse:
+    """Map one settlement row + fee track into the D.8 wire shape."""
+    return schemas.SwapMonitorResponse(
+        quote_id=settlement["quote_id"],
+        state=settlement["state"],
+        source_tx_hash=settlement.get("source_tx_hash"),
+        fee_status=fee_status,
+        confirmations=None,
+        updated_at=settlement.get("updated_at"),
+        sources=["settlement_db"],
+    )
+
+
+@app.post(
+    "/api/v1/swap/handoff/confirm",
+    response_model=schemas.SwapMonitorResponse,
+    tags=["market"],
+)
+async def api_swap_handoff_confirm(body: schemas.SettlementConfirmRequest) -> schemas.SwapMonitorResponse:
+    """Attach a wallet-reported broadcast hash (D.8, DB-only)."""
+    tx_hash = (body.source_tx_hash or "").strip()
+    if not re.fullmatch(r"0x[0-9a-fA-F]{64}", tx_hash):
+        raise HTTPException(422, "invalid source_tx_hash — must be 0x followed by 64 hex chars")
+    qid = (body.quote_id or "").strip()
+    if not qid:
+        raise HTTPException(404, "quote not found")
+
+    db_path = db.resolve_path()
+    if db_path is None:
+        raise HTTPException(503, "settlement unavailable — ALPHA_DB_PATH unset")
+
+    try:
+        conn = db.connect(db_path)
+    except sqlite3.Error as err:
+        raise HTTPException(503, f"settlement unavailable — {err}")
+
+    try:
+        settlement = settlement_repository.get_settlement(conn, quote_id=qid)
+        if settlement is None:
+            raise HTTPException(404, f"settlement for quote_id {qid!r} not found")
+        stored_wallet = (settlement.get("wallet") or "").strip().lower()
+        given_wallet = (body.wallet or "").strip().lower()
+        if stored_wallet and given_wallet != stored_wallet:
+            raise HTTPException(400, "wallet mismatch — confirm must come from the handoff wallet")
+
+        current = settlement["state"]
+        stored_hash = settlement.get("source_tx_hash")
+        if current == "SUBMITTED_PENDING":
+            if stored_hash and stored_hash.lower() == tx_hash.lower():
+                fee = settlement_repository.get_fee_recon(conn, quote_id=qid)
+                return _monitor_receipt(settlement, fee["status"] if fee else None)
+            raise HTTPException(409, "already submitted with a different hash")
+        if current != "QUOTE_ONLY":
+            raise HTTPException(409, f"settlement already {current} — confirm refused")
+
+        try:
+            updated = settlement_repository.transition(
+                conn,
+                quote_id=qid,
+                to_state="SUBMITTED_PENDING",
+                reason="wallet_confirm",
+                source_tx=tx_hash,
+            )
+        except settlement_repository.IllegalStateTransitionError as exc:
+            raise HTTPException(409, str(exc)) from exc
+        fee = settlement_repository.get_fee_recon(conn, quote_id=qid)
+        return _monitor_receipt(updated, fee["status"] if fee else None)
+    except sqlite3.Error as err:
+        raise HTTPException(503, f"settlement unavailable — {err}")
+    finally:
+        conn.close()
+
+
+@app.get(
+    "/api/v1/swap/monitor/{quote_id}",
+    response_model=schemas.SwapMonitorResponse,
+    tags=["market"],
+)
+async def api_swap_monitor(quote_id: str) -> schemas.SwapMonitorResponse:
+    """DB-read settlement status for live-monitor polling (D.8)."""
+    db_path = db.resolve_path()
+    if db_path is None:
+        raise HTTPException(503, "settlement unavailable — ALPHA_DB_PATH unset")
+
+    try:
+        conn = db.connect(db_path)
+    except sqlite3.Error as err:
+        raise HTTPException(503, f"settlement unavailable — {err}")
+
+    try:
+        settlement = settlement_repository.get_settlement(conn, quote_id=quote_id)
+        if settlement is None:
+            raise HTTPException(404, f"settlement for quote_id {quote_id!r} not found")
+        fee = settlement_repository.get_fee_recon(conn, quote_id=quote_id)
+    except sqlite3.Error as err:
+        raise HTTPException(503, f"settlement unavailable — {err}")
+    finally:
+        conn.close()
+
+    return _monitor_receipt(settlement, fee["status"] if fee else None)
+
+
 # ── Dev Settlement Simulator Endpoints (Slot D.5) ──────────────────────────
 # Strictly gated by environment variable ALPHA_SIM_FEEDER=1.
 # Defaults to OFF (HTTP 404).
