@@ -26,6 +26,7 @@ from collections.abc import AsyncGenerator
 from contextvars import ContextVar
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import fastapi
 import uvicorn.logging
@@ -1704,6 +1705,147 @@ async def api_swap_settlement_fee_reconciliation(quote_id: str) -> schemas.Settl
         ),
         reason=fee.get("reason"),
         note=None,
+    )
+
+
+def _parse_evidence(raw: str | None) -> str | dict[str, Any] | list[Any] | None:
+    """Evidence refs are stored as JSON when structured, plain text otherwise.
+    Parse JSON when it parses; never invent structure that isn't there."""
+    import json
+
+    if raw is None:
+        return None
+    try:
+        return json.loads(raw)
+    except (ValueError, TypeError):
+        return raw
+
+
+def _export_event_item(ev: dict, next_poll_at: str | None) -> schemas.SettlementExportEvent:
+    """Map one settlement_events row into the D.7 wire shape."""
+    return schemas.SettlementExportEvent(
+        id=ev["id"],
+        from_state=ev["state_from"],
+        to_state=ev["state_to"],
+        event_type=ev.get("event_type"),
+        reason=ev.get("reason"),
+        evidence=_parse_evidence(ev.get("evidence_ref")),
+        created_at=ev["created_at"],
+        next_poll_at=next_poll_at,
+    )
+
+
+@app.get(
+    "/api/v1/swap/settlements/{quote_id}/events",
+    response_model=schemas.SettlementEventsResponse,
+    tags=["market"],
+)
+async def api_swap_settlement_events(quote_id: str) -> schemas.SettlementEventsResponse:
+    """Full append-only audit trail for one settlement (Slot D.7, DB-only).
+
+    Reads directly from SQLite settlement_events; never polls network/RPC."""
+    db_path = db.resolve_path()
+    if db_path is None:
+        raise HTTPException(503, "settlement unavailable — ALPHA_DB_PATH unset")
+
+    try:
+        conn = db.connect(db_path)
+    except sqlite3.Error as err:
+        raise HTTPException(503, f"settlement unavailable — {err}")
+
+    try:
+        settlement = settlement_repository.get_settlement(conn, quote_id=quote_id)
+        if settlement is None:
+            raise HTTPException(404, "quote not found")
+        events = settlement_repository.list_events(conn, quote_id=quote_id)
+    except sqlite3.Error as err:
+        raise HTTPException(503, f"settlement unavailable — {err}")
+    finally:
+        conn.close()
+
+    next_poll_at = settlement.get("next_poll_at")
+    return schemas.SettlementEventsResponse(
+        events=[_export_event_item(ev, next_poll_at) for ev in events]
+    )
+
+
+@app.get(
+    "/api/v1/swap/settlements/export",
+    response_model=schemas.SettlementExportResponse,
+    tags=["market"],
+)
+async def api_swap_settlements_export(
+    quote_id: str | None = None,
+    wallet: str | None = None,
+    chain: str | None = None,
+    state: str | None = None,
+    provider: str | None = None,
+    stuck: bool = False,
+    limit: int = 1000,
+) -> schemas.SettlementExportResponse:
+    """DB-only audit export (Slot D.7). JSON only — the cockpit converts it
+    to a downloadable file; never polls network/RPC.
+
+    422 when limit exceeds 2000; 400 on an unknown state enum."""
+    if limit > settlement_repository.EXPORT_LIMIT_MAX:
+        raise HTTPException(422, f"limit must not exceed {settlement_repository.EXPORT_LIMIT_MAX}")
+    if state is not None and state not in settlement_repository.SETTLEMENT_STATES:
+        raise HTTPException(400, f"invalid state {state!r}; allowed: {sorted(settlement_repository.SETTLEMENT_STATES)}")
+
+    db_path = db.resolve_path()
+    if db_path is None:
+        raise HTTPException(503, "settlement unavailable — ALPHA_DB_PATH unset")
+
+    try:
+        conn = db.connect(db_path)
+    except sqlite3.Error as err:
+        raise HTTPException(503, f"settlement unavailable — {err}")
+
+    try:
+        rows, truncated = settlement_repository.export_settlements(
+            conn,
+            quote_id=quote_id,
+            wallet=wallet,
+            chain=chain,
+            state=state,
+            provider=provider,
+            stuck_only=stuck,
+            limit=limit,
+        )
+    except sqlite3.Error as err:
+        raise HTTPException(503, f"settlement unavailable — {err}")
+    finally:
+        conn.close()
+
+    export_rows = []
+    for row in rows:
+        next_poll = None  # export rows are audit snapshots; poll window rides the events endpoint
+        export_rows.append(
+            schemas.SettlementExportRow(
+                quote_id=row["quote_id"],
+                wallet=row.get("wallet"),
+                provider=row.get("provider"),
+                src_chain=row["src_chain"],
+                dest_chain=row["dest_chain"],
+                state=row["state"],
+                reason=row.get("reason"),
+                source_tx_hash=row.get("source_tx_hash"),
+                dest_tx_hash=row.get("dest_tx_hash"),
+                amount_in=row.get("amount_in"),
+                amount_out_expected=row.get("amount_out_expected"),
+                amount_out_min=row.get("amount_out_min"),
+                fee_expected_bps=row.get("fee_expected_bps"),
+                created_at=row.get("created_at"),
+                updated_at=row.get("updated_at"),
+                events=[_export_event_item(ev, next_poll) for ev in row.get("events") or []],
+            )
+        )
+
+    return schemas.SettlementExportResponse(
+        generated_at=db.utc_now_iso(),
+        count=len(export_rows),
+        truncated=truncated,
+        rows=export_rows,
     )
 
 

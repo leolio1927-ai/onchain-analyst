@@ -369,6 +369,88 @@ export async function getFeeRecon(quoteId: string): Promise<FeeRecon | null> {
   return res.json()
 }
 
+export interface SettlementAuditEvent {
+  id: number
+  from_state: string
+  to_state: string
+  event_type?: string | null
+  reason?: string | null
+  evidence?: unknown
+  created_at: string
+  next_poll_at?: string | null
+}
+
+export interface SettlementExportRow {
+  quote_id: string
+  wallet?: string | null
+  provider?: string | null
+  src_chain: string
+  dest_chain: string
+  state: string
+  reason?: string | null
+  source_tx_hash?: string | null
+  dest_tx_hash?: string | null
+  amount_in?: string | null
+  amount_out_expected?: string | null
+  amount_out_min?: string | null
+  fee_expected_bps?: number | null
+  created_at?: string | null
+  updated_at?: string | null
+  events: SettlementAuditEvent[]
+}
+
+export interface SettlementExportResponse {
+  generated_at: string
+  count: number
+  truncated: boolean
+  rows: SettlementExportRow[]
+}
+
+/**
+ * Full append-only audit trail for one settlement from internal backend API only.
+ * 404 (quote absent) → empty list: honest absence, not an error.
+ */
+export async function getEvents(quoteId: string): Promise<SettlementAuditEvent[]> {
+  const url = `/api/v1/swap/settlements/${encodeURIComponent(quoteId)}/events`
+  const res = await fetch(url)
+  if (res.status === 404) return []
+  if (!res.ok) {
+    throw new Error(`Events fetch failed: ${res.status} ${res.statusText}`)
+  }
+  const body: { events: SettlementAuditEvent[] } = await res.json()
+  return body.events
+}
+
+/**
+ * Fetch the DB-only audit export (JSON) from internal backend API only.
+ * truncated=true means the window was hit — callers must present it as partial.
+ */
+export async function fetchExport(params?: {
+  quote_id?: string
+  wallet?: string
+  chain?: string
+  state?: string
+  provider?: string
+  stuck?: boolean
+  limit?: number
+}): Promise<SettlementExportResponse> {
+  const query = new URLSearchParams()
+  if (params?.quote_id) query.set('quote_id', params.quote_id)
+  if (params?.wallet) query.set('wallet', params.wallet)
+  if (params?.chain) query.set('chain', params.chain)
+  if (params?.state) query.set('state', params.state)
+  if (params?.provider) query.set('provider', params.provider)
+  if (params?.stuck) query.set('stuck', '1')
+  if (params?.limit) query.set('limit', String(params.limit))
+  const qs = query.toString()
+  const url = `/api/v1/swap/settlements/export${qs ? `?${qs}` : ''}`
+  const res = await fetch(url)
+  if (!res.ok) {
+    throw new Error(`Export failed: ${res.status} ${res.statusText}`)
+  }
+  return res.json()
+}
+
 export interface DevFeederSeedResponse {
   seeded: number
   skipped_hood: number

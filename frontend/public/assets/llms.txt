@@ -121,6 +121,27 @@ brackets) and was last re-verified 2026-08-29.
   15s buffer) answers 410 and must be re-quoted, and without the DB the
   append-only ledger still refuses every attempt. A retry can never
   double-submit.
+- GET /api/v1/swap/settlements/{quote_id}/fee-reconciliation — fee recon row
+  for one settlement (D.6, DB-only): { quote_id, chain_id, asset_id, provider,
+  integrator, fee_expected_bps, fee_injected_bps, fee_quoted_bps, status,
+  revenue_leak, reason, note:null }. status auto-derived:
+  PENDING|INJECTED|MATCHED|MISMATCH|TBD (quoted-only → TBD +
+  reason="fee_model_unverified_draft"); revenue_leak=true only when
+  exp>0 ∧ inj≥0 ∧ inj<exp — absent numbers are never a leak. 404
+  {"detail":"quote not found"} (no settlement row) · 404
+  {"detail":"fee track not seeded"} (settlement exists, no recon row) ·
+  503 when ALPHA_DB_PATH unset [webapp/server.py, providers/settlement_repository.py].
+- GET /api/v1/swap/settlements/{quote_id}/events — full append-only audit
+  trail for one settlement (D.7, DB-only, no cap): { events[{id, from_state,
+  to_state, event_type, reason, evidence (JSON parsed or raw string),
+  created_at, next_poll_at}] }. Oldest first. 404
+  {"detail":"quote not found"} · 503 db off.
+- GET /api/v1/swap/settlements/export?quote_id=&wallet=&chain=&state=&provider=&stuck=1&limit= —
+  DB-only audit export (D.7): { generated_at, count, truncated, rows[{...settlement,
+  events[]}] }. Honest truncation: truncated=true means the limit window was hit —
+  the export is partial, never padded to look complete. limit default 1000, max
+  2000 → 422 beyond; unknown state → 400; 503 db off. JSON only — the cockpit
+  converts it to a downloadable file client-side [webapp/server.py].
 - POST /api/v1/landing/chat — the Analyst chat (V6-3): the landing §06
   conversation lane. Streams SSE provenance → delta* → data: [DONE] from
   the founder's chat key (BAI_API_KEY, model via VILMEI_CHAT_MODEL, default

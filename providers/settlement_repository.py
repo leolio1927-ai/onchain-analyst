@@ -559,3 +559,75 @@ def get_fee_recon(conn: sqlite3.Connection, *, quote_id: str) -> dict[str, Any] 
         (quote_id,),
     ).fetchone()
     return dict(row) if row is not None else None
+
+
+# ── Triage & Export Ops (Slot D.7, DB-only) ───────────────────────────────
+
+EXPORT_LIMIT_MAX = 2000
+
+
+def list_events(conn: sqlite3.Connection, *, quote_id: str) -> list[dict[str, Any]]:
+    """Full append-only audit trail for one quote_id, oldest first (Slot D.7).
+    Unlike get_settlement_events there is no cap: an audit export is never
+    silently truncated by default."""
+    rows = conn.execute(
+        "SELECT * FROM settlement_events WHERE quote_id = ? ORDER BY created_at ASC, id ASC",
+        (quote_id,),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def export_settlements(
+    conn: sqlite3.Connection,
+    *,
+    quote_id: str | None = None,
+    wallet: str | None = None,
+    chain: str | None = None,
+    state: str | None = None,
+    provider: str | None = None,
+    stuck_only: bool = False,
+    limit: int = 1000,
+) -> tuple[list[dict[str, Any]], bool]:
+    """Audit export rows (Slot D.7, DB-only).
+
+    Same filter semantics as list_settlements, but with a larger honest
+    window (max 2000 — the cockpit list clamps at 250). Each row nests its
+    full event trail. Returns (rows, truncated): truncated=True means the
+    limit was hit and the caller MUST present the export as partial — a
+    silently-complete-looking export is a lie."""
+    clamped = max(1, min(int(limit), EXPORT_LIMIT_MAX))
+    query = """
+        SELECT quote_id, wallet, provider, src_chain, dest_chain, state, reason,
+               source_tx_hash, dest_tx_hash, amount_in, amount_out_expected,
+               amount_out_min, fee_expected_bps, created_at, updated_at
+        FROM settlement_state
+        WHERE 1=1
+    """
+    params: list[Any] = []
+    if quote_id:
+        query += " AND quote_id = ?"
+        params.append(quote_id)
+    if wallet:
+        query += " AND LOWER(wallet) = LOWER(?)"
+        params.append(wallet)
+    if chain:
+        query += " AND (LOWER(src_chain) = LOWER(?) OR LOWER(dest_chain) = LOWER(?))"
+        params.extend([chain, chain])
+    if state:
+        query += " AND state = ?"
+        params.append(state)
+    if provider:
+        query += " AND LOWER(provider) = LOWER(?)"
+        params.append(provider)
+    if stuck_only:
+        query += " AND state IN ('STUCK_UNKNOWN', 'FAILED', 'REFUND_AVAILABLE', 'EXPIRED')"
+
+    query += " ORDER BY updated_at DESC LIMIT ?"
+    params.append(clamped + 1)  # one extra row = honest truncation detection
+
+    rows = [dict(r) for r in conn.execute(query, tuple(params)).fetchall()]
+    truncated = len(rows) > clamped
+    rows = rows[:clamped]
+    for row in rows:
+        row["events"] = list_events(conn, quote_id=row["quote_id"])
+    return rows, truncated

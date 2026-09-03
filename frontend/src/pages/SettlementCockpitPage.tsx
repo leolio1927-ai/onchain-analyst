@@ -12,18 +12,44 @@ import { SettlementDAG } from '../components/settlement/SettlementDAG'
 import { DEMO_SETTLEMENTS, getDemoDetail } from '../mock/settlementDemo'
 import {
   advanceSimFeeder,
+  fetchExport,
   fetchSettlementDetail,
   fetchSettlements,
   getDeterministicNarrative,
+  getEvents,
   getFeeRecon,
   getStateStyle,
   seedSimFeeder,
   type FeeRecon,
+  type SettlementAuditEvent,
   type SettlementDetail,
   type SettlementItem,
 } from '../services/settlementService'
 
 const mix = (token: string, pct: number) => `color-mix(in srgb, ${token} ${pct}%, transparent)`
+
+const TRIAGE_STATES = ['STUCK_UNKNOWN', 'FAILED', 'REFUND_AVAILABLE', 'EXPIRED']
+
+// Static CAIP-2 explorer map for triage deep-links. Chains not wired here are
+// rendered as "no explorer (draft)" — never a guessed URL.
+const EXPLORER_BY_CHAIN: Record<string, (tx: string) => string> = {
+  'eip155:1': (tx) => `https://etherscan.io/tx/${tx}`,
+  'eip155:8453': (tx) => `https://basescan.org/tx/${tx}`,
+  'eip155:42161': (tx) => `https://arbiscan.io/tx/${tx}`,
+  'eip155:10': (tx) => `https://optimistic.etherscan.io/tx/${tx}`,
+  solana: (tx) => `https://solscan.io/tx/${tx}`,
+  solanadevnet: (tx) => `https://explorer.solana.com/tx/${tx}?cluster=devnet`,
+}
+
+function explorerLink(
+  chain: string | null | undefined,
+  tx: string | null | undefined,
+): { href: string; label: string } | null {
+  if (!chain || !tx) return null
+  const builder = EXPLORER_BY_CHAIN[chain.toLowerCase()]
+  if (!builder) return null
+  return { href: builder(tx), label: `view on ${new URL(builder(tx)).host}` }
+}
 
 export function SettlementCockpitPage() {
   const [isDemo, setIsDemo] = useState(false)
@@ -40,6 +66,12 @@ export function SettlementCockpitPage() {
   const [detail, setDetail] = useState<SettlementDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [fee, setFee] = useState<FeeRecon | null>(null)
+  // Full trail (D.7) normalized to the detail-event field names so the
+  // blackbox renders one shape regardless of source.
+  const [fullEvents, setFullEvents] = useState<
+    Array<SettlementAuditEvent & { state_from: string; state_to: string; evidence_ref?: string | null }> | null
+  >(null)
+  const [exportLoading, setExportLoading] = useState(false)
 
   // Filters
   const [search, setSearch] = useState('')
@@ -145,12 +177,14 @@ export function SettlementCockpitPage() {
     if (!selectedQuoteId) {
       setDetail(null)
       setFee(null)
+      setFullEvents(null)
       return
     }
 
     if (isDemo) {
       setDetail(getDemoDetail(selectedQuoteId))
       setFee(null) // demo fixtures carry no fee track — honest absence
+      setFullEvents(null)
       return
     }
 
@@ -176,10 +210,52 @@ export function SettlementCockpitPage() {
         if (active) setFee(null)
       })
 
+    // Full uncapped audit trail (Slot D.7); falls back to the detail payload
+    getEvents(selectedQuoteId)
+      .then((events) => {
+        if (active) {
+          setFullEvents(
+            events.map((e) => ({
+              ...e,
+              state_from: e.from_state,
+              state_to: e.to_state,
+              evidence_ref: typeof e.evidence === 'string' ? e.evidence : e.evidence ? JSON.stringify(e.evidence) : null,
+            })),
+          )
+        }
+      })
+      .catch(() => {
+        if (active) setFullEvents(null)
+      })
+
     return () => {
       active = false
     }
   }, [selectedQuoteId, isDemo])
+
+  const handleExportAudit = async () => {
+    setExportLoading(true)
+    try {
+      const data = await fetchExport({
+        state: stateFilter !== 'ALL' ? stateFilter : undefined,
+        stuck: stuckOnly || undefined,
+        limit: 2000,
+      })
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `settlements_export_${data.count}rows${data.truncated ? '_PARTIAL' : ''}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+      setToastMsg(`Exported ${data.count} rows${data.truncated ? ' (PARTIAL — limit hit)' : ''}`)
+    } catch (err: any) {
+      setToastMsg(`Export failed: ${err.message}`)
+    } finally {
+      setExportLoading(false)
+      setTimeout(() => setToastMsg(null), 4000)
+    }
+  }
 
   // Selected item
   const selectedItem = useMemo(
@@ -395,6 +471,25 @@ export function SettlementCockpitPage() {
               </button>
             </>
           )}
+
+          <button
+            onClick={handleExportAudit}
+            disabled={exportLoading}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '8px',
+              background: mix('var(--brand)', 8),
+              border: `1px solid ${mix('var(--brand)', 35)}`,
+              color: 'var(--brand)',
+              fontSize: '11px',
+              fontWeight: 700,
+              cursor: exportLoading ? 'not-allowed' : 'pointer',
+              fontFamily: 'var(--font-mono, monospace)',
+            }}
+            title="Download DB-only audit export (JSON)"
+          >
+            {exportLoading ? 'EXPORTING...' : 'EXPORT JSON'}
+          </button>
 
           <button
             onClick={() => loadData(isDemo)}
@@ -916,6 +1011,77 @@ export function SettlementCockpitPage() {
                 )}
               </div>
             </div>
+
+            {/* Triage block (Slot D.7) — stuck/failed rows only, honest draft fallback */}
+            {selectedItem && TRIAGE_STATES.includes(String(selectedItem.state)) && (
+              <div
+                data-testid="triage-block"
+                style={{
+                  marginTop: '12px',
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  background: mix('var(--rose)', 8),
+                  border: '1px solid color-mix(in srgb, var(--rose) 35%, transparent)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    letterSpacing: '0.06em',
+                    color: 'var(--rose)',
+                    fontFamily: 'var(--font-mono, monospace)',
+                  }}
+                >
+                  ⚡ TRIAGE · {String(selectedItem.state)}
+                </span>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {[
+                    { label: 'copy quote_id', value: selectedItem.quote_id },
+                    { label: 'copy src tx', value: selectedItem.source_tx_hash },
+                    { label: 'copy dest tx', value: selectedItem.dest_tx_hash },
+                  ]
+                    .filter((b) => b.value)
+                    .map((b) => (
+                      <button
+                        key={b.label}
+                        onClick={() => copyToClipboard(b.value)}
+                        style={{
+                          fontSize: '9px',
+                          fontFamily: 'var(--font-mono, monospace)',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          background: mix('var(--brand)', 8),
+                          border: '1px solid var(--border)',
+                          color: 'var(--text)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {b.label}
+                      </button>
+                    ))}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', fontSize: '10px', fontFamily: 'var(--font-mono, monospace)' }}>
+                  {(['src', 'dest'] as const).map((side) => {
+                    const chain = side === 'src' ? selectedItem.src_chain : selectedItem.dest_chain
+                    const tx = side === 'src' ? selectedItem.source_tx_hash : selectedItem.dest_tx_hash
+                    const link = explorerLink(chain, tx)
+                    return link ? (
+                      <a key={side} href={link.href} target="_blank" rel="noreferrer" style={{ color: 'var(--blue)', textDecoration: 'underline' }}>
+                        {side} tx → {link.label}
+                      </a>
+                    ) : (
+                      <span key={side} style={{ color: 'var(--muted-deep)' }}>
+                        {side} tx → no explorer (draft)
+                      </span>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           <hr style={{ borderColor: 'var(--border-soft)', margin: '4px 0' }} />
@@ -924,7 +1090,7 @@ export function SettlementCockpitPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--muted)', letterSpacing: '0.06em' }}>
-                EVENT BLACKBOX ({detail?.events.length || 0})
+                EVENT BLACKBOX ({(fullEvents ?? detail?.events ?? []).length})
               </span>
               <button
                 onClick={downloadAuditJson}
@@ -961,21 +1127,30 @@ export function SettlementCockpitPage() {
                 gap: '8px',
               }}
             >
-              {detail?.events && detail.events.length > 0 ? (
-                detail.events.map((ev) => (
-                  <div
+              {(fullEvents ?? detail?.events ?? []).length > 0 ? (
+                (fullEvents ?? detail?.events ?? []).map((ev) => (
+                  <details
                     key={ev.id}
                     style={{
                       borderBottom: '1px solid var(--border-soft)',
                       paddingBottom: '6px',
                     }}
                   >
-                    <span style={{ color: 'var(--muted-deep)' }}>{ev.created_at.slice(11, 19)}</span>{' '}
-                    <span style={{ color: 'var(--brand)' }}>
-                      [{ev.state_from} → {ev.state_to}]
-                    </span>
-                    <div style={{ color: 'var(--muted)', marginTop: '2px' }}>{ev.reason || ev.event_type}</div>
-                  </div>
+                    <summary style={{ cursor: 'pointer', listStyle: 'none' }}>
+                      <span style={{ color: 'var(--muted-deep)' }}>{ev.created_at.slice(11, 19)}</span>{' '}
+                      <span style={{ color: 'var(--brand)' }}>
+                        [{ev.state_from} → {ev.state_to}]
+                      </span>
+                    </summary>
+                    <div style={{ color: 'var(--muted)', marginTop: '4px' }}>
+                      {ev.reason || ev.event_type || '—'}
+                      {ev.evidence_ref ? (
+                        <div style={{ color: 'var(--muted-deep)', wordBreak: 'break-all', marginTop: '2px' }}>
+                          evidence: {String(ev.evidence_ref)}
+                        </div>
+                      ) : null}
+                    </div>
+                  </details>
                 ))
               ) : (
                 <div style={{ color: 'var(--muted-deep)' }}>No audit events logged yet.</div>

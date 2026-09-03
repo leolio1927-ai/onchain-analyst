@@ -23,7 +23,7 @@ without an engine is the honest state, and it is visible in the payload.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -1174,6 +1174,55 @@ class SettlementFeeRow(BaseModel):
     revenue_leak: bool
     reason: str | None = None
     note: str | None = None
+
+
+class SettlementExportEvent(BaseModel):
+    """One audit event inside an export / events response (Slot D.7)."""
+
+    id: int
+    from_state: str
+    to_state: str
+    event_type: str | None = None
+    reason: str | None = None
+    evidence: str | dict[str, Any] | list[Any] | None = None
+    created_at: str
+    next_poll_at: str | None = None
+
+
+class SettlementEventsResponse(BaseModel):
+    """Full append-only audit trail for one settlement (Slot D.7)."""
+
+    events: list[SettlementExportEvent] = Field(default_factory=list)
+
+
+class SettlementExportRow(BaseModel):
+    """One settlement row with its nested event trail (Slot D.7 export)."""
+
+    quote_id: str
+    wallet: str | None = None
+    provider: str | None = None
+    src_chain: str
+    dest_chain: str
+    state: str
+    reason: str | None = None
+    source_tx_hash: str | None = None
+    dest_tx_hash: str | None = None
+    amount_in: str | None = None
+    amount_out_expected: str | None = None
+    amount_out_min: str | None = None
+    fee_expected_bps: int | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+    events: list[SettlementExportEvent] = Field(default_factory=list)
+
+
+class SettlementExportResponse(BaseModel):
+    """DB-only audit export (Slot D.7). truncated=True = partial window."""
+
+    generated_at: str
+    count: int
+    truncated: bool
+    rows: list[SettlementExportRow] = Field(default_factory=list)
 
 
 

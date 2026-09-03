@@ -428,4 +428,125 @@ describe('Settlement Cockpit Core Requirements', () => {
     expect(screen.getByText('MISMATCH')).toBeDefined()
     expect(screen.getByText('revenue leak')).toBeDefined()
   })
+
+  it('test_triage_copies_quote_id_via_clipboard: triage block wires copy to navigator.clipboard', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+
+    global.fetch = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      if (url.includes('/api/v1/swap/settlements')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            items: [
+              {
+                quote_id: 'q_stuck_01',
+                provider: 'lifi',
+                src_chain: 'eip155:1',
+                dest_chain: 'eip155:8453',
+                state: 'STUCK_UNKNOWN',
+                source_tx_hash: '0xsrcabc123',
+                amount_in: '1 ETH',
+              },
+            ],
+            count: 1,
+            db_enabled: true,
+            dev_feeder: false,
+            generated_at: new Date().toISOString(),
+          }),
+        })
+      }
+      // fee-recon and events endpoints: honest 404 → null / []
+      return Promise.resolve({ ok: false, status: 404, json: async () => ({ detail: 'missing' }) })
+    })
+
+    render(<SettlementCockpitPage />)
+
+    await waitFor(() => {
+      expect(screen.getByText(/⚡ TRIAGE/i)).toBeDefined()
+    })
+
+    fireEvent.click(screen.getByText('copy quote_id'))
+    expect(writeText).toHaveBeenCalledWith('q_stuck_01')
+
+    // stuck row has no dest tx yet: honest draft fallback for the dest side
+    expect(screen.getByText('dest tx → no explorer (draft)')).toBeDefined()
+    expect(screen.getByText(/view on etherscan.io/i)).toBeDefined()
+  })
+
+  it('test_export_button_downloads_audit_json: export hits internal endpoint and downloads a blob', async () => {
+    const createObjectURL = vi.fn(() => 'blob:mock-export')
+    const revokeObjectURL = vi.fn()
+    Object.defineProperty(URL, 'createObjectURL', { value: createObjectURL, configurable: true })
+    Object.defineProperty(URL, 'revokeObjectURL', { value: revokeObjectURL, configurable: true })
+
+    const requestedUrls: string[] = []
+    global.fetch = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      requestedUrls.push(url)
+      // ORDER MATTERS: /settlements/export contains /settlements/ as substring
+      if (url.includes('/api/v1/swap/settlements/export')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            generated_at: '2026-09-02T12:00:00Z',
+            count: 1,
+            truncated: false,
+            rows: [
+              {
+                quote_id: 'q_stuck_01',
+                provider: 'lifi',
+                src_chain: 'eip155:1',
+                dest_chain: 'eip155:8453',
+                state: 'STUCK_UNKNOWN',
+                events: [],
+              },
+            ],
+          }),
+        })
+      }
+      if (url.includes('/api/v1/swap/settlements')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            items: [
+              {
+                quote_id: 'q_stuck_01',
+                provider: 'lifi',
+                src_chain: 'eip155:1',
+                dest_chain: 'eip155:8453',
+                state: 'STUCK_UNKNOWN',
+                amount_in: '1 ETH',
+              },
+            ],
+            count: 1,
+            db_enabled: true,
+            dev_feeder: false,
+            generated_at: new Date().toISOString(),
+          }),
+        })
+      }
+      return Promise.resolve({ ok: false, status: 404, json: async () => ({ detail: 'missing' }) })
+    })
+
+    render(<SettlementCockpitPage />)
+
+    const exportBtn = await waitFor(() => {
+      const btn = screen.getByText('EXPORT JSON')
+      expect(btn).toBeDefined()
+      return btn
+    })
+    fireEvent.click(exportBtn)
+
+    await waitFor(() => {
+      expect(createObjectURL).toHaveBeenCalled()
+    })
+    expect(revokeObjectURL).toHaveBeenCalled()
+    expect(requestedUrls).toContain('/api/v1/swap/settlements/export?limit=2000')
+    expect(screen.getByText(/Exported 1 rows/)).toBeDefined()
+  })
 })
